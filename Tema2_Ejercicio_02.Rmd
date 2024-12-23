@@ -1,0 +1,94 @@
+---
+title: "Tema2_Ejercicio_02"
+author: "Fran Camacho"
+date: "2024-12-16"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Tema2 - Ejercicio 2
+
+### Cargar datos del paquete ISLR 
+
+(Y el paquete gmodels, para las tablas cruzadas. <- no usadas al final).
+
+```{r}
+install.packages("ISLR")
+library("ISLR")
+#install.packages("gmodels")
+#library("gmodels")
+```
+
+### Examinar su contenido (estructura y algunos registros) del dataset Wage:
+
+```{r}
+#Structure
+str(Wage)
+```
+
+
+```{r}
+#Have a look at some data
+head(Wage,10)
+```
+
+
+### Relación entre edad y salario:
+
+```{r}
+plot(x = Wage$age, y = Wage$wage, main = "Scatterplot of Age vs. Salary",
+xlab = "Age", 
+ylab = "Salary")
+```
+
+No se aprecia una influencia importante de la edad en el salario (se ve que los trabajadores más jóvenes tienen salarios más bajos).
+
+
+El resto de variables que pueden influir en el salario son categóricas.
+Si utilizamos el mismo diagrama para intentar relacionar el estado civil con el salario, se obtiene lo siguiente:
+
+### Relación entre estado civil y salario
+
+```{r}
+plot(x = Wage$maritl, y = Wage$wage, main = "Scatterplot of Maritl vs. Salary",
+xlab = "Maritl", 
+ylab = "Salary")
+```
+
+Se puede ver que los casados tienen mejores sueldos, y los nunca casados los peores. Esto es coherente con la relación entre edad y salario: hay en general menos casados entre los hombres más jóvenes.
+
+
+### Relación entre estado civil y salario usando tablas cruzadas
+
+No apropiada para variables numéricas, las dos variables tienen que ser categóricas para utilizar tablas cruzadas.
+
+```{r}
+#CrossTable(x = Wage$maritl, y = Wage$wage)   
+```
+
+
+### Relación entre raza y salario
+
+```{r}
+plot(x = Wage$race, y = Wage$wage, main = "Scatterplot of Race vs. Salary",
+xlab = "Race", 
+ylab = "Salary")
+```
+
+Se puede apreciar como en este dataset los trabajadores de origen asiático tienen en general mejores sueldos, pero como en cambio entre las personas blancas se dan más casos de salarios atípicamente altos.
+
+### Relación entre educación y salario
+
+```{r}
+plot(x = Wage$education, y = Wage$wage, main = "Scatterplot of Education vs. Salary",
+xlab = "Education", 
+ylab = "Salary")
+```
+
+Aquí se puede ver claramente una correlación positiva entre educación y salario: a mejor educación, mejor salario.
+
