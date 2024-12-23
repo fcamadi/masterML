@@ -1,0 +1,183 @@
+---
+title: "Tema2_Ejercicio_01"
+author: "Fran Camacho"
+date: "2024-12-16"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Tema2 - Ejercicio 1
+
+### Cargar datos del paquete ISLR
+
+```{r}
+install.packages("ISLR")
+library("ISLR")
+```
+
+### Elegimos el dataset Credit para examinar su contenido (estructura y resumen):
+
+```{r}
+#Structure
+str(Credit)
+```
+
+Este data frame contiene 400 observaciones, con 12 variables cada una de ellas (en la documentación se mencionan 10000 y 4 variables ..)
+Eliminamos el ID, mostramos algunos registros para ver su aspecto, y finalmente el resumen estadístico con "summary".
+
+```{r}
+credit <- Credit[-1]
+
+head(credit,10)
+tail(credit,10)
+
+#Summary
+summary(credit)
+```
+
+Todos los registros contienen todos los valores (no hay NAs, ni nulos). Aunque algunos balances están a 0 (según la documentación es un valor promedio).
+También me llama mucho la atención la columna "Etnia" ...
+
+A la función "summary" se le puede pasar un vector con las variables a analizar, si se quiere poner el foco en algunas de ellas.
+Elijo tres que considero bastante relevantes en este dataset:
+
+```{r}
+#Summary of Income, Rating and Balance
+summary(credit[c("Income", "Rating", "Balance")])
+```
+
+No me parece que la media y la mediana estén muy separadas para estas variables (la media es afectada mucho más por valores extremos, así que entiendo que no hay muchos valores de esa clase).
+
+
+### Cuantiles y rango intercuartil (IQR: interquartile range)
+
+La diferencia entre el cuartil 1 (Q1) y el cuartil 3 (Q3) es conocido como "rango intercuartil", y es de interés porque representa una medida simple de la dispersión de los datos.
+
+```{r}
+#IQR Income
+IQR(credit$Income)
+#IQR Rating
+IQR(credit$Rating)
+#IQR Balance
+IQR(credit$Balance)
+
+```
+
+Aquí se puede ver por ejemplo que el 50% de los ingresos están en el rango que va desde los 21.000$ del Q1 a los 57000 del Q3 (IQR=36.464\$)
+
+La función que nos devuelve los cuantiles es "quantile". Sin parámetros nos devuelve los mismos valores que la función "summary".
+Si por ejemplo queremos averiguar los ingresos del 10% de la población con menores y mayores ingresos, debemos llamar a la función quantile con estos parámetros:
+
+```{r}
+quantile(credit$Income, probs = c(0.1, 0.9))
+```
+
+El 10% de la población tiene ingresos inferiores a 14.5583\$, y el 10% con más ingresos gana más de 92.451\$.
+
+
+### Visualización de variables numéricas con diagramas de cajas ("boxplots")
+
+Los diagramas de caja permiten una visualización de los datos que puede ayudar a diagnosticar problemas que afecten al rendimiento de los algoritmos. Gracias a ellos se puede ver a simple vistala la mediana, el rango de los valores, los valores atípicos ... (también los 5 cuantiles obtenidos al llamar a la función "summary").
+
+
+```{r}
+#Boxplot for variable income
+boxplot(credit$Income, main = "Boxplot of Income", ylab = "Income (1,000's $)")
+```
+
+Al analizar la variable ingresos con la ayuda de su diagrama de cajas, se puede ver que la mediana está más cerca del Q1 que del Q3, y que sí hay bastantes valores atípicos.
+
+Estos valores atípicos (superiores) se suelen calcular de la siguiente manera:
+
+  Q3  + 1.5 * IQR
+57470 + 1.5 * 36464 = 112.000
+
+Todos los salarios por encima de la línea que marca los 112.000$, son considerados por tanto valores atípicos ("outliers")
+
+
+
+Si analizamos las otras dos variables "rating" y balance medio en la cuenta:
+
+```{r}
+#Boxplot for variables rating and balance
+boxplot(credit$Rating, main = "Boxplot of Rating", ylab = "Rating")
+boxplot(credit$Balance, main = "Boxplot of Balance", ylab = "Balance")
+```
+Vemos que el diagrama de cajas del rating es bastante parecido al de los ingresos, mientras que el del balance no muestra valores extremos (debido probablemente a que es un valor medio, y a que las tarjetas de crédito suelen tener unos límites estándares).
+
+
+### Visualización de variables numéricas con histogramas
+
+```{r}
+hist(credit$Income, main = "Histogram of incomes", xlab = "Income (in 1000$)")
+```
+Se puede ver claramente como en los ingresos hay un sesgo hacia la derecha (los valores en el extremo derecho están más dispersos).
+
+```{r}
+hist(credit$Rating, main = "Histogram of ratings", xlab = "Rating")
+hist(credit$Balance, main = "Histogram of balance", xlab = "Balance (in $)")
+```
+
+También se da el sesgo a la derecha para el rating y el balance. Entiendo que las tres variables están muy relacionadas, lógicamente.
+
+### Varianza y desviación estándar
+
+La varianza y la desviación estándard proporcionan información sobre la dispersión de una variable. Una varianza con un valor elevado indica una dispersión elevada. La desviación estándard indica la diferencia de cada valor con la media.
+
+```{r}
+# variance and standard deviation of income
+var(credit$Income)
+sd(credit$Income)
+```
+
+
+```{r}
+# variance and standard deviation of rating 
+var(credit$Rating)
+sd(credit$Rating)
+# and balance
+var(credit$Balance)
+sd(credit$Balance)
+```
+
+La varianza del balance, me parece completamente exagerada. Solo puedo deducir que se debe a la presencia de muchas personas que tienen una media de 0 en sus balances.
+
+### Exploración de variables categóricas
+
+En el dataset Credit hay 4 variables categóricas (género, "etnia", estado civil, y estado "estudiantil" -la educación viene en años cursados, no por el grado/título obtenido, así que es numérica en este caso).
+Para analizar variables categóricas se suelen utilizar tablas en lugar de funciones estadísticas:
+
+```{r}
+# Gender
+table(credit$Gender) 
+
+```
+```{r}
+# Married
+table(credit$Married) 
+
+```
+
+```{r}
+# Ethnicity
+table(credit$Ethnicity) 
+
+```
+
+Si se quiere ver el porcentaje de observaciones de cada categoría:
+
+```{r}
+# Ethnicity
+prop.table(table(credit$Ethnicity))*100
+
+```
+
+
+
+
+
