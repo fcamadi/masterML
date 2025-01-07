@@ -1,0 +1,408 @@
+---
+title: "Tema3_Ejercicio"
+author: "Fran Camacho"
+date: "2024-12-28"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema3 - Ejercicio
+
+La base de datos Diabetes en "Pima Indian Women", incluida en la librería MASS, contiene una muestra de 532 pacientes en edad adulta, y es utilizada para realizar un estudio sobre la diabetes.
+
+[Observación: para conseguir los 532 registros de pacientes debe agregar los datasets Pima.tr y Pima.te usando la función rbind]
+
+
+### Cargar datos del paquete MASS 
+
+(Y también otros paquetes para funciones diversas).
+
+```{r}
+#install.packages("MASS")
+library(MASS)
+#install.packages("gmodels")   # cross tables
+library(gmodels)      
+#install.packages("caret")     # data partitioning, confusion matrix
+library(caret)                  
+#install.packages("class")     # knn algorithm
+library(class)
+```
+
+
+## Paso 2: Eexplorar y preparar los datos
+
+
+### Examinar contenido (estructura y algunos registros) de los datasets Pima.tr y Pima.te:
+
+```{r}
+#Structure
+str(Pima.tr)
+str(Pima.te)
+```
+
+
+```{r}
+#Have a look at some data
+head(Pima.tr,5)
+head(Pima.te,5)
+```
+
+Se puede ver que los datasets tienen exactamente la misma estructura, así que podemos unirlos en un único dataset como se pide:
+
+```{r}
+#Have a look at some data
+pima <-  rbind(Pima.tr,Pima.te)
+#write.csv(pima,file='Chapter03/pima.csv',na='') <- export data to be used also with Python
+str(pima)
+```
+
+
+### Variable dependiente
+
+El atributo "type" es de especial interés, ya que es la variable que se quiere predecir.
+
+Como dicho nombre "type" es demasiado genérico, le damos otro nombre más semántico ("diagnóstico").
+También aprovechamos para cambiar el nombre de los niveles (a "positivo" y "negativo")
+
+
+```{r}
+#Rename target variable and its levels
+colnames(pima)[8] = "diagnosis"
+levels(pima$diagnosis) <- c("Negative", "Positive")
+```
+
+Resumen estadístico de la variable dependiente
+
+```{r}
+#Statistics of type/diagnosis
+table(pima$diagnosis)
+round(prop.table(table(pima$diagnosis))*100, digits = 2)
+```
+
+
+### Normalización de los datos
+
+El resultado del algoritmo KNNs depende en gran manera del modo en que se calculan las distancias entre las observaciones. Una variable con un rango de valores más grande, tendrá por tanto mucha mayor influencia que una con un rango más acotado. Es por tanto conveniente proceder a normalizar las variables numéricas.
+
+Resumen estadístico antes de normalizar:
+
+```{r}
+#Summary before normalization
+summary(pima)
+```
+
+Normalización ("min-max scaling"):
+
+```{r}
+# Normalization (with the help of package caret):
+# The preProcess() function scales the values to a range of 0 to 1 using method = c('range') as an argument. 
+# The predict() method applies the actions of the preProcess() function on the entire data
+process <- preProcess(pima, method=c("range"))
+pima_norm <- predict(process, pima)
+```
+
+
+Resumen estadístico después de normalizar:
+
+```{r}
+#Summary after normalization
+summary(pima_norm)
+```
+
+Se comprueba que todos los valores están ahora entre 0 y 1.
+
+```{r}
+#Summary after normalization with aux. function
+#
+# normalize <- function(x) {
+#   return ((x - min(x)) / (max(x) - min(x)))
+# }
+# pima_norm_2 <- as.data.frame(lapply(pima[1:7], normalize))
+#
+# summary(pima_norm_2)  <- se obtienen los mismos resultados, claro
+```
+
+
+### Crear conjuntos de datos para entrenamiento y para test
+
+Creamos los dos conjuntos con el siguiente código:
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+#partitioning data frame into training and testing sets
+train_indices <- createDataPartition(pima_norm$diagnosis, times=1, p=.7, list=FALSE)
+
+#create training set
+pima_norm_train <- pima_norm[train_indices, 1:7]
+
+#create testing set
+pima_norm_test  <- pima_norm[-train_indices, 1:7]
+
+#view number of rows in each set
+#nrow(pima_norm_train)  # 373
+#nrow(pima_norm_test)   # 159
+```
+
+Crear el etiquetado.
+(Lo necesitaremos para evaluar posteriormente el algoritmo).
+
+
+```{r}
+#Labels for training and tests
+pima_norm_train_labels <- pima_norm[train_indices , 8]
+pima_norm_test_labels <- pima_norm[-train_indices, 8]
+#length(pima_norm_train_labels)  # 373
+#length(pima_norm_test_labels)   # 159
+```
+
+
+## Paso 3: Entrenamiento
+
+El algoritmo KNN, no construye un modelo, el proceso de entrenamiento consiste simplemente en almacenar los datos en un un formato estructurado. 
+Para clasificar las instancias del conjunto test, utilizamos la implementación del algoritmo knn del paquete "class" (importado en el primer paso).
+Elegimos para k el valor 19, por ser 19 un valor aproximado a la raíz cuadrada del total de observaciones (373).
+
+```{r}
+#> ?knn
+pima_pred <- knn(train = pima_norm_train, test = pima_norm_test, cl = pima_norm_train_labels, k = 19)
+```
+
+
+## Paso 4: Evaluación
+
+Para evaluar el algoritmo, comparamos el resultado obtenido, con el vector donde guardamos anteriormente los datos etiquetados (pima_norm_test_labels).
+Para realizar dicha comparación, utilizaremos primero la función CrossTable del paquete "gmodels":
+
+
+```{r}
+# CrossTable/ConfusionMatrix
+CrossTable(x = pima_norm_test_labels, y = pima_pred, prop.chisq = FALSE)
+```
+
+Análisis de la tabla:
+
+- El algoritmo ha predicho 94 resultados negativos de manera correcta. 
+- Pero en cambio ha devuelto 22 resultados como negativos, cuando en realidad son positivos (falsos negativos).
+Esto puede tener consecuencias bastante importantes, porque los pacientes pueden pensar que no tienen un problema (diabetes en este caso), y retrasar el tratamiento.
+- El algoritmo también ha devuelto bastantes falsos positivos: ha devuelto 12 como casos de diabetes que en realidad no lo son.
+- Sí ha devuelto 31 positivos de manera correcta.
+
+
+**Evaluación utilizando la función confusionMatrix del paquete "caret":**
+
+
+```{r}
+# confusionMatrix from package caret
+confusionMatrix(reference = pima_norm_test_labels, data = pima_pred, mode = "everything")
+```
+
+Esta función nos devuelve directamente el valor de la **exactitud** (**"accuracy"**):
+
+    TP + TN / TP + FP + TN + FN (total) = 31 + 94 / 31 + 12 + 94 + 22 = 31 + 94 / 159 = 0.7862 
+
+Es decir, los clasificados correctamente sobre el total.
+
+
+Con el parámetro mode = "everything", devuelve tambiém la Precision, el Recall y el F1:
+
+
+**Precisión**
+
+Es la proporción de todas las clasificaciones positivas que realmente son positivas
+
+Precision = TP / TP + FP = 31 / 31 + 12 = 0.7209  (Neg Pred Value : 0.7209)
+
+Si consideramos que lo "positivo" es no tener diabetes ..
+
+Precision = TN / TN + FN = 94 / 94 + 22 = 0.8103 (Que es el valor que aparece como Precision y como Pos Pred Value)
+
+
+**Recall** (Recuperación, o Tasa de verdaderos positivos (TPR))
+
+Proporción de todos los positivos reales que se clasificaron correctamente como positivos, también se conoce como recuperación.
+
+Recall "pos." = TP / TP + FN = 31 / 31 + 22 = 0.5849 (Specificity)
+
+Si consideramos de nuevo que lo "positivo" es no tener diabetes:
+
+Recall = TN / TN + FP = 94 / 94 + 12 = 0.8868  (Sí coincide con lo que devuelve la función confusionMatrix)
+
+**F1 score** (Puntuación F1)
+
+La puntuación F1 es la media armónica (un tipo de promedio) de la precisión y la recuperación.
+Se obtiene de la siguiente manera:
+
+
+F1 = 2 x (precision x recall) / (precision + recall) = 2TP / 2TP + FP + FN = 0.8468
+
+(
+  Se obtiene otra vez considerando que el TN (no tener diabetes) es el TP:
+       
+     2x94 / 2x94 + 12 + 22 = 0.8468
+)   
+
+"Esta métrica equilibra la importancia de la precisión y la recuperación, y es preferible a la precisión para los conjuntos de datos con desequilibrio de clases. Cuando la precisión y la recuperación tienen puntuaciones perfectas de 1.0, F1 también tendrá una puntuación perfecta de 1.0. 
+En términos más generales, cuando la precisión y la recuperación sean similares en valor, F1 estará cerca de su valor. 
+Cuando la precisión y la recuperación estén muy separadas, F1 será similar a la métrica que sea peor."
+
+Tomado de:
+
+https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall
+
+]
+
+
+## Paso 5: intentar mejorar el modelo
+
+
+### i) Usar otra normalización
+
+Ahora probamos a normalizar utilizando la normalización "z score". Para ello usamos la función "scale":
+
+```{r}
+# use the scale() function to z-score standardize a data frame (all columns but the target variable)
+pima_z <- as.data.frame(scale(pima[-8]))
+pima_z <- cbind(pima_z,pima[8])
+```
+
+
+Resumen estadístico después de normalizar con z:
+
+```{r}
+#Summary after normalization z-score
+summary(pima_z)
+```
+
+Los valores no están entre 0 y 1, como ocurre con la normalizacón min-max.
+
+Repetimos ahora los mismos pasos:
+
+Dividir en 2 conjuntos (train y test)
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+train_indices_z <- createDataPartition(pima_z$diagnosis, times=1, p=.7, list=FALSE)
+
+pima_z_train <- pima_z[train_indices, 1:7]
+
+pima_z_test  <- pima_z[-train_indices, 1:7]
+
+```
+
+Etiquetado
+
+```{r}
+pima_z_train_labels <- pima_z[train_indices, 8]
+pima_z_test_labels <- pima_z[-train_indices, 8]
+```
+
+Entrenamiento
+
+```{r}
+pima_z_pred <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 19)
+```
+
+Evaluación
+
+```{r}
+confusionMatrix(reference = pima_z_test_labels, data = pima_z_pred, mode = "everything")
+```
+z-score:                max-min norm.:
+
+ Accuracy : 0.7987      Accuracy : 0.7862   
+Precision : 0.8136     Precision : 0.8103     
+   Recall : 0.9057        Recall : 0.8868
+       F1 : 0.8571            F1 : 0.8468 
+
+
+Se obtiene una pequeña mejora con la normalización z.
+
+
+
+### ii) Usando otros valores de k
+
+
+*k = 15* - min-max
+
+```{r}
+
+pima_pred_k15 <- knn(train = pima_norm_train, test = pima_norm_test, cl = pima_norm_train_labels, k = 15)
+confusionMatrix(reference = pima_norm_test_labels, data = pima_pred_k15, mode = "everything")
+```
+
+
+*k = 25* min-max
+
+```{r}
+
+pima_pred_k25 <- knn(train = pima_norm_train, test = pima_norm_test, cl = pima_norm_train_labels, k = 25)
+confusionMatrix(reference = pima_norm_test_labels, data = pima_pred_k25, mode = "everything")
+```
+
+
+*k = 15* - z-score
+
+```{r}
+
+pima_pred_z_k15 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 15)
+confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k15, mode = "everything")
+```
+
+
+*k = 25* - z-score
+
+```{r}
+pima_pred_z_k25 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 25)
+confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k25, mode = "everything")
+```
+
+k=15 , z-score:         k=15,  min-max norm.:
+
+ Accuracy : 0.7925      Accuracy : 0.7987   
+Precision : 0.8174     Precision : 0.8304     
+   Recall : 0.8868        Recall : 0.8774 
+       F1 : 0.8507            F1 : 0.8532 
+ 
+
+k=19 , z-score:         k=19,  min-max norm.:
+
+ Accuracy : 0.7987      Accuracy : 0.7862   
+Precision : 0.8136     Precision : 0.8103     
+   Recall : 0.9057        Recall : 0.8868
+       F1 : 0.8571            F1 : 0.8468 
+  
+       
+k=25 , z-score:         k=25,  min-max norm.:
+
+ Accuracy : 0.8113      Accuracy : 0.805   
+Precision : 0.8167     Precision : 0.8205     
+   Recall : 0.9245        Recall : 0.9057
+       F1 : 0.8673            F1 : 0.8610        
+       
+
+
+Diría que la primera opción que se ha probado (k=19, min-max), es la que obtiene peores valores.
+Con Ks algo menor y algo mayor, se obtiene mejor exactitud. 
+Y con la "normalización z", se mejoran los valores de exactitud (y precision,recall y F1 también) para los 3 Ks elegidos.
+      
+      
+```{r}
+# Others Ks
+#pima_pred_z_k10 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 10)
+#confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k10, mode = "everything")       # ->  Accuracy : 0.7799
+#pima_pred_z_k30 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 30)
+#confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k30, mode = "everything")        # -> Accuracy : 0.805     
+#pima_pred_z_k35 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 35)
+#confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k35, mode = "everything")        # -> Accuracy : 0.8113, Recall : 0.9434 (better than k-=25)  
+
+```      
+       
