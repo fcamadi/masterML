@@ -34,7 +34,7 @@ library(class)
 ```
 
 
-## Paso 2: Eexplorar y preparar los datos
+## Paso 2: Explorar y preparar los datos
 
 
 ### Examinar contenido (estructura y algunos registros) de los datasets Pima.tr y Pima.te:
@@ -331,7 +331,7 @@ Se obtiene una pequeña mejora con la normalización z.
 ### ii) Usando otros valores de k
 
 
-*k = 15* - min-max
+**k = 15 - min-max**
 
 ```{r}
 
@@ -340,7 +340,7 @@ confusionMatrix(reference = pima_norm_test_labels, data = pima_pred_k15, mode = 
 ```
 
 
-*k = 25* min-max
+**k = 25 min-max**
 
 ```{r}
 
@@ -349,7 +349,7 @@ confusionMatrix(reference = pima_norm_test_labels, data = pima_pred_k25, mode = 
 ```
 
 
-*k = 15* - z-score
+**k = 15 - z-score**
 
 ```{r}
 
@@ -358,41 +358,61 @@ confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k15, mode = "
 ```
 
 
-*k = 25* - z-score
+**k = 25 - z-score**
 
 ```{r}
 pima_pred_z_k25 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 25)
 confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k25, mode = "everything")
 ```
 
-k=15 , z-score:         k=15,  min-max norm.:
 
- Accuracy : 0.7925      Accuracy : 0.7987   
-Precision : 0.8174     Precision : 0.8304     
-   Recall : 0.8868        Recall : 0.8774 
-       F1 : 0.8507            F1 : 0.8532 
+ R                                                 Python & scikit-learn (*)                  
+----------------------------------------------------------------------------------------------
+
+k=15 , z-score         k=15,  min-max norm.       k=15 , z-score         k=15,  min-max norm. 
+----------------------------------------------------------------------------------------------
+ Accuracy : 0.7925      Accuracy : 0.7987          Accuracy : 0.7938      Accuracy : 0.7687   
+----------------------------------------------------------------------------------------------
+Precision : 0.8174     Precision : **0.8304**     Precision : 0.6304     Precision : 0.7021   
+----------------------------------------------------------------------------------------------
+   Recall : 0.8868        Recall : 0.8774            Recall : 0.6444        Recall : 0.5893     
+----------------------------------------------------------------------------------------------
+       F1 : 0.8507            F1 : 0.8532                F1 : 0.6374            F1 : 0.6408   
+----------------------------------------------------------------------------------------------
  
 
-k=19 , z-score:         k=19,  min-max norm.:
 
- Accuracy : 0.7987      Accuracy : 0.7862   
-Precision : 0.8136     Precision : 0.8103     
-   Recall : 0.9057        Recall : 0.8868
-       F1 : 0.8571            F1 : 0.8468 
-  
+k=19 , z-score:         k=19,  min-max norm.:     k=19 , z-score:        k=19,  min-max norm.:                    
+----------------------------------------------------------------------------------------------
+ Accuracy : 0.7987      Accuracy : 0.7862          Accuracy : **0.8438**  Accuracy : 0.775000 
+----------------------------------------------------------------------------------------------
+Precision : 0.8136     Precision : 0.8103         Precision : 0.7500     Precision : **0.764706** 
+----------------------------------------------------------------------------------------------
+   Recall : 0.9057        Recall : 0.8868            Recall : **0.6667**    Recall : 0.464286 
+----------------------------------------------------------------------------------------------
+       F1 : 0.8571            F1 : 0.8468                F1 : **0.7059**        F1 : 0.577778   
+----------------------------------------------------------------------------------------------
+
+
+----------------------------------------------------------------------------------------------       
+k=25 , z-score:         k=25,  min-max norm.:     k=25 , z-score:        k=25,  min-max norm.:
+----------------------------------------------------------------------------------------------
+ Accuracy : **0.8113**  Accuracy : 0.805           Accuracy : 0.8250      Accuracy : 0.7625 
+----------------------------------------------------------------------------------------------
+Precision : 0.8167     Precision : 0.8205         Precision : 0.7073     Precision : 0.6875   
+----------------------------------------------------------------------------------------------
+   Recall : **0.9245**    Recall : 0.9057            Recall : 0.6444        Recall : 0.5893
+----------------------------------------------------------------------------------------------
+       F1 : **0.8673**        F1 : 0.8610                F1 : 0.6744            F1 : 0.6346
+----------------------------------------------------------------------------------------------
        
-k=25 , z-score:         k=25,  min-max norm.:
-
- Accuracy : 0.8113      Accuracy : 0.805   
-Precision : 0.8167     Precision : 0.8205     
-   Recall : 0.9245        Recall : 0.9057
-       F1 : 0.8673            F1 : 0.8610        
-       
 
 
-Diría que la primera opción que se ha probado (k=19, min-max), es la que obtiene peores valores.
+Diría que la opción que he probado primero (k=19, min-max), es la que obtiene peor resultado.
 Con Ks algo menor y algo mayor, se obtiene mejor exactitud. 
 Y con la "normalización z", se mejoran los valores de exactitud (y precision,recall y F1 también) para los 3 Ks elegidos.
+      
+
       
       
 ```{r}
@@ -402,7 +422,7 @@ Y con la "normalización z", se mejoran los valores de exactitud (y precision,re
 #pima_pred_z_k30 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 30)
 #confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k30, mode = "everything")        # -> Accuracy : 0.805     
 #pima_pred_z_k35 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 35)
-#confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k35, mode = "everything")        # -> Accuracy : 0.8113, Recall : 0.9434 (better than k-=25)  
+#confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k35, mode = "everything")        # -> Accuracy : 0.8113, Recall : 0.9434 (better than k=25)  
 
 ```      
        
