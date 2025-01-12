@@ -3,8 +3,8 @@ title: "Tema3_Ejercicio"
 author: "Fran Camacho"
 date: "2024-12-28"
 output:
-  pdf_document: default
   word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -55,9 +55,9 @@ head(Pima.te,5)
 Se puede ver que los datasets tienen exactamente la misma estructura, así que podemos unirlos en un único dataset como se pide:
 
 ```{r}
-#Have a look at some data
+#Join datasets
 pima <-  rbind(Pima.tr,Pima.te)
-#write.csv(pima,file='Chapter03/pima.csv',na='') <- export data to be used also with Python
+#write.csv(pima,file='Chapter03/pima.csv',na='') <- export data to be used lately with Python & scikit-learn
 str(pima)
 ```
 
@@ -87,7 +87,7 @@ round(prop.table(table(pima$diagnosis))*100, digits = 2)
 
 ### Normalización de los datos
 
-El resultado del algoritmo KNNs depende en gran manera del modo en que se calculan las distancias entre las observaciones. Una variable con un rango de valores más grande, tendrá por tanto mucha mayor influencia que una con un rango más acotado. Es por tanto conveniente proceder a normalizar las variables numéricas.
+El resultado del algoritmo KNNs depende en gran medida del modo en que se calculan las distancias entre las observaciones. Una variable con un rango de valores más grande, tendrá mucha mayor influencia que una con un rango más acotado. Es por tanto conveniente proceder a normalizar las variables numéricas.
 
 Resumen estadístico antes de normalizar:
 
@@ -178,7 +178,7 @@ pima_pred <- knn(train = pima_norm_train, test = pima_norm_test, cl = pima_norm_
 ## Paso 4: Evaluación
 
 Para evaluar el algoritmo, comparamos el resultado obtenido, con el vector donde guardamos anteriormente los datos etiquetados (pima_norm_test_labels).
-Para realizar dicha comparación, utilizaremos primero la función CrossTable del paquete "gmodels":
+Para realizar dicha comparación, utilizaremos primero la función **CrossTable** del paquete "gmodels":
 
 
 ```{r}
@@ -316,7 +316,7 @@ Evaluación
 ```{r}
 confusionMatrix(reference = pima_z_test_labels, data = pima_z_pred, mode = "everything")
 ```
-z-score:                max-min norm.:
+z-score:                min-max norm.:
 
  Accuracy : 0.7987      Accuracy : 0.7862   
 Precision : 0.8136     Precision : 0.8103     
@@ -410,13 +410,14 @@ Precision : 0.8167     Precision : 0.8205         Precision : 0.7073     Precisi
 
 Diría que la opción que he probado primero (k=19, min-max), es la que obtiene peor resultado.
 Con Ks algo menor y algo mayor, se obtiene mejor exactitud. 
-Y con la "normalización z", se mejoran los valores de exactitud (y precision,recall y F1 también) para los 3 Ks elegidos.
+Y con la normalización z-score, se mejoran los valores de exactitud (y precision,recall y F1 también) para los 3 Ks elegidos.
       
 
       
       
 ```{r}
-# Others Ks
+# Others Ks (not better results obtained)
+#
 #pima_pred_z_k10 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 10)
 #confusionMatrix(reference = pima_z_test_labels, data = pima_pred_z_k10, mode = "everything")       # ->  Accuracy : 0.7799
 #pima_pred_z_k30 <- knn(train = pima_z_train, test = pima_z_test, cl = pima_z_train_labels, k = 30)
