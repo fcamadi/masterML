@@ -215,24 +215,16 @@ Con el parámetro mode = "everything", devuelve tambiém la Precision, el Recall
 
 **Precisión**
 
-Es la proporción de todas las clasificaciones positivas que realmente son positivas
+Esta función está considerando que lo "positivo" es no tener diabetes ("'Positive' Class: Negative"), así que el valor se obtiene de esta manera
 
-Precision = TP / TP + FP = 31 / 31 + 12 = 0.7209  (Neg Pred Value : 0.7209)
-
-Si consideramos que lo "positivo" es no tener diabetes ..
-
-Precision = TN / TN + FN = 94 / 94 + 22 = 0.8103 (Que es el valor que aparece como Precision y como Pos Pred Value)
+Precision = TN / TN + FN = 94 / 94 + 22 = 0.8103 
 
 
 **Recall** (Recuperación, o Tasa de verdaderos positivos (TPR))
 
 Proporción de todos los positivos reales que se clasificaron correctamente como positivos, también se conoce como recuperación.
 
-Recall "pos." = TP / TP + FN = 31 / 31 + 22 = 0.5849 (Specificity)
-
-Si consideramos de nuevo que lo "positivo" es no tener diabetes:
-
-Recall = TN / TN + FP = 94 / 94 + 12 = 0.8868  (Sí coincide con lo que devuelve la función confusionMatrix)
+Recall = TN / TN + FP = 94 / 94 + 12 = 0.8868
 
 **F1 score** (Puntuación F1)
 
@@ -243,7 +235,7 @@ Se obtiene de la siguiente manera:
 F1 = 2 x (precision x recall) / (precision + recall) = 2TP / 2TP + FP + FN = 0.8468
 
 (
-  Se obtiene otra vez considerando que el TN (no tener diabetes) es el TP:
+  Al igual que en los dos casos anteriores, se considera como positivo a la clase negativa
        
      2x94 / 2x94 + 12 + 22 = 0.8468
 )   
