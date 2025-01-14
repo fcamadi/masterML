@@ -10,7 +10,7 @@
 # amount of text that can be used to identify whether a message is junk.
 
 
-## Step 2: Exploring and preparing the data 
+# Step 2: Exploring and preparing the data 
 ################################################################################
 # import the CSV file
 sms_raw <- read.csv(file.path("Chapter04", "sms_spam.csv"))
@@ -192,6 +192,79 @@ sms_test <- apply(sms_dtm_freq_test, MARGIN = 2, convert_counts)
 # The result will be two character-type matrices, each with cells indicating "Yes" or "No" for whether
 # the word represented by the column appears at any point in the message represented by the row.
 
+str(sms_train)
+
+# Step 3: Training a model on the data
+################################################################################
+
+#The Naive Bayes algorithm will use the presence or absence of words to estimate the probability that a given SMS message is spam.
+
+install.packages("naivebayes")
+library(naivebayes)
+
+sms_classifier <- naive_bayes(sms_train, sms_train_labels)
+
+# warnings() -> 1: naive_bayes(): Feature £wk - zero probabilities are present. Consider Laplace smoothing.   <- we will consider it later ,)
+
+# Step 4: Evaluating the model 
+################################################################################
+
+#predict
+sms_test_pred <- predict(sms_classifier, sms_test)
+
+library(gmodels)
+
+CrossTable(sms_test_pred, sms_test_labels, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('predicted', 'actual'))
 
 
+#  Total Observations in Table:  1390 
+#
+#
+#              | actual 
+#    predicted |       ham |      spam | Row Total | 
+# -------------|-----------|-----------|-----------|
+#          ham |      1201 |        30 |      1231 | 
+#              |     0.864 |     0.022 |           | 
+# -------------|-----------|-----------|-----------|
+#         spam |         6 |       153 |       159 | 
+#              |     0.004 |     0.110 |           | 
+# -------------|-----------|-----------|-----------|
+# Column Total |      1207 |       183 |      1390 | 
+
+# 36 messages were wrongly classified:   36 / 1390 = 2.6% only!
+
+library(caret) 
+confusionMatrix(reference = sms_test_labels, data = sms_test_pred, mode = "everything")
+
+#  Accuracy : 0.9741     
+# Precision : 0.9756          
+#    Recall : 0.9950          
+#        F1 : 0.9852  
+# 
+# 'Positive' Class : ham 
+
+# Step 5: Improving the model 
+################################################################################
+
+
+#  laplace = 1
+sms_classifier_laplace <- naive_bayes(sms_train, sms_train_labels, laplace = 1)
+
+
+sms_test_pred_laplace <- predict(sms_classifier_laplace, sms_test)
+
+
+confusionMatrix(reference = sms_test_labels, data = sms_test_pred_laplace, mode = "everything")
+
+#             Reference
+# Prediction  ham  spam
+#        ham  1202   28
+#       spam     5  153
+
+The number of false positives was reduced from 6 to 5, and the number of false negatives from 30 to 28.
+
+#  Accuracy : 0.9763     
+# Precision : 0.9772          
+#    Recall : 0.9959          
+#        F1 : 0.9865  
 
