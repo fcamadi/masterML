@@ -1,0 +1,55 @@
+---
+title: "Tema4_Ejercicio"
+author: "Fran Camacho"
+date: "2025-01-15"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema4 - Ejercicio
+
+El fichero “movie-pang02.csv”, disponible en la carpeta de Pruebas de Evaluación del Máster, contiene una muestra de 2000 reviews de películas de
+la página web IMDB utilizada en el artículo de Pang, B. y Lee, L., "A Sentimental Education: Sentiment Analysis Using Subjectivity Summarization Based on
+Minimum Cuts, Proceedings of ACL 2004". 
+
+Dichas reviews están etiquetadas mediante la variable class como positivas (“Pos”) o negativas (“Neg”).
+Utilizando dicho dataset, elabore un modelo de clasificación de reviews en base a su texto siguiendo el procedimiento descrito en el capítulo 4 del texto base
+en el ejemplo de SMS Spam. En particular, genere las nubes de palabras para las reviews positivas y negativas, y obtenga el modelo asignando los valores 0
+y 1 al parámetro laplace de la función naiveBayes(), comparando las matrices de confusión de cada variante del modelo.
+
+
+## Paso 2: Explorar y preparar los datos
+
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+#install.packages("tm")          # text mining
+library(tm)
+#install.packages("SnowballC")   # stemming
+library(SnowballC)
+#install.packages("wordcloud")   # wordclouds
+library(wordcloud)
+
+#install.packages("naivebayes")
+library(naivebayes)
+
+#install.packages("gmodels")   # cross tables
+library(gmodels)      
+#install.packages("caret")     # data partitioning, confusion matrix
+library(caret)                  
+```
+
+### Cargar datos del fichero movie-pang02.csv
+
+```{r}
+# import the CSV file
+movies_raw <- read.csv(file.path("Chapter04", "Movie_pang02.csv"))
+```
+
+
+
+
