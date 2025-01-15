@@ -148,11 +148,14 @@ Finalmente, se procede a la **"tokenización"** de los textos de las críticas.
 
 Mediante la función DocumentTermMatrix() del paquete "tm", se crea una estructura llamada "document-term matrix (DTM)",
 que como su nombre indica es una matriz, cuyas filas consisten en los textos(documentos) y cuyas columnas son las palabras que aparecen en esos documentos.
+Los valores en cada celda son las frecuencias con la que aparece cada palabra en cada documento.
 
 ```{r}
 movies_dtm <- DocumentTermMatrix(movies_corpus_clean)
 movies_dtm
 ```
+
+[Tenemos 2000 documentos, y 24951 palabras].
 
 Ahora hay que crear los conjuntos de entrenamiento y de test.
 Las críticas vienen ordenadas, primero las 1000 críticas positivas, y después las 1000 críticas negativas.
@@ -176,10 +179,10 @@ movies_train_labels <- movies_raw[train_indices, ]$class
 movies_test_labels <- movies_raw[-train_indices, ]$class
 
 #view number of rows in each set
-nrow(movies_dtm_train)  # 1500
-nrow(movies_dtm_test)   # 500
-length(movies_train_labels)  # 1500
-length(movies_test_labels)   # 500
+#nrow(movies_dtm_train)  # 1500
+#nrow(movies_dtm_test)   # 500
+#length(movies_train_labels)  # 1500
+#length(movies_test_labels)   # 500
 ```
 
 Vamos a comprobar ahora que los dos conjuntos tienen la misma proporción de críticas positivas y negativas (si no, el entrenamiento no serviría para nada):
@@ -227,4 +230,141 @@ wordcloud(neg$text, max.words = 50, random.order = FALSE, colors=brewer.pal(8,"D
 ```
 La única diferencia que aprecio entre las dos nubes, es que en la nube negativa se encuentra la palabra "bad" (y "never").
 Palabras positivas como "good", like", "well", aparecen en las 2 agrupaciones.
+
+
+###Finalizamos ahora la preparación de los datos
+
+Se necesita obtener un listado con las palabras más utilizadas:
+
+```{r}
+# Data preparation – creating indicator features for frequent words
+# the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
+movies_freq_words <- findFreqTerms(movies_dtm_train, 100)
+
+movies_freq_words
+```
+
+   [1] "abil"         "abl"          "absolut"      "accept"       "achiev"       "across"       "act"          "action"       "actor"        "actress"     
+  [11] "actual"       "adam"         "adapt"        "add"          "addit"        "admit"        "adult"        "adventur"     "age"          "agent"       
+  [21] "ago"          "agre"         "air"          "alien"        "allen"        "allow"        "almost"       "alon"         "along"        "alreadi"     
+  [31] "also"         "although"     "alway"        "amaz"         "america"      "american"     "among"        "amount"       "amus"         "angel"       
+  ...
+ [501] "lead"         "leader"       "learn"        "least"        "leav"         "lee"          "left"         "legend"       "less"         "let"         
+ [511] "level"        "lie"          "life"         "light"        "like"         "limit"        "line"         "list"         "liter"        "littl"       
+ [521] "live"         "local"        "long"         "longer"       "look"         "lose"         "lost"         "lot"          "loud"         "love"        
+ [531] "lover"        "low"          "machin"       "made"         "magic"        "main"         "major"        "make"         "man"          "manag"     
+  ...
+ [971] "virtual"      "visual"       "voic"         "wait"         "walk"         "want"         "war"          "warn"         "wasn"         "wast"        
+ [981] "watch"        "water"        "way"          "weak"         "wear"         "wed"          "week"         "well"         "went"         "west"        
+ [991] "whatev"       "whether"      "white"        "whole"        "whose"        "wife"         "wild"         "will"         "willi"        "william"   
+ 
+ [ reached getOption("max.print") -- omitted 27 entries ]
+ 
+ 
+Y ahora utilizamos ese listado para limitar el número de columnas/features de los conjuntos de entrenamiento y de test:
+
+```{r}
+#> ncol(movies_dtm_train)
+#[1] 24951
+movies_dtm_freq_train <- movies_dtm_train[ , movies_freq_words]
+movies_dtm_freq_test <- movies_dtm_test[ , movies_freq_words]
+#> ncol(movies_dtm_freq_train)
+#[1] 1027
+```
+
+Ahora los conjuntos de entrenamiento y test tienen 1027 columnas/features, en lugar de 24951.
+
+Finalmente, ya que las matrices DTM tienen valores numéricos, mientras que el algoritmo de clasificación basado en naive bayes necesita operar sobre variables categóricas, se necesita realizar una última tranformación: pasar los valores numéricos a Sí/No:
+
+```{r}
+#We need a function that converts counts to a factor
+convert_counts <- function(x) {
+  x <- ifelse(x > 0, "Yes", "No")
+}
+#and we apply it
+movies_train <- apply(movies_dtm_freq_train, MARGIN = 2, convert_counts)  # MARGIN = 2 <- columns
+movies_test <- apply(movies_dtm_freq_test, MARGIN = 2, convert_counts)
+# The result will be two matrices, each with cells indicating "Yes" or "No" for whether
+# the word represented by the column appears at any point in the message represented by the row.
+```
+
+
+## Paso 3: Entrenamiento del modelo
+
+```{r}
+movies_classifier <- naive_bayes(movies_train, movies_train_labels)
+movies_classifier
+```
+
+## Paso 4: Evaluación del modelo
+
+Realizamos la predicción
+
+```{r}
+#predict
+movies_test_pred <- predict(movies_classifier, movies_test)
+```
+
+Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = movies_test_labels, data = movies_test_pred, mode = "everything", positive = "Pos")
+```
+
+Como ya sospechaba, al no haber diferencias tan evidentes entre las nubes de palabras de las críticas positivas y negativas como en las nubes del ejercicio del libro sobre el spam de los mensajes SMS, el resultado no es tan expectacular como en ese otro caso.
+
+**Exactitud** (**"accuracy"**):
+
+    TP + TN / TP + FP + TN + FN (total) = 191 + 207 / 191 + 43 + 207 + 59  = 191 + 207 / 500 = 0.796 
+
+Es decir, los clasificados correctamente sobre el total.
+
+
+**Precisión**
+
+Proporción de de positivos reales del total devuelto:
+
+Precision = TP / TP + FP = 191 / 191 + 43 = 0.8162 
+
+
+**Recall** (Recuperación, o Tasa de verdaderos positivos (TPR))
+
+Proporción de todos los positivos reales que se clasificaron correctamente como positivos, también se conoce como recuperación.
+
+Recall = TP / TP + FN = 191 / 191 + 59 = 0.7640
+
+**F1 score** (Puntuación F1)
+
+La puntuación F1 es la media armónica (un tipo de promedio) de la precisión y la recuperación.
+Se obtiene de la siguiente manera:
+
+F1 = 2 x (precision x recall) / (precision + recall) = 2TP / 2TP + FP + FN = 0.7893
+
+
+## Paso 5: Mejora del modelo
+
+Configuramos el estimador de Laplace (parametro "Laplace smoothing") con el valor 1. De esta manera se evita que las palabras que solo aparecen en uno de los 2 conjuntos (entrenamiento o tes), empeoren el resultado total.
+
+```{r}
+#  laplace = 1
+movies_classifier_laplace <- naive_bayes(movies_train, movies_train_labels, laplace = 1)
+movies_classifier_laplace
+```
+
+Volvemos a ejecutar el algoritmo
+
+```{r}
+#predict
+movies_test_pred_laplace <- predict(movies_classifier_laplace, movies_test)
+```
+
+Y volvemos a comparar lo predicho por el algoritmo con los datos etiquetados
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = movies_test_labels, data = movies_test_pred_laplace, mode = "everything", positive = "Pos")
+```
+
+Para mí sorpresa, el resultado es peor: ahora se han clasificado 2 críticas positivas más de manera errónea como negativas.
 
