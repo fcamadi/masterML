@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
 ```
 
 # Tema4 - Ejercicio
@@ -27,12 +27,14 @@ y 1 al parámetro laplace de la función naiveBayes(), comparando las matrices d
 Carga de paquetes que son necesarios para diversas funciones.
 
 ```{r}
-#install.packages("tm")          # text mining
+#install.packages("tm")           # text mining
 library(tm)
-#install.packages("SnowballC")   # stemming
+#install.packages("SnowballC")    # stemming
 library(SnowballC)
-#install.packages("wordcloud")   # wordclouds
+#install.packages("wordcloud")    # wordclouds
 library(wordcloud)
+#install.packages("RColorBrewer") # color palettes
+library("RColorBrewer")
 
 #install.packages("naivebayes")
 library(naivebayes)
@@ -43,7 +45,8 @@ library(gmodels)
 library(caret)                  
 ```
 
-### Cargar datos del fichero movie-pang02.csv
+
+### Cargar datos del fichero movie-pang02.csv. Examinar su contenido.
 
 ```{r}
 # import the CSV file
@@ -51,5 +54,177 @@ movies_raw <- read.csv(file.path("Chapter04", "Movie_pang02.csv"))
 ```
 
 
+Examinamos la estructura y el aspecto del fichero importado:
 
+```{r}
+#See the structure
+str(movies_raw)
+```
+
+
+```{r}
+#See some records
+head(movies_raw)
+```
+```{r}
+#See some records
+tail(movies_raw)
+```
+
+La columna "class" es de tipo carácter. Ya que se trata en realidad de una variable categórica, es conveniente transformarla en un factor:
+
+```{r}
+#better to convert class into a factor
+movies_raw$class <- factor(movies_raw$class)
+```
+
+Y examinamos el resultado
+
+```{r}
+table(movies_raw$class)
+```
+
+Vemos que hay tantas críticas positivas como negativas.
+
+
+### Procesado del texto de las críticas
+
+Procedemos ahora a preparar el fichero para que pueda ser procesado mediante el algoritmo naive bayes:
+Hay que eliminar mayúsculas y signos de puntuación, números, realizar la lematización ("stemming" en inglés) ...
+
+El primer paso consiste en la creación del objeto corpus con todas las críticas:
+
+```{r}
+#create corpus
+movies_corpus <- VCorpus(VectorSource(movies_raw$text))
+print(movies_corpus)
+#inspect(movies_corpus) omitted for brevity
+```
+
+```{r}
+# examine the movies corpus
+# lapply(movies_corpus[1:5], as.character)
+# we omit the output for brevity
+```
+
+Limpieza de los textos:
+
+```{r}
+# Process the reviews (we will use some functions from the packate tm)
+
+#To lowercase (content was already in lowercase and without punctuation signs, and but just in case)
+movies_corpus_clean <- tm_map(movies_corpus, content_transformer(tolower))
+
+#Check the result (output omitted for brevity)
+#as.character(movies_corpus[[1]])
+#as.character(movies_corpus_clean[[1]])
+
+#Remove numbers
+movies_corpus_clean <- tm_map(movies_corpus_clean, removeNumbers)
+
+#Remove stopwords
+# check words and languages with ?stopwords
+movies_corpus_clean <- tm_map(movies_corpus_clean, removeWords, stopwords()) 
+#Remove punctuation signs
+movies_corpus_clean <- tm_map(movies_corpus_clean, removePunctuation) 
+
+
+#Carry out the stemming:
+# To apply the wordStem() function to an entire corpus of text documents, the tm package includes
+# the stemDocument() transformation.
+movies_corpus_clean <- tm_map(movies_corpus_clean, stemDocument)
+
+#Finally eliminate unneeded whitespace produced by previous steps
+movies_corpus_clean <- tm_map(movies_corpus_clean, stripWhitespace) 
+
+#Check the final result (output omitted for brevity)
+#before cleaning
+#as.character(movies_corpus[[1]])
+#after
+#as.character(movies_corpus_clean[[1]])
+```
+
+Finalmente, se procede a la **"tokenización"** de los textos de las críticas.
+
+Mediante la función DocumentTermMatrix() del paquete "tm", se crea una estructura llamada "document-term matrix (DTM)",
+que como su nombre indica es una matriz, cuyas filas consisten en los textos(documentos) y cuyas columnas son las palabras que aparecen en esos documentos.
+
+```{r}
+movies_dtm <- DocumentTermMatrix(movies_corpus_clean)
+movies_dtm
+```
+
+Ahora hay que crear los conjuntos de entrenamiento y de test.
+Las críticas vienen ordenadas, primero las 1000 críticas positivas, y después las 1000 críticas negativas.
+Por tanto hay que crear estos conjuntos de manera aleatoria.
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(8)
+
+#partitioning data frame into training and testing sets
+train_indices <- createDataPartition(movies_raw$class, times=1, p=.75, list=FALSE)
+
+#create training set
+movies_dtm_train <- movies_dtm[train_indices, ]
+
+#create testing set
+movies_dtm_test  <- movies_dtm[-train_indices, ]
+
+#create labels sets
+movies_train_labels <- movies_raw[train_indices, ]$class
+movies_test_labels <- movies_raw[-train_indices, ]$class
+
+#view number of rows in each set
+nrow(movies_dtm_train)  # 1500
+nrow(movies_dtm_test)   # 500
+length(movies_train_labels)  # 1500
+length(movies_test_labels)   # 500
+```
+
+Vamos a comprobar ahora que los dos conjuntos tienen la misma proporción de críticas positivas y negativas (si no, el entrenamiento no serviría para nada):
+
+```{r}
+prop.table(table(movies_train_labels))
+prop.table(table(movies_test_labels))
+```
+
+La proporción se mantiene en los dos conjuntos.
+
+### Visualización mediante nubes de palabras (wordclouds)
+
+Se puede obtener una nube con las palabras de todas las críticas, y también una nube para las críticas positivas y otra para las negativas.
+
+
+Total de críticas:
+
+```{r}
+wordcloud(movies_raw$tex, min.freq = 50, random.order = FALSE)
+```
+
+```{r}
+#Using the corpus:
+wordcloud(movies_corpus_clean, min.freq = 50, random.order = FALSE)
+```
+```{r}
+#Using the corpus:
+wordcloud(movies_corpus_clean, min.freq = 50, random.order = FALSE, colors=brewer.pal(8,"Dark2"))
+```
+
+
+
+Críticas positivas y críticas negativas por separado:
+
+```{r}
+pos <- subset(movies_raw, class == "Pos")
+neg <- subset(movies_raw, class == "Neg")
+
+wordcloud(pos$text, max.words = 50, random.order = FALSE, colors=brewer.pal(8,"Dark2"))
+wordcloud(neg$text, max.words = 50, random.order = FALSE, colors=brewer.pal(8,"Dark2"))
+
+#wordcloud(pos$text, max.words = 50, scale = c(3, 0.5), random.order = FALSE)
+#wordcloud(neg$text, max.words = 50, scale = c(3, 0.5), random.order = FALSE)
+```
+La única diferencia que aprecio entre las dos nubes, es que en la nube negativa se encuentra la palabra "bad" (y "never").
+Palabras positivas como "good", like", "well", aparecen en las 2 agrupaciones.
 
