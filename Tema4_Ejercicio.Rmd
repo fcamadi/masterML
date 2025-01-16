@@ -2,7 +2,9 @@
 title: "Tema4_Ejercicio"
 author: "Fran Camacho"
 date: "2025-01-15"
-output: pdf_document
+output:
+  word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -34,7 +36,7 @@ library(SnowballC)
 #install.packages("wordcloud")    # wordclouds
 library(wordcloud)
 #install.packages("RColorBrewer") # color palettes
-library("RColorBrewer")
+library(RColorBrewer)
 
 #install.packages("naivebayes")
 library(naivebayes)
@@ -64,17 +66,17 @@ str(movies_raw)
 
 ```{r}
 #See some records
-head(movies_raw)
+#head(movies_raw)  #omitted for brevity
 ```
 ```{r}
 #See some records
-tail(movies_raw)
+#tail(movies_raw)  #omitted for brevity
 ```
 
 La columna "class" es de tipo carácter. Ya que se trata en realidad de una variable categórica, es conveniente transformarla en un factor:
 
 ```{r}
-#better to convert class into a factor
+#Convert class into a factor
 movies_raw$class <- factor(movies_raw$class)
 ```
 
@@ -89,7 +91,7 @@ Vemos que hay tantas críticas positivas como negativas.
 
 ### Procesado del texto de las críticas
 
-Procedemos ahora a preparar el fichero para que pueda ser procesado mediante el algoritmo naive bayes:
+Procedemos ahora a preparar el fichero para que pueda ser procesado mediante el algoritmo Naive Bayes:
 Hay que eliminar mayúsculas y signos de puntuación, números, realizar la lematización ("stemming" en inglés) ...
 
 El primer paso consiste en la creación del objeto corpus con todas las críticas:
@@ -112,7 +114,7 @@ Limpieza de los textos:
 ```{r}
 # Process the reviews (we will use some functions from the packate tm)
 
-#To lowercase (content was already in lowercase and without punctuation signs, and but just in case)
+#To lowercase (content seems to be already in lowercase and without punctuation signs, but just in case)
 movies_corpus_clean <- tm_map(movies_corpus, content_transformer(tolower))
 
 #Check the result (output omitted for brevity)
@@ -159,7 +161,7 @@ movies_dtm
 
 Ahora hay que crear los conjuntos de entrenamiento y de test.
 Las críticas vienen ordenadas, primero las 1000 críticas positivas, y después las 1000 críticas negativas.
-Por tanto hay que crear estos conjuntos de manera aleatoria.
+Por tanto hay que crear estos dos conjuntos de manera aleatoria.
 
 ```{r}
 #Set seed to make the process reproducible
@@ -207,10 +209,11 @@ wordcloud(movies_raw$tex, min.freq = 50, random.order = FALSE)
 
 ```{r}
 #Using the corpus:
-wordcloud(movies_corpus_clean, min.freq = 50, random.order = FALSE)
+#wordcloud(movies_corpus_clean, min.freq = 50, random.order = FALSE)
 ```
+
 ```{r}
-#Using the corpus:
+#Using the corpus with color:
 wordcloud(movies_corpus_clean, min.freq = 50, random.order = FALSE, colors=brewer.pal(8,"Dark2"))
 ```
 
@@ -312,7 +315,7 @@ Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriorment
 confusionMatrix(reference = movies_test_labels, data = movies_test_pred, mode = "everything", positive = "Pos")
 ```
 
-Como ya sospechaba, al no haber diferencias tan evidentes entre las nubes de palabras de las críticas positivas y negativas como en las nubes del ejercicio del libro sobre el spam de los mensajes SMS, el resultado no es tan expectacular como en ese otro caso.
+Como ya sospechaba, al no haber diferencias tan evidentes entre las nubes de palabras de las críticas positivas y negativas como en las nubes del ejercicio del libro sobre el spam de los mensajes SMS, el resultado no es tan expectacular como en ese otro caso. Al algoritmo Naive Bayes le cuesta más predecir correctamente.
 
 **Exactitud** (**"accuracy"**):
 
