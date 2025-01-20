@@ -13,11 +13,11 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
 
 # Tema4 - Ejercicio
 
-El fichero “movie-pang02.csv”, disponible en la carpeta de Pruebas de Evaluación del Máster, contiene una muestra de 2000 reviews de películas de
+El fichero “movie-pang02.csv”, disponible en la carpeta de Pruebas de Evaluación del Máster, contiene una muestra de 2000 críticas de películas de
 la página web IMDB utilizada en el artículo de Pang, B. y Lee, L., "A Sentimental Education: Sentiment Analysis Using Subjectivity Summarization Based on
 Minimum Cuts, Proceedings of ACL 2004". 
 
-Dichas reviews están etiquetadas mediante la variable class como positivas (“Pos”) o negativas (“Neg”).
+Dichas críticas están etiquetadas mediante la variable class como positivas (“Pos”) o negativas (“Neg”).
 Utilizando dicho dataset, elabore un modelo de clasificación de reviews en base a su texto siguiendo el procedimiento descrito en el capítulo 4 del texto base
 en el ejemplo de SMS Spam. En particular, genere las nubes de palabras para las reviews positivas y negativas, y obtenga el modelo asignando los valores 0
 y 1 al parámetro laplace de la función naiveBayes(), comparando las matrices de confusión de cada variante del modelo.
@@ -44,7 +44,7 @@ library(naivebayes)
 #install.packages("gmodels")   # cross tables
 library(gmodels)      
 #install.packages("caret")     # data partitioning, confusion matrix
-library(caret)                  
+library(caret)         
 ```
 
 
@@ -150,7 +150,7 @@ Finalmente, se procede a la **"tokenización"** de los textos de las críticas.
 
 Mediante la función DocumentTermMatrix() del paquete "tm", se crea una estructura llamada "document-term matrix (DTM)",
 que como su nombre indica es una matriz, cuyas filas consisten en los textos(documentos) y cuyas columnas son las palabras que aparecen en esos documentos.
-Los valores en cada celda son las frecuencias con la que aparece cada palabra en cada documento.
+Los valores en cada celda son el número de ocurrencias de cada palabra en cada documento.
 
 ```{r}
 movies_dtm <- DocumentTermMatrix(movies_corpus_clean)
@@ -167,7 +167,7 @@ Por tanto hay que crear estos dos conjuntos de manera aleatoria.
 #Set seed to make the process reproducible
 set.seed(8)
 
-#partitioning data frame into training and testing sets
+#partitioning data frame into training (75%) and testing (25%) sets
 train_indices <- createDataPartition(movies_raw$class, times=1, p=.75, list=FALSE)
 
 #create training set
@@ -200,7 +200,6 @@ La proporción se mantiene en los dos conjuntos.
 
 Se puede obtener una nube con las palabras de todas las críticas, y también una nube para las críticas positivas y otra para las negativas.
 
-
 Total de críticas:
 
 ```{r}
@@ -218,7 +217,6 @@ wordcloud(movies_corpus_clean, min.freq = 50, random.order = FALSE, colors=brewe
 ```
 
 
-
 Críticas positivas y críticas negativas por separado:
 
 ```{r}
@@ -231,8 +229,9 @@ wordcloud(neg$text, max.words = 50, random.order = FALSE, colors=brewer.pal(8,"D
 #wordcloud(pos$text, max.words = 50, scale = c(3, 0.5), random.order = FALSE)
 #wordcloud(neg$text, max.words = 50, scale = c(3, 0.5), random.order = FALSE)
 ```
-La única diferencia que aprecio entre las dos nubes, es que en la nube negativa se encuentra la palabra "bad" (y "never").
+La única diferencia que aprecio entre las dos nubes, es que en la nube negativa se encuentra la palabra "bad" (también "never").
 Palabras positivas como "good", like", "well", aparecen en las 2 agrupaciones.
+("like" es también una preposición/conjunción, no tiene solo el significado de "gustar").
 
 
 ###Finalizamos ahora la preparación de los datos
@@ -370,4 +369,88 @@ confusionMatrix(reference = movies_test_labels, data = movies_test_pred_laplace,
 ```
 
 Para mí sorpresa, el resultado es peor: ahora se han clasificado 2 críticas positivas más de manera errónea como negativas.
+
+
+Dado que el resultado no ha sido todo lo positivo que esperábamos, vamos a utilizar el clasificador naive bayes multinomial (MNB), en lugar del anterior (bernoulli).
+
+
+### Paso 5.1: Utilización de la versión multinomial del algoritmo Naive Bayes
+
+Entrenamiento del modelo:
+
+```{r}
+#model training with laplace = 0
+movies_classifier_mnb <- multinomial_naive_bayes(movies_dtm_freq_train, movies_train_labels, laplace = 0)
+movies_classifier_mnb
+```
+
+Ejecución/predicción:
+
+Al llamar al método predict directamente con la dtm de test, a diferencia del paso anterior (entrenamiento), da un error.
+
+```{r}
+# predict
+#movies_dtm_freq_test
+#inspect(movies_dtm_freq_test[1:10,1:10])
+#    Terms
+#Docs abil abl absolut accept achiev across act action actor actress
+#  10    0   0       0      0      0      0   0      4     0       0
+#  12    1   0       0      0      0      0   0      0     1       0
+#  18    0   0       0      0      0      0   4      4     2       0
+# ...
+#movies_test_pred_mnb <- predict(movies_classifier_mnb, newdata = movies_matrix_freq_test, type='class')
+# It returns
+# Error: predict.multinomial_naive_bayes(): newdata must be a numeric matrix or dgCMatrix (Matrix package) with at least one row and two named columns.
+```
+
+Así que convertimos la dtm de test en una matriz, y ahora sí obtenemos la predicción:
+
+```{r}
+#So I try again transforming the dtm into a matrix
+movies_test_pred_mnb <- predict(movies_classifier_mnb, newdata = as.matrix(movies_dtm_freq_test), type='class')
+#movies_test_pred_mnb
+#  [1] Neg Neg Pos Pos Pos Pos Pos Pos Neg Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Neg Neg Pos Pos Pos Neg Pos Neg Pos Pos Pos Neg Pos Neg Pos Pos Pos Pos
+# [40] Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Neg Neg Pos Pos Pos Neg Pos Neg Pos Neg Pos Pos Pos Pos Pos Neg Pos Pos Neg Pos Pos Pos Pos Pos Pos
+#...
+```
+
+
+```{r}
+# Converting to a dgCMatrix also works
+#movies_dgCMatrix_freq_test <-  Matrix::sparseMatrix(i=movies_dtm_freq_test$i, 
+#                           j=movies_dtm_freq_test$j, 
+#                           x=movies_dtm_freq_test$v, 
+#                           dims=c(movies_dtm_freq_test$nrow, movies_dtm_freq_test$ncol),
+#                           dimnames = movies_dtm_freq_test$dimnames)
+#movies_dgCMatrix_freq_test
+# 500 x 1027 sparse Matrix of class "dgCMatrix"
+#                                                                                                                                                            
+#2  . . . . 1 . . . . . . . . 1 . . 2 . . . . . . . . . . . 1 . . . . . . . . 1 .  . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ......
+#5  . . . . . 2 . . 1 . . . . . . . . . . 1 . . . . 1 . 1 . . . 1 . 1 . . . . . .  . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1 2 ......
+#...
+#movies_test_pred_mnb <- predict(movies_classifier_mnb, newdata = movies_dgCMatrix_freq_test, type='class')
+```
+
+Volvemos a comparar lo predicho por el algoritmo con los datos etiquetados
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = movies_test_labels, data = movies_test_pred_mnb, mode = "everything", positive = "Pos")
+```
+
+```{r}
+#model training with laplace = 1
+movies_classifier_mnb_laplace <- multinomial_naive_bayes(movies_dtm_freq_train, movies_train_labels, laplace = 1)
+movies_classifier_mnb_laplace
+```
+```{r}
+#prediction
+movies_test_pred_mnb_laplace <- predict(movies_classifier_mnb_laplace, newdata = as.matrix(movies_dtm_freq_test), type='class')
+```
+
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = movies_test_labels, data = movies_test_pred_mnb_laplace, mode = "everything", positive = "Pos")
+```
 
