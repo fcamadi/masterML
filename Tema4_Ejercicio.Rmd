@@ -22,6 +22,13 @@ Utilizando dicho dataset, elabore un modelo de clasificación de reviews en base
 en el ejemplo de SMS Spam. En particular, genere las nubes de palabras para las reviews positivas y negativas, y obtenga el modelo asignando los valores 0
 y 1 al parámetro laplace de la función naiveBayes(), comparando las matrices de confusión de cada variante del modelo.
 
+## Paso 1: Carga de los datos
+
+```{r}
+# import the CSV file
+movies_raw <- read.csv(file.path("Chapter04", "Movie_pang02.csv"))
+```
+
 
 ## Paso 2: Explorar y preparar los datos
 
@@ -45,14 +52,6 @@ library(naivebayes)
 library(gmodels)      
 #install.packages("caret")     # data partitioning, confusion matrix
 library(caret)         
-```
-
-
-### Cargar datos del fichero movie-pang02.csv. Examinar su contenido.
-
-```{r}
-# import the CSV file
-movies_raw <- read.csv(file.path("Chapter04", "Movie_pang02.csv"))
 ```
 
 
