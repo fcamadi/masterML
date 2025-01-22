@@ -111,6 +111,7 @@ print(movies_corpus)
 Limpieza de los textos:
 
 ```{r}
+system.time({
 # Process the reviews (we will use some functions from the packate tm)
 
 #To lowercase (content seems to be already in lowercase and without punctuation signs, but just in case)
@@ -143,6 +144,7 @@ movies_corpus_clean <- tm_map(movies_corpus_clean, stripWhitespace)
 #as.character(movies_corpus[[1]])
 #after
 #as.character(movies_corpus_clean[[1]])
+})
 ```
 
 Finalmente, se procede a la **"tokenización"** de los textos de las críticas.
@@ -293,7 +295,9 @@ movies_test <- apply(movies_dtm_freq_test, MARGIN = 2, convert_counts)
 ## Paso 3: Entrenamiento del modelo
 
 ```{r}
-movies_classifier <- naive_bayes(movies_train, movies_train_labels)
+system.time({
+  movies_classifier <- naive_bayes(movies_train, movies_train_labels)
+})
 movies_classifier
 ```
 
@@ -303,7 +307,9 @@ Realizamos la predicción
 
 ```{r}
 #predict
-movies_test_pred <- predict(movies_classifier, movies_test)
+system.time({
+  movies_test_pred <- predict(movies_classifier, movies_test)
+})
 ```
 
 Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
@@ -349,7 +355,9 @@ Configuramos el estimador de Laplace (parametro "Laplace smoothing") con el valo
 
 ```{r}
 #  laplace = 1
-movies_classifier_laplace <- naive_bayes(movies_train, movies_train_labels, laplace = 1)
+system.time({
+  movies_classifier_laplace <- naive_bayes(movies_train, movies_train_labels, laplace = 1)
+})
 movies_classifier_laplace
 ```
 
@@ -357,7 +365,9 @@ Volvemos a ejecutar el algoritmo
 
 ```{r}
 #predict
-movies_test_pred_laplace <- predict(movies_classifier_laplace, movies_test)
+system.time({
+  movies_test_pred_laplace <- predict(movies_classifier_laplace, movies_test)
+})
 ```
 
 Y volvemos a comparar lo predicho por el algoritmo con los datos etiquetados
@@ -379,7 +389,9 @@ Entrenamiento del modelo:
 
 ```{r}
 #model training with laplace = 0
-movies_classifier_mnb <- multinomial_naive_bayes(movies_dtm_freq_train, movies_train_labels, laplace = 0)
+system.time({
+  movies_classifier_mnb <- multinomial_naive_bayes(movies_dtm_freq_train, movies_train_labels, laplace = 0)
+})
 movies_classifier_mnb
 ```
 
@@ -406,7 +418,9 @@ Así que convertimos la dtm de test en una matriz, y ahora sí obtenemos la pred
 
 ```{r}
 #So I try again transforming the dtm into a matrix
-movies_test_pred_mnb <- predict(movies_classifier_mnb, newdata = as.matrix(movies_dtm_freq_test), type='class')
+system.time({
+  movies_test_pred_mnb <- predict(movies_classifier_mnb, newdata = as.matrix(movies_dtm_freq_test), type='class')
+})
 #movies_test_pred_mnb
 #  [1] Neg Neg Pos Pos Pos Pos Pos Pos Neg Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Neg Neg Pos Pos Pos Neg Pos Neg Pos Pos Pos Neg Pos Neg Pos Pos Pos Pos
 # [40] Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Pos Neg Neg Pos Pos Pos Neg Pos Neg Pos Neg Pos Pos Pos Pos Pos Neg Pos Pos Neg Pos Pos Pos Pos Pos Pos
@@ -439,12 +453,16 @@ confusionMatrix(reference = movies_test_labels, data = movies_test_pred_mnb, mod
 
 ```{r}
 #model training with laplace = 1
-movies_classifier_mnb_laplace <- multinomial_naive_bayes(movies_dtm_freq_train, movies_train_labels, laplace = 1)
+system.time({
+  movies_classifier_mnb_laplace <- multinomial_naive_bayes(movies_dtm_freq_train, movies_train_labels, laplace = 1)
+})
 movies_classifier_mnb_laplace
 ```
 ```{r}
 #prediction
-movies_test_pred_mnb_laplace <- predict(movies_classifier_mnb_laplace, newdata = as.matrix(movies_dtm_freq_test), type='class')
+system.time({
+  movies_test_pred_mnb_laplace <- predict(movies_classifier_mnb_laplace, newdata = as.matrix(movies_dtm_freq_test), type='class')
+})
 ```
 
 
