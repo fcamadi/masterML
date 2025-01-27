@@ -304,7 +304,7 @@ credit_cost_boost_pred <- predict(credit_cost_boost, credit_test)
 CrossTable(credit_test$default, credit_cost_boost_pred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
            dnn = c('actual default', 'predicted default'))
 
-Total Observations in Table:  100 
+# Total Observations in Table:  100 
 
 
 #                  | predicted default 
