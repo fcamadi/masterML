@@ -1,0 +1,169 @@
+---
+title: "Tema5_Ejercicio"
+author: "Fran Camacho"
+date: "2025-01-28"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 5 - Ejercicio
+
+El dataset Carseats incluido en la librería ISLR incluye datos relativos a las ventas de sillitas de coche para niños de 400 establecimientos. 
+Puede encontrarse información detallada sobre cada variable incluida el dataset en https://www.rdocumentation.org/packages/ISLR/versions/1.4/topics/Carseats.
+
+Usando dicho dataset, construya un árbol de decisión, utilizando un 75% de la muestra como conjunto de entrenamiento, para predecir la variable Sales en
+base al resto de variables e interprete los resultados, comentando las reglas obtenidas.
+
+Para realizar esta prueba, previamente se recomienda convertir Sales en una variable categórica usando la función ifelse. Para ello, será necesario
+establecer un punto de corte usando algún criterio predefinido (ie, valor por encima o por debajo de la media o la mediana).
+
+## Paso 1: Carga de los datos
+
+```{r}
+#Load data from CRAN package ISLR
+install.packages("ISLR")
+library("ISLR")
+```
+
+Carseats: Sales of Child Car Seats
+Description
+
+A **simulated** data set containing sales of child car seats at 400 different stores. 
+
+
+Sales       - Unit sales (in thousands) at each location
+CompPrice   - Price charged by competitor at each location
+Income      - Community income level (in thousands of dollars)
+Advertising - Local advertising budget for company at each location (in thousands of dollars)
+Population  - Population size in region (in thousands)
+Price       - Price company charges for car seats at each site
+ShelveLoc   - A factor with levels Bad, Good and Medium indicating the quality of the shelving location for the car seats at each site
+Age         - Average age of the local population
+Education   - Education level at each location
+Urban       - A factor with levels No and Yes to indicate whether the store is in an urban or rural location
+US          - A factor with levels No and Yes to indicate whether the store is in the US or not
+ 
+
+
+## Paso 2: Explorar y preparar los datos
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+install.packages("C50")  # Decision trees C5.0 algorithm
+library(C50)
+
+#install.packages("caret")  # data partitioning, confusion matrix
+library(caret)         
+```
+
+
+Examinamos la estructura y el aspecto del fichero importado:
+
+```{r}
+#See the structure
+str(Carseats)
+```
+
+
+```{r}
+#Summary
+summary(Carseats)
+```
+
+
+
+La variable dependiente "Sales" es numérica. Para poder predecir si un carrito se venderá o no en función de las variables independientes, debemos transformarla en una variable categórica tipo Sí/No:
+
+```{r}
+#Summary
+sales_mean <- mean(Carseats$Sales)
+
+Carseats$SalesFactor <- factor(ifelse(Carseats$Sales>sales_mean,"Yes","No"))
+```
+
+
+
+```{r}
+#Summary
+table(Carseats$SalesFactor)
+```
+
+```{r}
+#Check the result of the conversion
+sum(Carseats$Sales > sales_mean)
+```
+
+
+Eliminamos la columna original "sales"
+
+```{r}
+#Check the result of the conversion
+CarseatsNew <- Carseats[-1]
+```
+
+
+Ahora hay que crear los conjuntos de entrenamiento y de test.
+Aunque los datos en principio no vienen ordenados, para estar seguros vamos a crear estos dos conjuntos de manera aleatoria.
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(CarseatsNew$SalesFactor, times=1, p=.75, list=FALSE)
+
+#create training set
+CarseatsNew_train <- CarseatsNew[train_indices, ]
+
+#create testing set
+CarseatsNew_test  <- CarseatsNew[-train_indices, ]
+
+#create labels sets
+CarseatsNew_train_labels <- CarseatsNew[train_indices, ]$SalesFactor
+CarseatsNew_test_labels <- CarseatsNew[-train_indices, ]$SalesFactor
+
+#view number of rows in each set
+#nrow(CarseatsNew_train)  # 301
+#nrow(CarseatsNew_test)   # 99
+#length(CarseatsNew_train_labels)  # 301
+#length(CarseatsNew_test_labels)   # 99
+```
+
+
+Comprobamos que la proporción se mantiene en los dos conjuntos:
+
+```{r}
+#Check the proportion in both sets
+prop.table(table(CarseatsNew_train$SalesFactor))
+prop.table(table(CarseatsNew_test$SalesFactor))
+```
+
+## Paso 3: Entrenamiento del modelo
+
+```{r}
+# For the first iteration of the model, we use the default C5.0 settings
+
+sales_model <- C5.0(SalesFactor ~ ., data = CarseatsNew_train)
+
+sales_model
+```
+
+Para examinar el modelo, utilizamos la función summary:
+
+```{r}
+# To see the tree’s decisions, we can call the summary() function on the model:
+
+summary(sales_model)
+```
+
+
+
+
+## Paso 4: Evaluación del modelo
+
+Realizamos la predicción
+
