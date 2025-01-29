@@ -2,7 +2,9 @@
 title: "Tema5_Ejercicio"
 author: "Fran Camacho"
 date: "2025-01-28"
-output: pdf_document
+output:
+  word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -24,7 +26,7 @@ establecer un punto de corte usando algún criterio predefinido (ie, valor por e
 
 ```{r}
 #Load data from CRAN package ISLR
-install.packages("ISLR")
+#install.packages("ISLR")
 library("ISLR")
 ```
 
@@ -34,16 +36,26 @@ Description
 A **simulated** data set containing sales of child car seats at 400 different stores. 
 
 
-Sales       - Unit sales (in thousands) at each location
+Sales       - Unit sales (in thousands) at each location  
+
 CompPrice   - Price charged by competitor at each location
+
 Income      - Community income level (in thousands of dollars)
+
 Advertising - Local advertising budget for company at each location (in thousands of dollars)
+
 Population  - Population size in region (in thousands)
+
 Price       - Price company charges for car seats at each site
+
 ShelveLoc   - A factor with levels Bad, Good and Medium indicating the quality of the shelving location for the car seats at each site
+
 Age         - Average age of the local population
+
 Education   - Education level at each location
+
 Urban       - A factor with levels No and Yes to indicate whether the store is in an urban or rural location
+
 US          - A factor with levels No and Yes to indicate whether the store is in the US or not
  
 
@@ -53,7 +65,7 @@ US          - A factor with levels No and Yes to indicate whether the store is i
 Carga de paquetes que son necesarios para diversas funciones.
 
 ```{r}
-install.packages("C50")  # Decision trees C5.0 algorithm
+#install.packages("C50")  # Decision trees C5.0 algorithm
 library(C50)
 
 #install.packages("caret")  # data partitioning, confusion matrix
@@ -76,11 +88,11 @@ summary(Carseats)
 
 
 
-La variable dependiente "Sales" es numérica. Para poder predecir si un carrito se venderá o no en función de las variables independientes, debemos transformarla en una variable categórica tipo Sí/No:
+La variable dependiente "Sales" es numérica. Para poder predecir si un carrito se venderá o no en función de las variables independientes, debemos transformarla en una variable categórica tipo Sí/No. Consideramos que si las ventas están por encima de la media será un "Sí", y si no, un "No":
 
 ```{r}
 #Summary
-sales_mean <- mean(Carseats$Sales)
+sales_mean <- mean(Carseats$Sales)  # mean and median are almost the same
 
 Carseats$SalesFactor <- factor(ifelse(Carseats$Sales>sales_mean,"Yes","No"))
 ```
@@ -101,7 +113,7 @@ sum(Carseats$Sales > sales_mean)
 Eliminamos la columna original "sales"
 
 ```{r}
-#Check the result of the conversion
+#Remove sales variable
 CarseatsNew <- Carseats[-1]
 ```
 
@@ -160,10 +172,116 @@ Para examinar el modelo, utilizamos la función summary:
 summary(sales_model)
 ```
 
+...
 
+Decision tree:
+
+ShelveLoc = Good:                     <- (i)
+:...Price <= 135: Yes (51/1)
+:   Price > 135:                      <- (ii)
+:   :...Income <= 75: No (7/1)
+:       Income > 75: Yes (5/1)
+ShelveLoc in {Bad,Medium}:
+:...Price > 105:
+    :...CompPrice <= 142:             <- (iii)
+
+
+  (i) Si el estado del expositor/estantería es bueno y el precio es menor o igual de 135, 51 sillitas de coche se venden (1 en realidad no)
+ (ii) Si el estado del expositor/estantería es bueno y el precio es superior a 135, entonces ya influyen los ingresos del comprador
+(iii) Si el estado del expositor/estantería no es bueno y el precio es superior a 105, entonces entran en juego otros factores
+      como el precio del mismo carrito en otro comercio, la publicidad ..
+
+El resultado con el conjunto de entrenamiento parece bastante bueno, solo un 6.3% de errores. 
+(Teniendo en cuenta esto, que se trata del conjunto de entrenamiento y los árboles de decisión son propensos al sobreajuste).
+Las variables más importantes han sido el precio y el estado de la estantería/expositor (si he entendido bien la descripción de "ShelveLoc").
+Variables como como el total de la población, el nivel de su educación, si es un area urbana .. no parecen muy influyentes.
+
+
+```{r}
+#plotting the model
+
+#plot(sales_model)  <- done in another R script for better visualization
+```
 
 
 ## Paso 4: Evaluación del modelo
 
-Realizamos la predicción
+Realizamos la predicción con los datos nuevos.
 
+```{r}
+#Prediction
+
+sales_pred <- predict(sales_model, CarseatsNew_test)
+```
+
+Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred, mode = "everything", positive = "Yes")
+```
+
+Al aplicar el modelo a datos nuevos, en cambio se obtiene una exactitud del 75%, (un error ahora del 25%).
+Como sospechámos, aquí se da también un caso de sobreajuste a los datos de entrenamiento.
+
+
+## Paso 5: Mejora del modelo
+
+Entiendo que en este caso, en el que se intenta predecir las ventas de sillitas para bebés, no es equivalente al ejemplo del libro, donde se puede dar el caso de conceder un préstamo a alguien que no lo va a poder devolver, o algún tema relacionado con la salud, donde también puede tener consecuencias muy graves que el modelo devuelva muchos falsos negativos. Así que solo voy a aplicar la técnica de boosting, y no la de considerar algunos errores más costosos que otros.
+
+La función C5.0 permite aplicar la técnica de boosting simplemente añadiendo un parámetro como se puede ver a continuación.
+Este parámetro indica el número de árboles a usar. Es un límite "por arriba", el algoritmo dejará de añadir árboles en cuanto detecte que no se está mejorando la exactitud.
+
+
+```{r}
+# boosting, we use the C5.0 parameter trials and set it to 10
+
+sales_model_boost10 <- C5.0(SalesFactor ~ ., data = CarseatsNew_train, trials = 10)
+
+sales_model_boost10
+```
+
+
+
+
+```{r}
+# To see the tree’s decisions, we can call the summary() function on the model:
+
+summary(sales_model_boost10)
+```
+
+La técnica de boosting hace que en el conjunto de entrenamiento, la tase de errores se reduzca a 0.
+
+```{r}
+#Prediction
+
+sales_pred_boost10 <- predict(sales_model_boost10, CarseatsNew_test)
+```
+
+Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_boost10, mode = "everything", positive = "Yes")
+```
+La mejora obtenida es mínima.
+
+Sin boosting:
+
+          Reference
+Prediction No Yes
+       No  41  16
+       Yes  9  33
+
+Accuracy : 0.7475
+
+Con boosting:
+
+          Reference
+Prediction No Yes
+       No  40  14
+       Yes 10  35
+                                          
+Accuracy : 0.7576 
+
+Posibles soluciones: entrenar el modelo con un conjunto más grande de datos. No parece que un conjunto de datos de solo 400 muestras sea suficiente para obtener unos resultados aceptables.
