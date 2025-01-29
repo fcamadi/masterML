@@ -1,0 +1,256 @@
+---
+title: "Tema5_Ejercicio_Weka_version"
+author: "Fran Camacho"
+date: "2025-01-29"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 5 - Ejercicio
+
+El dataset Carseats incluido en la librería ISLR incluye datos relativos a las ventas de sillitas de coche para niños de 400 establecimientos. 
+Puede encontrarse información detallada sobre cada variable incluida el dataset en https://www.rdocumentation.org/packages/ISLR/versions/1.4/topics/Carseats.
+
+Usando dicho dataset, construya un árbol de decisión, utilizando un 75% de la muestra como conjunto de entrenamiento, para predecir la variable Sales en
+base al resto de variables e interprete los resultados, comentando las reglas obtenidas.
+
+Para realizar esta prueba, previamente se recomienda convertir Sales en una variable categórica usando la función ifelse. Para ello, será necesario
+establecer un punto de corte usando algún criterio predefinido (ie, valor por encima o por debajo de la media o la mediana).
+
+## Paso 1: Carga de los datos
+
+```{r}
+#Load data from CRAN package ISLR
+#install.packages("ISLR")
+library("ISLR")
+```
+
+## Paso 2: Explorar y preparar los datos. Uso de rJava y RWeka
+
+
+En lugar de utilizar el algoritmo C5.0, vamos a experimentar con el algoritmo equivalente J48 de Weka (R/Weka Classifier Trees)
+
+
+```{r}
+install.packages("RWeka")  # Decision trees RWeka algorithm
+library(RWeka)
+
+install.packages("MultiBoostAB")  # Decision trees RWeka algorithm
+library(MultiBoostAB)
+
+install.packages("caret")  # data partitioning, confusion matrix
+library(caret)         
+```
+
+Mismos pasos:
+
+Pasar de sales a salesFactor
+
+```{r}
+#Summary
+sales_mean <- mean(Carseats$Sales)  # mean and median are almost the same
+
+Carseats$SalesFactor <- factor(ifelse(Carseats$Sales>sales_mean,"Yes","No"))
+```
+
+Eliminar sales
+
+```{r}
+#Remove sales variable
+CarseatsNew <- Carseats[-1]
+```
+
+Conjuntos de entrenamiento y test
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(CarseatsNew$SalesFactor, times=1, p=.75, list=FALSE)
+
+#create training set
+CarseatsNew_train <- CarseatsNew[train_indices, ]
+
+#create testing set
+CarseatsNew_test  <- CarseatsNew[-train_indices, ]
+
+#create labels sets
+CarseatsNew_train_labels <- CarseatsNew[train_indices, ]$SalesFactor
+CarseatsNew_test_labels <- CarseatsNew[-train_indices, ]$SalesFactor
+
+#view number of rows in each set
+#nrow(CarseatsNew_train)  # 301
+#nrow(CarseatsNew_test)   # 99
+#length(CarseatsNew_train_labels)  # 301
+#length(CarseatsNew_test_labels)   # 99
+```
+
+
+## Paso 3: Entrenamiento del modelo
+
+```{r}
+# For the first iteration of the model, we use the default C5.0 settings
+
+sales_model <- J48(SalesFactor ~ ., data = CarseatsNew_train)
+
+sales_model
+```
+
+En comparación con la versión de R, el tamaño es bastante mayor (en R es 19)
+(Por defecto el podado de ramas está activado, para intentar evitar el sobreajuste).
+
+```{r}
+# To see the tree’s decisions, we can call the summary() function on the model:
+
+summary(sales_model)
+```
+
+
+
+## Paso 4: Evaluación del modelo
+
+Realizamos la predicción con los datos nuevos.
+
+```{r}
+#Prediction
+
+sales_pred <- predict(sales_model, CarseatsNew_test)
+```
+
+Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred, mode = "everything", positive = "Yes")
+```
+
+Se obtiene un resultado ligeramente inferior al obtenido en R.
+
+
+## Paso 5: Mejora del modelo
+
+
+```{r}
+# ## Learn J4.8 tree with reduced error pruning (-R) and minimum number of instances per leaf set to 10 (-M 5)
+# ## Learn J4.8 unpruned tree (U) and minimum number of instances per leaf set to 10 (-M 10)
+# To see wich options can be used
+# > WOW(J48)
+
+sales_model_2<- J48(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(U = TRUE, M = 10))
+
+sales_model_2
+```
+
+
+Predicción
+
+```{r}
+#Prediction
+
+sales_pred2 <- predict(sales_model_2, CarseatsNew_test)
+```
+
+Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred2, mode = "everything", positive = "Yes")
+```
+
+Jugando con varios parámetros, solo consigo igualar los resultados de R.
+
+
+Veamos aplicando **boosting**:
+
+```{r}
+# AdaBoostM1
+
+sales_model_adaboost <- AdaBoostM1(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(W = list(J48, M = 10)) )
+
+sales_model_adaboost
+```
+
+
+Predicción
+
+```{r}
+#Prediction
+
+sales_pred_adaboost <- predict(sales_model_adaboost, CarseatsNew_test)
+```
+
+Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_adaboost, mode = "everything", positive = "Yes")
+```
+
+Utilizando boosting (árboles no podados), se consigue mejorar el resultado de C5.0. Ahora se consigue una exactitud de casi el 82%
+
+MultiBoostAB
+
+[
+NOTA 1
+
+weka.classifiers.meta.**MultiBoostAB**
+Class for boosting a classifier using the MultiBoosting method.
+
+MultiBoosting is an extension to the highly successful AdaBoost technique for forming decision committees. MultiBoosting can be viewed as combining AdaBoost with wagging. It is able to harness both AdaBoost's high bias and variance reduction with wagging's superior variance reduction. Using C4.5 as the base learning algorithm, Multi-boosting is demonstrated to produce decision committees with lower error than either AdaBoost or wagging significantly more often than the reverse over a large representative cross-section of UCI data sets. It offers the further advantage over AdaBoost of suiting parallel execution.
+
+https://cml.rhul.ac.uk/people/davidl/javadoc/weka/classifiers/meta/MultiBoostAB.html
+]
+
+[ 
+NOTA 2
+Al intentar usar MultiBoostAB, me ha dado este error:
+
+Error in WPM(".check-installed-and-load", package) : 
+  Required Weka package 'multiBoostAB' is not installed.
+
+He tenido que instalarlo usando WPM ("Weka package manager")
+
+> WPM("list-packages", "installed")  <- listado de paquetes instalados
+
+> WPM("list-packages", "available")  <- listado de paquetes disponibles
+
+> WPM("install-package", "multiBoostAB")  <- instalar un paquete
+
+]
+
+
+```{r}
+# Using MultiBoostAB
+
+
+sales_model_multiboost <- MultiBoostAB(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(W = list(J48, M = 10, U = TRUE)) )
+
+sales_model_multiboost
+```
+
+
+Predicción
+
+```{r}
+#Prediction
+
+sales_pred_multiboost <- predict(sales_model_multiboost, CarseatsNew_test)
+```
+
+Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_multiboost, mode = "everything", positive = "Yes")
+```
+
+La exactitud es 80.81 %. Aunque en la documentación de Weka se indica que es mejor que AdaBoost, en nuestro caso el resultado ha sido ligeramente inferior. 
+(Quizá el tamaño tan pequeño de los conjuntos de entrenamiento y test influyan. Tampoco creo que se puedan sacar conclusiones definitivas con estos tamaños).
+
+
