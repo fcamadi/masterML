@@ -1,3 +1,11 @@
+#Load data from CRAN package ISLR
+#install.packages("ISLR")
+library("ISLR")
+
+
+## Export file
+#write.csv(Carseats,file='Chapter05/carseats.csv',na='') 
+
 #install.packages("C50")  # Decision trees C5.0 algorithm
 library(C50)
 
@@ -9,6 +17,9 @@ sales_mean <- mean(Carseats$Sales)  # mean and median are almost the same
 Carseats$SalesFactor <- factor(ifelse(Carseats$Sales>sales_mean,"Yes","No"))
 
 CarseatsNew <- Carseats[-1]
+
+## Export file
+#write.csv(CarseatsNew,file='Chapter05/carseatsNew.csv',na='') 
 
 set.seed(9)
 #partitioning data frame into training (75%) and testing (25%) sets
