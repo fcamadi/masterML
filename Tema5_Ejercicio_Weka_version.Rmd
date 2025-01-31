@@ -142,7 +142,7 @@ Se obtiene un resultado ligeramente inferior al obtenido en R.
 # To see wich options can be used
 # > WOW(J48)
 
-sales_model_2<- J48(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(U = TRUE, M = 10))
+sales_model_2<- J48(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(M = 10))
 
 sales_model_2
 ```
@@ -171,7 +171,8 @@ Veamos aplicando **boosting**:
 ```{r}
 # AdaBoostM1
 
-sales_model_adaboost <- AdaBoostM1(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(W = list(J48, M = 10)) )
+#sales_model_adaboost <- AdaBoostM1(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(W = list(J48, M = 10)) )
+sales_model_adaboost <- AdaBoostM1(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(I = 100, W = list(J48, M = 10)))
 
 sales_model_adaboost
 ```
@@ -192,7 +193,27 @@ Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriorment
 confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_adaboost, mode = "everything", positive = "Yes")
 ```
 
-Utilizando boosting (árboles no podados), se consigue mejorar el resultado de C5.0. Ahora se consigue una exactitud de casi el 82%
+Utilizando boosting (árboles no podados), se consigue mejorar el resultado de C5.0. Ahora se consigue una exactitud de casi el 82% (con 10 iteraciones)
+
+Con 10 iteraciones:
+
+          Reference
+Prediction No Yes
+       No  44  12
+       Yes  6  37
+                                         
+Accuracy : 0.8182  
+
+Con 100 iteraciones:
+
+          Reference
+Prediction No Yes
+       No  41  12
+       Yes  9  37
+                                          
+Accuracy : 0.7879 
+
+-----------------------------------------------------------------------------------------------------------------------------------------
 
 MultiBoostAB
 
@@ -228,10 +249,9 @@ He tenido que instalarlo usando WPM ("Weka package manager")
 ```{r}
 # Using MultiBoostAB
 
+#sales_model_multiboost <- MultiBoostAB(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(W = list(J48, M = 10, U = TRUE)) )
 
-sales_model_multiboost <- MultiBoostAB(SalesFactor ~ ., data = CarseatsNew_train, control = Weka_control(W = list(J48, M = 10, U = TRUE)) )
-
-sales_model_multiboost
+#sales_model_multiboost
 ```
 
 
@@ -240,16 +260,46 @@ Predicción
 ```{r}
 #Prediction
 
-sales_pred_multiboost <- predict(sales_model_multiboost, CarseatsNew_test)
+#sales_pred_multiboost <- predict(sales_model_multiboost, CarseatsNew_test)
 ```
 
 Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
 
 ```{r}
 #confusion matrix
-confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_multiboost, mode = "everything", positive = "Yes")
+#confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_multiboost, mode = "everything", positive = "Yes")
 ```
 
+Confusion Matrix and Statistics
+
+          Reference
+Prediction No Yes
+       No  43  12
+       Yes  7  37
+                                          
+               Accuracy : 0.8081          
+                 95% CI : (0.7166, 0.8803)
+    No Information Rate : 0.5051          
+    P-Value [Acc > NIR] : 4.072e-10       
+                                          
+                  Kappa : 0.6157          
+                                          
+ Mcnemar's Test P-Value : 0.3588          
+                                          
+            Sensitivity : 0.7551          
+            Specificity : 0.8600          
+         Pos Pred Value : 0.8409          
+         Neg Pred Value : 0.7818          
+              Precision : 0.8409          
+                 Recall : 0.7551          
+                     F1 : 0.7957          
+             Prevalence : 0.4949          
+         Detection Rate : 0.3737          
+   Detection Prevalence : 0.4444          
+      Balanced Accuracy : 0.8076          
+                                          
+       'Positive' Class : Yes   
+       
 La exactitud es 80.81 %. Aunque en la documentación de Weka se indica que es mejor que AdaBoost, en nuestro caso el resultado ha sido ligeramente inferior. 
 (Quizá el tamaño tan pequeño de los conjuntos de entrenamiento y test influyan. Tampoco creo que se puedan sacar conclusiones definitivas con estos tamaños).
 
