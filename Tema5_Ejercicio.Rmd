@@ -87,22 +87,17 @@ summary(Carseats)
 ```
 
 
-
 La variable dependiente "Sales" es numérica. Para poder predecir si un carrito se venderá o no en función de las variables independientes, debemos transformarla en una variable categórica tipo Sí/No. Consideramos que si las ventas están por encima de la media será un "Sí", y si no, un "No":
 
 ```{r}
-#Summary
+#transform Sales into SalesFactor
 sales_mean <- mean(Carseats$Sales)  # mean and median are almost the same
 
 Carseats$SalesFactor <- factor(ifelse(Carseats$Sales>sales_mean,"Yes","No"))
-```
 
-
-
-```{r}
-#Summary
 table(Carseats$SalesFactor)
 ```
+
 
 ```{r}
 #Check the result of the conversion
@@ -154,6 +149,7 @@ prop.table(table(CarseatsNew_train$SalesFactor))
 prop.table(table(CarseatsNew_test$SalesFactor))
 ```
 
+
 ## Paso 3: Entrenamiento del modelo
 
 ```{r}
@@ -197,6 +193,8 @@ Las variables más importantes han sido el precio y el estado de la estantería/
 Variables como como el total de la población, el nivel de su educación, si es un area urbana .. no parecen muy influyentes.
 
 
+Visualización del árbol:
+
 ```{r}
 #plotting the model
 
@@ -222,7 +220,7 @@ confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred, mode = "
 ```
 
 Al aplicar el modelo a datos nuevos, en cambio se obtiene una exactitud del 75%, (un error ahora del 25%).
-Como sospechámos, aquí se da también un caso de sobreajuste a los datos de entrenamiento.
+Como sospechábamos, aquí se da también un caso de sobreajuste a los datos de entrenamiento.
 
 
 ## Paso 5: Mejora del modelo
@@ -252,6 +250,8 @@ summary(sales_model_boost10)
 
 La técnica de boosting hace que en el conjunto de entrenamiento, la tase de errores se reduzca a 0.
 
+Volvemos a realizar la predicción:
+
 ```{r}
 #Prediction
 
@@ -266,7 +266,7 @@ confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_boost10, 
 ```
 La mejora obtenida es mínima.
 
-Sin boosting:
+Sin boosting se obtuvo:
 
           Reference
 Prediction No Yes
