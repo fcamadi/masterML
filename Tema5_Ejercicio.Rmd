@@ -232,11 +232,11 @@ Este parámetro indica el número de árboles a usar. Es un límite "por arriba"
 
 
 ```{r}
-# boosting, we use the C5.0 parameter trials and set it to 10
+# boosting, we use the C5.0 parameter trials and set it to 100
 
-sales_model_boost10 <- C5.0(SalesFactor ~ ., data = CarseatsNew_train, trials = 10)
+sales_model_boost100 <- C5.0(SalesFactor ~ ., data = CarseatsNew_train, trials = 100)
 
-sales_model_boost10
+sales_model_boost100
 ```
 
 
@@ -245,7 +245,7 @@ sales_model_boost10
 ```{r}
 # To see the tree’s decisions, we can call the summary() function on the model:
 
-summary(sales_model_boost10)
+summary(sales_model_boost100)
 ```
 
 La técnica de boosting hace que en el conjunto de entrenamiento, la tase de errores se reduzca a 0.
@@ -255,16 +255,16 @@ Volvemos a realizar la predicción:
 ```{r}
 #Prediction
 
-sales_pred_boost10 <- predict(sales_model_boost10, CarseatsNew_test)
+sales_pred_boost100 <- predict(sales_model_boost100, CarseatsNew_test)
 ```
 
 Y comparamos lo predicho por el algoritmo con los datos etiquetados anteriormente
 
 ```{r}
 #confusion matrix
-confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_boost10, mode = "everything", positive = "Yes")
+confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred_boost100, mode = "everything", positive = "Yes")
 ```
-La mejora obtenida es mínima.
+La mejora obtenida es mínima con 10 iteraciones, pero con 100 es algo más.
 
 Sin boosting se obtuvo:
 
@@ -282,6 +282,15 @@ Prediction No Yes
        No  40  14
        Yes 10  35
                                           
-Accuracy : 0.7576 
+Accuracy : 0.7576   10 iteracciones
+
+          Reference
+Prediction No Yes
+       No  43  15
+       Yes  7  34
+                                          
+Accuracy : 0.7778   100 iteracciones
+
+
 
 Posibles soluciones: entrenar el modelo con un conjunto más grande de datos. No parece que un conjunto de datos de solo 400 muestras sea suficiente para obtener unos resultados aceptables.
