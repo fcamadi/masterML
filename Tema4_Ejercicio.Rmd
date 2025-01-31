@@ -48,8 +48,6 @@ library(RColorBrewer)
 #install.packages("naivebayes")
 library(naivebayes)
 
-#install.packages("gmodels")   # cross tables
-library(gmodels)      
 #install.packages("caret")     # data partitioning, confusion matrix
 library(caret)         
 ```
