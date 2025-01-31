@@ -40,8 +40,8 @@ En lugar de utilizar el algoritmo C5.0, vamos a experimentar con el algoritmo eq
 install.packages("RWeka")  # Decision trees RWeka algorithm
 library(RWeka)
 
-install.packages("MultiBoostAB")  # Decision trees RWeka algorithm
-library(MultiBoostAB)
+#install.packages("MultiBoostAB")  # Installed with WPM
+#library(MultiBoostAB)
 
 install.packages("caret")  # data partitioning, confusion matrix
 library(caret)         
@@ -137,7 +137,7 @@ Se obtiene un resultado ligeramente inferior al obtenido en R.
 
 
 ```{r}
-# ## Learn J4.8 tree with reduced error pruning (-R) and minimum number of instances per leaf set to 10 (-M 5)
+# ## Learn J4.8 tree with reduced error pruning (-R) and minimum number of instances per leaf set to 10 (-M 10)
 # ## Learn J4.8 unpruned tree (U) and minimum number of instances per leaf set to 10 (-M 10)
 # To see wich options can be used
 # > WOW(J48)
