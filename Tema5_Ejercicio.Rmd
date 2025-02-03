@@ -86,7 +86,6 @@ str(Carseats)
 summary(Carseats)
 ```
 
-
 La variable dependiente "Sales" es numérica. Para poder predecir si un carrito se venderá o no en función de las variables independientes, debemos transformarla en una variable categórica tipo Sí/No. Consideramos que si las ventas están por encima de la media será un "Sí", y si no, un "No":
 
 ```{r}
@@ -160,7 +159,7 @@ sales_model <- C5.0(SalesFactor ~ ., data = CarseatsNew_train)
 sales_model
 ```
 
-Para examinar el modelo, utilizamos la función summary:
+Para examinar el modelo (el árbol), utilizamos la función summary:
 
 ```{r}
 # To see the tree’s decisions, we can call the summary() function on the model:
@@ -220,7 +219,7 @@ confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred, mode = "
 ```
 
 Al aplicar el modelo a datos nuevos, en cambio se obtiene una exactitud del 75%, (un error ahora del 25%).
-Como sospechábamos, aquí se da también un caso de sobreajuste a los datos de entrenamiento.
+Como sospechábamos, aquí se da un caso de sobreajuste a los datos de entrenamiento.
 
 
 ## Paso 5: Mejora del modelo
@@ -234,12 +233,10 @@ Este parámetro indica el número de árboles a usar. Es un límite "por arriba"
 ```{r}
 # boosting, we use the C5.0 parameter trials and set it to 100
 
-sales_model_boost100 <- C5.0(SalesFactor ~ ., data = CarseatsNew_train, trials = 100)
+sales_model_boost100 <- C5.0(SalesFactor ~ ., data = CarseatsNew_train, trials = 100)  # trials = 10
 
 sales_model_boost100
 ```
-
-
 
 
 ```{r}
@@ -275,22 +272,23 @@ Prediction No Yes
 
 Accuracy : 0.7475
 
-Con boosting:
+Con boosting - 10 iteracciones:
 
           Reference
 Prediction No Yes
        No  40  14
        Yes 10  35
                                           
-Accuracy : 0.7576   10 iteracciones
+Accuracy : 0.7576  
+
+Con boosting - 100 iteracciones:
 
           Reference
 Prediction No Yes
        No  43  15
        Yes  7  34
                                           
-Accuracy : 0.7778   100 iteracciones
-
+Accuracy : 0.7778   
 
 
 Posibles soluciones: entrenar el modelo con un conjunto más grande de datos. No parece que un conjunto de datos de solo 400 muestras sea suficiente para obtener unos resultados aceptables.
