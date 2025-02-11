@@ -1,0 +1,155 @@
+---
+title: "Chapter_6_churn_example"
+author: "Fran Camacho"
+date: "2025-02-11"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 6 - Linear regression
+
+Other example from the book "Machine Learning with R", by Brett Lantz:
+
+Predicting insurance policyholder churn with **logistic regression**.
+
+## Step 1 – collecting data
+
+As with the insurance claims cost example, we’ll build a churn model using a **simulated** dataset
+created for this book, which is intended to approximate the behavior of customers of the auto-
+mobile insurance company.
+
+
+```{r}
+# import the CSV file
+churn_data <- read.csv(file.path("Chapter06", "insurance_churn.csv"), stringsAsFactors = TRUE)
+```
+
+str(churn_data)
+
+```{r}
+# str
+str(churn_data)
+```
+
+
+
+Target variable:
+
+```{r}
+table(churn_data$churn)
+```
+
+
+```{r}
+prop.table(table(churn_data$churn))
+```
+
+Around 15% of customers are going to quit probably.
+
+In a more formal analysis, it would be wise to perform more data exploration before going fur-
+ther. Here, we will jump ahead to creating the logistic regression model to predict these churned
+customers.
+
+The **glm()** function, which is part of R’s built-in stats package, is used to fit a GLM model such
+as logistic regression as well as the other variants like Poisson regression described earlier in the
+chapter.
+
+
+To fit the logistic regression churn model, we specify the binomial family with the logit link
+function. Here, we model churn as a function of all other features in the dataset, minus member_id,
+which is unique to each member and therefore useless for prediction:
+
+```{r}
+churn_model <- glm(churn ~ . -member_id, data = churn_data, family = binomial(link = "logit"))
+```
+
+To examine the model:
+
+```{r}
+summary(churn_model)
+```
+At a high level, the logistic regression output is fairly similar to a linear regression output. The
+p-values (labeled Pr(>|z|)) and significance codes (denoted by * characters) indicate whether
+the variables are statistically significant. All features aside from the auto_pay_ind are significant
+at the 0.05 level or better.
+
+Nearly all estimates are negative, which implies that these features reduce
+churn, except for recent_rate_increase, which is positive and therefore increases churn. These
+connections make sense; an increase in the price of the insurance plan would be expected to
+increase churn, while members that have been loyal for years or pay for premium plan features
+are less likely to leave.
+
+
+Interpreting the impact of a specific feature on churn is where logistic regression is trickier than
+linear regression, as the estimates are shown in log odds. Suppose we want to know how much
+more likely churn is after a recent increase in the price of the insurance plan. Since the estimate for
+**recent_rate_increase** is **0.6481**, this means that the log odds of churn increase by 0.6481 when
+the rate increase indicator is 1 versus when it is 0. Exponentiating this to remove the logarithm
+and find the odds ratio, we find that **exp(0.6481) = 1.911905**, which implies that churn is almost
+twice as likely (or 91.2 percent more likely) after a rate increase.
+
+In the opposite direction, members that use the mobile app (mobile_app_user) have an esti-
+mated difference in log odds of **-0.292273** versus those that do not. Finding the odds ratio as
+**exp(-0.292273) = 0.7465647** suggests that the churn of app users is about 75 percent of those that
+do not use the app, or a decrease of about 25 percent for app users. Similarly, we can find that
+churn is reduced by about seven percent for each additional year of loyalty, as exp(-0.072284) =
+0.9302667. Similar calculations can be performed for all other predictors in the model, including
+the intercept, which represents the odds of churn when all predictors are zero.
+
+To use this model to prevent churn, we can make predictions on a database of current plan mem-
+bers. Let’s begin by loading a dataset containing 1000 subscribers, using the test dataset available
+for this chapter:
+
+```{r}
+churn_test <- read.csv(file.path("Chapter06", "insurance_churn_test.csv"))
+```
+
+
+We’ll then use the logistic regression model object with the predict() function to add a new
+column to this data frame, which contains the predictions for each member:
+
+Note that the type = "response" parameter is set so that the predictions are in probabilities
+rather than the default type = "link" setting, which produces predictions as log odds values
+```{r}
+churn_test$churn_prob <- predict(churn_model, churn_test, type = "response")
+```
+
+
+Summarizing these predicted probabilities, we see that the average churn probability is about 15
+percent, but some users are predicted to have very low churn, while others have a churn proba-
+bility as high as 41 percent:
+
+```{r}
+summary(churn_test$churn_prob)
+```
+
+Suppose the customer retention team has the resources to intervene in a limited number of cases.
+By sorting the members to identify those with the highest predicted churn likelihood, we can
+provide the team with the direction most likely to make the greatest impact.
+First, use the order() function to obtain a vector with the row numbers sorted in decreasing
+order according to their churn probability:
+
+
+First we order the churn list:
+
+```{r}
+churn_order <- order(churn_test$churn_prob, decreasing = TRUE)
+```
+
+Then we get the first 5:
+
+```{r}
+head(churn_test[churn_order, c("member_id", "churn_prob")], n = 5)
+```
+
+After saving the result to a spreadsheet with n set to a higher number, it would be possible to
+provide the customer retention team with a list of the insurance plan members that are most
+likely to churn ...
+
+
+
+
+
