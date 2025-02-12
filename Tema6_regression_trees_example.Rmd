@@ -1,0 +1,28 @@
+---
+title: "Chapter_6_regression_trees_example"
+author: "Fran Camacho"
+date: "2025-02-11"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 6 - Regression trees example
+
+Example from the book "Machine Learning with R", by Brett Lantz:
+
+Estimating the quality of wines with regression trees and model trees
+
+## Step 1 – collecting data
+
+In this case study, we will use regression trees and model trees to create a system capable of
+mimicking expert ratings of wine. Because trees result in a model that is readily understood, this
+could allow winemakers to identify key factors that contribute to better-rated wines.
+
+
+```{r}
+# import the CSV file
+wine <- read.csv(file.path("Chapter06", "whitewines.csv"), stringsAsFactors = TRUE)
+```
