@@ -1,8 +1,10 @@
 ---
-title: "Tema_6_ejemplo_seguros"
+title: "Chapter_6_insurance_example"
 author: "Fran Camacho"
 date: "2025-02-06"
-output: word_document
+output:
+  pdf_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
