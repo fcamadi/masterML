@@ -1,0 +1,251 @@
+---
+title: "Tema6_ejemplo_complementario_02"
+author: "Fran Camacho"
+date: "2025-02-13"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 6 - Ejemplo 2: Predicción de Esperanza de Vida
+
+Supongamos que un investigador desea estudiar los factores que influyen en la
+esperanza de vida de los ciudadanos de EEUU. Para ello, dispone de información para
+los diferentes Estados acerca de esperanza de vida, habitantes, ingresos,
+analfabetismo, asesinatos, no de universitarios, heladas y extensión. 
+
+Para ello, utilizaremos el dataset state.x77 incluido en la librería dplyr:
+
+```{r}
+install.packages("dplyr")
+```
+
+## Carga de los datos
+
+
+```{r}
+library(dplyr)
+
+datos <- as.data.frame(state.x77)
+datos <- rename( .data = datos, 
+                  habitantes = Population, analfabetismo = Illiteracy,
+                  ingresos = Income, esp_vida = `Life Exp`, asesinatos = Murder,
+                  universitarios = `HS Grad`, heladas = Frost, area = Area)
+
+# se crea una variable adicional denominada densidad_pobl que recoge la densidad poblacional de cada Estado.
+datos <- mutate(.data = datos, 
+                 densidad_pobl = habitantes * 1000 / area)
+```
+
+## Análisis de correlación
+
+Para poder establecer un modelo de regresión lineal múltiple, lo primero es estudiar
+la relación que existe entre variables. Para ello, comenzamos obteniendo la matriz de
+correlación entre todas las variables disponibles
+
+```{r}
+round(cor(x = datos, method = "pearson"), 3)
+```
+
+Otra opción más visual para estudiar las correlaciones entre las variables es usar la
+librería **GGally**, mediante la que podemos obtener en un solo paso los diagramas de
+dispersión, los valores de correlación para cada par de variables y la distribución de
+cada una de las variables:
+
+```{r}
+install.packages("GGally")
+```
+
+```{r}
+library(GGally)
+ggpairs(datos, lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
+```
+
+Del análisis preliminar de los resultados obtenidos, podemos extraer algunas
+conclusiones:
+• Las variables que tienen una mayor relación lineal con la esperanza de vida son:
+asesinatos (ρ = -0.78), analfabetismo (ρ = -0.59) y no de universitarios (ρ = 0.58).
+• Asimismo, asesinatos y analfabetismo están correlacionados entre sí (ρ = 0.7),
+por lo que posiblemente no aporte gran cosa introducir ambos predictores en el
+modelo.
+• Por último, las variables habitantes, área y densidad poblacional parecen
+presentar una distribución exponencial, por lo que seguramente una
+transformación logarítmica haría más Normal su distribución.
+
+Pasamos a estimar el modelo con todas las variables usando la función lm:
+
+```{r}
+modelo <- lm(esp_vida ~ habitantes + ingresos + analfabetismo +
+asesinatos + universitarios + heladas + area + densidad_pobl, data = datos )
+
+summary(modelo)
+```
+El modelo con todas las variables introducidas como predictores tiene un **R2** bastante
+alto **(0.7501)**, lo que nos indica que es capaz de explicar el 75% de la variabilidad
+observada en la esperanza de vida. Por su parte, el **p-value (3.787e-10)** del estadístico
+F confirma que el modelo no es fruto del azar, aunque si revisamos los p-values
+individuales de los parámetros vemos que algunos de ellos no son significativos
+(aquellos que no presentan una marca de asterisco o punto en la columna derecha).
+
+Por ello, deberemos emplear algún criterio para seleccionar los predictores finales del
+modelo.
+
+En este caso, vamos a usar un stepwise mixto, utilizando el criterio de Akaike (AIC)
+para medir la calidad del modelo. En R, podemos automatizar el stepwise mixto con
+AIC usando la función step disponible en la librería stats:
+
+```{r}
+step(object = modelo, direction = "both", trace = 1)
+```
+
+Si revisamos el criterio AIC, vemos que el mayor valor absoluto para este criterio se
+obtiene para el siguiente modelo:
+
+Call:
+lm(formula = **esp_vida ~ habitantes + asesinatos + universitarios + heladas**, data = datos)
+
+Coefficients:
+(Intercept)  habitantes   asesinatos   universitarios    heladas    
+7.103e+01     5.014e-05    3.001e-01        4.658e-02  5.943e-03
+
+
+Así que lo elegimos como modelo:
+
+
+```{r}
+modelo <- lm(formula = esp_vida ~ habitantes + asesinatos + universitarios + heladas, data = datos)
+summary(modelo)
+```
+
+Cada uno de los parámetros estimados puede interpretarse de la siguiente manera: si
+el resto de variables se mantienen constantes (supuesto ceteris paribus), por cada
+unidad que aumenta el predictor en cuestión, la variable dependiente varía en
+promedio tantas unidades como indica la pendiente. Por ejemplo, por cada unidad que
+aumenta el predictor universitarios, la esperanza de vida aumenta en promedio
+0.04658 unidades, considerando constantes el resto de predictores
+
+
+
+```{r}
+modelo <- lm(formula = esp_vida ~ habitantes + asesinatos + universitarios + heladas, data = datos)
+summary(modelo)
+```
+
+## Validez del modelo
+
+
+Pasamos a validar el modelo, verificando si cumple los supuestos del modelo de
+regresión lineal. 
+
+En primer lugar, vamos a realizar diagramas de dispersión entre cada uno de los predictores
+y los residuos del modelo. Si la relación es lineal, los residuos deberán distribuirse
+aleatoriamente en torno a cero con una variabilidad constante a lo largo del eje X:
+
+```{r}
+install.packages("gridExtra")
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+plot1 <- ggplot(data = datos, aes(habitantes, modelo$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+plot2 <- ggplot(data = datos, aes(asesinatos, modelo$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+plot3 <- ggplot(data = datos, aes(universitarios, modelo$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+plot4 <- ggplot(data = datos, aes(heladas, modelo$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+grid.arrange(plot1, plot2, plot3, plot4)
+
+```
+
+Los gráficos anteriores parecen confirmar la hipótesis de linealidad para todos los
+predictores. Veamos a continuación si los residuos de la regresión se distribuyen
+según una Normal.
+
+Para ello, realizaremos un gráfico Q-Q y un test Shapiro-Wilk:
+
+```{r}
+qqnorm(modelo$residuals)
+qqline(modelo$residuals)
+```
+
+```{r}
+shapiro.test(modelo$residuals)
+```
+
+Tanto el análisis gráfico como es test de hipótesis confirman la Normalidad de los
+residuos. En particular, el valor del p-value del test de Shapiro-Wilk, superior a 0.05,
+nos permite aceptar la hipótesis nula del test.
+
+
+Pasamos a revisar la homocedasticidad de los residuos. Para ello, representamos los
+residuos frente a los valores ajustados por el modelo. Confirmaremos la
+homocedasticidad si los primeros se distribuyen de forma aleatoria en torno a cero,
+manteniendo aproximadamente la misma variabilidad a lo largo del eje X.
+
+Si, por el contrario, se observara algún patrón específico significaría que la
+variabilidad es dependiente del valor ajustado y por lo tanto se violaría el supuesto de
+homocedasticidad de los residuos:
+
+
+```{r}
+ggplot(data = datos, aes(modelo$fitted.values, modelo$residuals)) +
+geom_point() +
+geom_smooth(color = "firebrick", se = FALSE) +
+geom_hline(yintercept = 0) +
+theme_bw()
+```
+
+El contraste de Breusch-Pagan también confirma lo que se ve en el gráfico,
+siendo el p-value superior a 0.05:
+
+
+```{r}
+install.packages("lmtest")
+```
+
+```{r}
+library(lmtest)
+bptest(modelo)
+```
+
+
+El análisis de la posible presencia de autocorrelación en los residuos a través del
+contraste de Durbin-Watson también confirma su ausencia:
+
+
+```{r}
+install.packages("car")
+```
+
+```{r}
+library(car)
+dwt(modelo, alternative = "two.sided")
+```
+
+
+Por tanto, el modelo final obtenido cumpliría los requisitos para que la regresión
+lineal sea válida, explicando así la esperanza de vida de los ciudadanos de EEUU en
+base al número de habitantes que vive en cada Estado, los asesinatos que se cometen
+al año, el número de universitarios y las heladas que se producen. La capacidad
+explicativa del modelo es de un 73.6%. (Multiple R-squared:  0.736)
+
+
+
