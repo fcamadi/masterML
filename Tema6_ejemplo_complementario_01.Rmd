@@ -1,0 +1,282 @@
+---
+title: "Tema6_ejemplo_complementario_01"
+author: "Fran Camacho"
+date: "2025-02-12"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 6 - Predicción de resultados de béisbol
+
+Supongamos que un analista de deportes quiere saber si existe una relación entre el
+número de bateos que realiza un equipo de béisbol y el número de runs que consigue.
+En caso de existir y de establecer un modelo, podría predecir el resultado de un partido.
+
+Comenzamos introduciendo los datos recopilados por el analista y construyendo el
+
+## Carga de los datos
+
+```{r}
+
+equipos <- c("Texas","Boston","Detroit","Kansas","St.","New_S.","New_Y.",
+            "Milwaukee","Colorado","Houston","Baltimore","Los_An.","Chicago",
+            "Cincinnati","Los_P.","Philadelphia","Chicago","Cleveland","Arizona",
+            "Toronto","Minnesota","Florida","Pittsburgh","Oakland","Tampa",
+            "Atlanta","Washington","San.F","San.I","Seattle")
+
+numero_bateos <- c(5659, 5710, 5563, 5672, 5532, 5600, 5518, 5447, 5544, 5598,
+                  5585, 5436, 5549, 5612, 5513, 5579, 5502, 5509, 5421, 5559,
+                  5487, 5508, 5421, 5452, 5436, 5528, 5441, 5486, 5417, 5421)
+
+runs <- c(855, 875, 787, 730, 762, 718, 867, 721, 735, 615, 708, 644, 654, 735, 667, 
+          713, 654, 704, 731, 743, 619, 625, 610, 645, 707, 641, 624, 570, 593, 556)
+
+datos <- data.frame(equipos,numero_bateos,runs)
+
+```
+
+```{r}
+str(datos)
+```
+
+
+```{r}
+summary(datos)
+```
+
+El primer paso antes de estimar un modelo de regresión con estas variables es
+representar los datos para ver si gráficamente se puede intuir efectivamente que
+existe una relación lineal y cuantificarla mediante el coeficiente de correlación.
+
+```{r}
+library(ggplot2)
+
+ggplot(data = datos, mapping = aes(x = numero_bateos, y = runs)) + 
+geom_point(color = "firebrick", size = 2) +
+labs(title = 'Diagrama de dispersión', x = 'número de bateos') + 
+theme_bw() + 
+theme(plot.title = element_text(hjust = 0.5))
+```
+
+Para obtener el coeficiente de correlación lineal usamos la función cor.test:
+
+```{r}
+cor.test(x = datos$numero_bateos, y = datos$runs, method = "pearson") 
+```
+
+
+El gráfico y el test de correlación muestran una relación lineal, de intensidad
+considerable (el coeficiente presenta un valor de 0.61) y significativa (el p-value es 0.0003388,
+inferior a 0.05). Por tanto, tiene sentido proponer un modelo de regresión lineal para
+intentar predecir el número de runs en función del número de bateos.
+
+
+```{r}
+modelo_lineal <- lm(runs ~ numero_bateos, datos)
+```
+
+```{r}
+summary(modelo_lineal)
+```
+
+La primera columna (Estimate) devuelve el valor estimado para los dos parámetros de
+la ecuación del modelo lineal que equivalen a la ordenada en el origen y la pendiente.
+En particular, el modelo lineal generado es **Runs = -2789.2429 + 0.6305xBateos**, lo que
+nos indica que, por cada unidad que se incrementa el número de bateos, el número de
+runs aumenta en promedio 0.6305 unidades.
+
+Para el modelo generado, tanto la ordenada en el origen como la pendiente son 
+significativas (al ser los p-values inferiores a 0.05).
+
+Por su parte, el valor de R2 indica que el modelo calculado explica el 37.29% de 
+la variabilidad presente en la variable respuesta (runs) mediante la variable
+independiente (número de bateos). En este sentido, resulta evidente que la bondad 
+de ajuste del modelo no es muy elevada.
+
+
+Por último, el p-value obtenido en el test F (**0.0003388**) determina que sí es
+significativamente superior la varianza explicada por el modelo en comparación a la
+varianza total. Es el parámetro que determina si el modelo es significativo y por lo
+tanto se puede aceptar.
+
+Representar gráficamente el modelo obtenido:
+
+
+```{r}
+ggplot(data = datos, mapping = aes(x = numero_bateos, y = runs)) + 
+geom_point(color = "firebrick", size = 2) +
+labs(title = 'Runs ~ número de bateos', x = 'número de bateos') + 
+geom_smooth(method = "lm", se = FALSE, color = "black") +
+theme_bw() +
+theme(plot.title = element_text(hjust = 0.5))
+```
+
+Además de la recta estimada, suele ser recomendable incluir los límites superior e
+inferior del intervalo de confianza de dicha recta. Ello nos permite identificar la región
+en la que, según el modelo generado y para un determinado nivel de confianza, se
+encuentra el valor promedio de la variable dependiente.
+
+Para poder representar el intervalo de confianza a lo largo de todo el modelo se
+recurre a la función predict() para predecir valores que abarquen todo el eje X.
+Posteriormente se añaden al gráfico dos líneas formadas por los límites superiores 
+e inferiores calculados para cada predicción:
+
+
+```{r}
+puntos <- seq(from = min(datos$numero_bateos), to = max(datos$numero_bateos), length.out = 100)
+
+limites_intervalo <- predict(object = modelo_lineal, newdata = data.frame(numero_bateos = puntos),
+                                interval = "confidence", level = 0.95)
+
+head(limites_intervalo, 3)
+```
+
+Incorporamos los límites superior e inferior del intervalo de confianza en el gráfico anterior:
+
+```{r}
+plot(datos$numero_bateos, datos$runs, col = "firebrick", pch = 19, ylab = "runs", xlab = "número de bateos", main = 'Runs ~ número de bateos')
+
+abline(modelo_lineal, col = 1)
+
+lines(x = puntos, y = limites_intervalo[,2],type = "l", col = 2, lty = 3)
+lines(x = puntos, y = limites_intervalo[,3],type = "l", col = 3, lty = 3)
+
+# El gráfico se actualiza y queda de la siguiente manera:
+```
+
+Alternativamente, para representar la recta y el intervalo de forma automática
+podemos usar también la función **geom_smooth()** de la librería ggplot2:
+
+
+```{r}
+ggplot(data = datos, mapping = aes(x = numero_bateos, y = runs)) + geom_point(color = "firebrick", size = 2) +
+        labs(title = 'Diagrama de dispersión', x = 'número de bateos') +
+        geom_smooth(method = "lm", se = TRUE, color = "black") +
+        theme_bw() +
+        theme(plot.title = element_text(hjust = 0.5))
+```
+
+## Verificación del modelo
+
+Pasamos a verificar si nuestro modelo cumple las condiciones necesarias para
+considerarlo válido. Primero, calculamos los residuos para cada observación y los
+representamos gráficamente. Si el modelo es válido, los residuos se deberían
+distribuir aleatoriamente en torno a cero:
+
+```{r}
+datos$prediccion <- modelo_lineal$fitted.values
+datos$residuos   <- modelo_lineal$residuals
+
+ggplot(data = datos, aes(x = prediccion, y = residuos)) +
+geom_point(aes(color = residuos)) +
+scale_color_gradient2(low = "blue3", mid = "grey", high = "red") +
+geom_hline(yintercept = 0) +
+geom_segment(aes(xend = prediccion, yend = 0), alpha = 0.2) +
+labs(title = "Distribución de los residuos", x = "predicción modelo",
+y = "residuo") +
+theme_bw() +
+theme(plot.title = element_text(hjust = 0.5), legend.position = "none")
+```
+En el gráfico anterior puede apreciarse que efectivamente los residuos se distribuyen
+de forma aleatoria alrededor de 0.
+
+Veamos ahora si su distribución es Normal. Para comprobarlo, podemos recurrir a un
+histograma, a un gráfico de cuantiles o a un contraste de Normalidad.
+
+
+i) Histograma de los residuos
+
+
+```{r}
+ggplot(data = datos, aes(x = residuos)) +
+geom_histogram(aes(y = ..density..)) +
+labs(title = "histograma de los residuos") +
+theme_light()
+```
+
+ii) Gráfico de cuantiles (Q-Q Plot):
+
+```{r}
+qqnorm(modelo_lineal$residuals)
+qqline(modelo_lineal$residuals)
+```
+
+iii) Test de Normalidad (Shapiro-Wilk)
+
+```{r}
+shapiro.test(modelo_lineal$residuals)
+```
+
+Tanto los gráficos presentados como el test de Shapiro-Wilk apoyan la hipótesis de
+Normalidad.
+
+Pasamos a revisar si la varianza de los residuos es constante (esto es, si presentan
+homocedasticidad). Si los representamos a lo largo del eje X vemos que no hay un
+patrón de forma cónica:
+
+```{r}
+ggplot(data = datos, aes(x = prediccion, y = residuos)) +
+geom_point(aes(color = residuos)) +
+scale_color_gradient2(low = "blue3", mid = "grey", high = "red") +
+geom_segment(aes(xend = prediccion, yend = 0), alpha = 0.2) +
+geom_smooth(se = FALSE, color = "firebrick") +
+labs(title = "Distribución de los residuos", x = "predicción modelo",
+y = "residuo") + geom_hline(yintercept = 0) + theme_bw() +
+theme(plot.title = element_text(hjust = 0.5), legend.position = "none")
+```
+
+Por su parte, el test de Breusch-Pagan confirma que los residuos son homocedásticos,
+al ser su p-value superior a 0.05, aceptándose por tanto la hipótesis nula del test:
+
+```{r}
+install.packages("lmtest")
+```
+
+```{r}
+library(lmtest)
+bptest(modelo_lineal)
+```
+
+Terminamos con un análisis de la autocorrelación de los residuos del modelo. Para
+ello, podemos tratar de encontrar patrones en la distribución de los residuos
+examinándola visualmente cuando se ordenan según se han registrado,
+
+```{r}
+ggplot(data = datos, aes(x = seq_along(residuos), y = residuos)) +
+geom_point(aes(color = residuos)) +
+scale_color_gradient2(low = "blue3", mid = "grey", high = "red") +
+geom_line(size = 0.3) +
+labs(title = "Distribución de los residuos", x = "index", y =
+"residuo") +
+geom_hline(yintercept = 0) +
+theme_bw() +
+theme(plot.title = element_text(hjust = 0.5), legend.position = "none")
+```
+
+o mediante el
+test de Durbin-Watson, usando para ello la función dwt() de la librería Car.
+
+```{r}
+#install.packages("car")
+```
+
+```{r}
+library(car)
+dwt(modelo_lineal)
+```
+
+
+El p-value es mayor de 0.05, lo que nos indica que es posible aceptar la hipótesis nula
+de ausencia de correlación.
+
+Tras el análisis realizado, podemos considerar que en líneas generales se verifican las
+condiciones para considerar válido el modelo de regresión lineal estimado.
+
+Sin embargo, el valor de R2 está lejos de +1 por lo que, aunque el modelo es válido, su
+capacidad predictiva parece escasa, por lo que el número de bateos seguramente no
+sea un buen predictor del número de runs.
+
+
