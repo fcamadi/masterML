@@ -1,0 +1,612 @@
+---
+title: "Tema6_Ejercicio"
+author: "Fran Camacho"
+date: "2025-02-14"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 6 - Ejercicio
+
+En la librería MASS podemos encontrar el dataset Boston, el cual incluye 506
+observaciones de 14 variables relacionadas con el mercado de la vivienda de
+dicha ciudad estadounidense. Puede encontrarse información detallada sobre
+el contenido de dichas variables en el siguiente enlace:
+
+https://www.rdocumentation.org/packages/MASS/versions/7.3-54/topics/Boston
+
+This data frame contains the following columns:
+
+crim    per capita crime rate by town.
+zn      proportion of residential land zoned for lots over 25,000 sq.ft.
+indus   proportion of non-retail business acres per town.
+chas    Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).
+nox     nitrogen oxides concentration (parts per 10 million).
+rm      average number of rooms per dwelling.
+age     proportion of owner-occupied units built prior to 1940.
+dis     weighted mean of distances to five Boston employment centres.
+rad     index of accessibility to radial highways.
+tax     full-value property-tax rate per $10,000.
+ptratio pupil-teacher ratio by town.
+black   (a strange formula) where is the proportion of blacks by town.
+lstat   lower status of the population (percent).
+medv    median value of owner-occupied homes in $1000s.
+
+
+## Paso 1: Carga de los datos
+
+```{r}
+#Load data from CRAN package MASS
+#install.packages("MASS")
+library(MASS)
+```
+
+
+## Paso 2: Explorar y preparar los datos
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+if (!require(GGally)) install.packages('GGally', dependencies = T)
+library(GGally)
+
+if (!require(gridExtra)) install.packages('gridExtra', dependencies = T)
+library(gridExtra)
+
+if (!require(lmtest)) install.packages('lmtest', dependencies = T)
+library(lmtest)
+
+if (!require(car)) install.packages('car', dependencies = T)
+library(car)
+```
+
+
+Examinamos la estructura y el aspecto del dataset importado:
+
+```{r}
+#Structure
+str(Boston)
+```
+
+
+```{r}
+#Summary
+summary(Boston)
+```
+
+La variable dependiente en este estudio es medv (valor medio de la vivienda en 1000 de $).
+Al ser numérica, está incluida en el resumen estadístico.
+
+```{r}
+#check there are no nulls
+
+boston <- Boston
+
+#sum(is.na(boston)) -> 0
+#count total missing values in each column of data frame
+#sapply(boston, function(x) sum(is.na(x)))
+colSums(is.na(boston))
+```
+
+En el sumario estadístico, se puede ver que algunas variables tienen una media y mediana bastante separadas: crim, zn,
+
+```{r}
+boxplot(x = boston$crim, main = "Boxplot of boston$crim")
+boxplot(x = boston$zn, main = "Boxplot of boston$zn")
+#boxplot(x = boston$indus, main = "Boxplot of boston$indus")
+#boxplot(x = boston$nox, main = "Boxplot of boston$nox")
+boxplot(x = boston$rm, main = "Boxplot of boston$rm")
+#boxplot(x = boston$age, main = "Boxplot of boston$age")
+#boxplot(x = boston$dis, main = "Boxplot of boston$dis")
+#boxplot(x = boston$tax, main = "Boxplot of boston$tax")
+#boxplot(x = boston$ptratio, main = "Boxplot of boston$ptratio")
+boxplot(x = boston$black, main = "Boxplot of boston$black")
+#boxplot(x = boston$lstat, main = "Boxplot of boston$lstat")
+```
+Al hacer los diagramas de caja de todos (por si acaso), he visto que también hay muchos valores atípicos para black y rm.
+(rm no creo que afecte tanto, porque el rango es muy pequeño -de hecho la mediana y la media de rm no son muy diferentes-).
+Entiendo que estas variables pueden provocar efectos indeseados en el conjunto.
+
+
+## Análisis de correlación
+
+Para poder establecer un modelo de regresión lineal múltiple, lo primero es estudiar
+la relación que existe entre variables. Para ello, comenzamos obteniendo la matriz de
+correlación entre todas las variables disponibles
+
+```{r}
+corr_matrix <- round(cor(x = boston, method = "pearson"), 3)
+
+corr_matrix
+```
+   
+```{r}
+#corr_matrix[,14]
+corr_matrix[,14][order(abs(corr_matrix[,14]))]
+#sort(abs(corr_matrix[,14]))
+```   
+
+Los valores que parecen más relacionados con el precio de la vivienda son 'lstat' (correlación negativa) y 'rm' (positiva).
+(Parece lógico -y un poco clasista también, pero bueno-: cuantas más habitaciones, mayor precio, cuanto más porcentaje de 'clase baja' en la zona, menor precio).
+Las variables que parecen menos relacionados con el precio de la vivienda son 'chas', 'dis', 'black' y 'zn'. 
+(Por no hablar de la variable 'black').
+
+También se ve que están muy relacionadas entre sí 'indus' y 'nox', 'tax' y 'rad'.
+(Investigando en internet he visto que la multicolinealidad puede ser un problema).
+
+Como se indica en el material complementario de este tema, también se puede utilizar la función "ggpairs" de la 
+libreria **GGally**. Con esta función, además de los valores de correlación para cada par de variables, también
+se obtiene los diagramas de dispersión y la distribución de cada una de las variables:
+
+
+```{r}
+#ggpairs(boston, lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
+```
+
+No puedo ver bien el resultado poniendo todas las variables juntas, así que elijo algunas de ellas:
+
+```{r}
+ggpairs(boston[,c(13,14)], lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
+```
+La relación entre lstat y medv puede que no sea exactamente lineal.
+Quizá pueda ser una posible mejora del modelo.
+
+```{r}
+ggpairs(boston[,c(6,14)], lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
+```
+
+```{r}
+ggpairs(boston[,c(11,14)], lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
+```
+
+```{r}
+ggpairs(boston[,c(1,14)], lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
+```
+
+No veo que entre estas dos variables haya alguna relación "razonable" la verdad.
+El diagrama de dispersion me parece extrañísimo ...
+
+Una vez visto todo esto
+( 
+- variables que son cualitativas como chas y rad
+- variables que están muy muy relacionadas entre sí, como tax y rad
+- variables que tienen muchos valores atípicos como crim, zn y black
+)
+estimamos el modelo con todas ellas, y luego utilizaremos el criterio AIC para ver si es conveniente eliminar alguna.
+
+
+```{r}
+model <- lm(medv ~ ., data = boston)
+
+summary(model)
+```
+El modelo con todos los predictores tiene un **R²** de **0.7406**, lo que indica que es capaz de explicar un 74% 
+de la variabilidad del precio de las viviendas. El hecho de que el **valor p** del estadístico F sea despreciable 
+(**< 2.2e-16**), y también los valores p de todas las variables menos 2 ('indus' y 'age'), indican que es probable
+que el modelo sea correcto.
+(Así que con todo lo extrañas que me parecen esas otras variables, parece que las que no aportan son indus y age).
+
+Vamos a comprobar si efectivamente esas dos variables 'indus' y 'age' no aportan nada al modelo.
+Para ello utilizaremos el criterio de Akaike (AIC - Akaike Information Criterion):
+
+```{r}
+#?step -> Choose a model by AIC in a Stepwise Algorithm 
+step(object = model, direction = "both", trace = 1)
+```
+
+Pues según este criterio (es mejor un valor AIC menor, y que el modelo tenga menos variables), el mejor modelo es
+
+medv ~ crim + zn + chas + nox + rm + dis + rad + tax + ptratio + black + lstat
+
+es decir, el que efectivamente no contiene ni indus ni age.
+
+
+```{r}
+model <- lm(medv ~ crim + zn + chas + nox + rm + dis + rad + tax + ptratio + black + lstat, data = boston)
+
+summary(model)
+```
+Se comprueba que el valor R² es igual que el del modelo completo, pero el valor estadístico F es mejor.
+
+
+[
+  
+PREGUNTA 1
+
+Si eliminamos chas:
+
+```{r}
+model_no_chas <- lm(medv ~ crim + zn + nox + rm + dis + rad + tax + ptratio + black + lstat, data = boston)
+
+summary(model_no_chas)
+```
+El valor R² baja levemente, y el valor estadístico F en cambio sube.
+
+Merece la pena mantener una variable como chas en el modelo?
+Yo diría que no, pero claro, me gustaría saber tu opinión.
+
+]
+
+
+
+## Validez del modelo
+
+Pasamos a validar el modelo. Debemos asegurarnos de que cumple los supuestos de un modelo de
+regresión lineal:
+
+Si para los predictores, los residuos se distribuyen aleatoriamente a lo largo del eje x en un
+diagrama de dispersión con esos predictores, entonces la relación es lineal.
+
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+#lstat
+plot_lstat <- ggplot(data = boston, aes(lstat, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+
+#rm
+plot_rm <- ggplot(data = boston, aes(rm, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+grid.arrange(plot_lstat, plot_rm)
+
+# model_no_chas almost identical
+```
+Hay la misma proporción de puntos arriba y abajo del 0.
+Pero para lstat los puntos se acumulan en la parte izquierda del eje x, y para rm en la parte central.
+No se reparten a lo largo del eje x de manera aleatoria.
+        
+        
+
+```{r}
+# seven intermediate
+
+#ptratio
+plot_ptratio <- ggplot(data = boston, aes(ptratio, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+#indus
+#plot_indus <- ggplot(data = boston, aes(indus, model$residuals)) +
+#geom_point() + geom_smooth(color = "firebrick") +
+##geom_hline(yintercept = 0) +
+#theme_bw()
+
+#tax
+plot_tax <- ggplot(data = boston, aes(tax, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+#nox
+plot_nox <- ggplot(data = boston, aes(nox, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+#crim
+plot_crim <- ggplot(data = boston, aes(crim, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+#rad
+plot_rad <- ggplot(data = boston, aes(rad, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+#age
+#plot_age <- ggplot(data = boston, aes(age, model$residuals)) +
+#geom_point() + geom_smooth(color = "firebrick") +
+#geom_hline(yintercept = 0) +
+#theme_bw()
+
+
+#grid.arrange(plot_ptratio, plot_indus, plot_tax, plot_nox, plot_crim, plot_rad, plot_age)
+grid.arrange(plot_ptratio, plot_tax, plot_nox, plot_crim, plot_rad)
+
+```
+
+Para tax, crim y rad, los puntos no se reparten a lo largo del eje x.
+
+
+```{r}
+#last four
+
+#zn
+plot_zn <- ggplot(data = boston, aes(zn, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+#black
+plot_black <- ggplot(data = boston, aes(black, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+#dis
+plot_dis <- ggplot(data = boston, aes(dis, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+#chas
+plot_chas <- ggplot(data = boston, aes(chas, model$residuals)) +
+geom_point() + geom_smooth(color = "firebrick") +
+geom_hline(yintercept = 0) +
+theme_bw()
+
+
+grid.arrange(plot_zn, plot_black, plot_dis, plot_chas)
+        
+```
+
+zn podría pasar, black y dis no tienen los puntos repartidos a lo largo del eje x.
+(chas es un caso especial, claro).
+
+
+Vamos a examinar ahora los siguientes 3 criterios para los residuos:  normalidad, homocedasticidad,
+y autocorrelación.
+
+
+### Normalidad:
+
+Veamos a continuación si los residuos de la regresión se distribuyen según una Normal.
+
+Para ello, realizaremos un gráfico Q-Q y un test Shapiro-Wilk:
+
+```{r}
+#Q-Q graph
+qqnorm(model$residuals)
+qqline(model$residuals)
+```
+
+
+**Shapiro-Wilk**  -> normalidad
+
+
+```{r}
+shapiro.test(model$residuals)
+```
+
+
+Según el test de Shapiro-Wilk los residuos no siguen una distribución normal.
+
+
+### Homocedasticidad
+
+Pasamos a revisar la homocedasticidad de los residuos. Para ello, representamos los
+residuos frente a los valores ajustados por el modelo. Confirmaremos la
+homocedasticidad si los primeros se distribuyen de forma aleatoria en torno a cero,
+manteniendo aproximadamente la misma variabilidad a lo largo del eje X.
+
+Si, por el contrario, se observara algún patrón específico significaría que la
+variabilidad es dependiente del valor ajustado y por lo tanto se violaría el supuesto de
+homocedasticidad de los residuos:
+
+
+```{r}
+ggplot(data = boston, aes(model$fitted.values, model$residuals)) +
+geom_point() +
+geom_smooth(color = "firebrick", se = FALSE) +
+geom_hline(yintercept = 0) +
+theme_bw()
+```
+
+Los residuos se acumulan en la zona central, alrededor del 20. No parece que se distribuyan
+uniformemente a lo largo del eje x.
+(También me llama mucho la atención una línea recta que va desde las 12 en punto a las 3 en punto).
+
+
+**Breusch-Pagan**
+
+```{r}
+#library(lmtest)
+bptest(model)
+```
+
+El contraste de Breusch-Pagan  devuelve un valor muy inferior a 0, lo que indica la falta de homocedasticidad 
+(y la presencia de heterocedasticidad).
+
+[
+  https://en.wikipedia.org/wiki/Breusch%E2%80%93Pagan_test
+
+  ... it tests whether the variance of the errors from a regression is dependent on the values of the independent variables. 
+  In that case, heteroskedasticity is present. 
+]
+ 
+ 
+### Autocorrelación 
+ 
+**Durbin-Watson **  ->  autocorrelación
+ 
+El análisis de la posible presencia de autocorrelación en los residuos a través del
+contraste de Durbin-Watson
+
+```{r}
+#library(car)
+dwt(model, alternative = "two.sided")
+```
+
+
+```{r}
+#library(lmtest)
+dwtest(model)
+```
+
+Pues también se da la presencia de autocorrelación.
+
+
+Es decir, no tenemos normalidad ni homecedasticidad, y sí autocorrelación ...
+Deduzco que los valores predichos por el modelo no serán de una gran valor.
+
+
+## Mejora del modelo
+
+Vamos a ver qué pasa si tenemos en cuenta la posible relación no lineal entre lstat y medv:
+
+```{r}
+model_lstat2 <- lm(medv ~ crim + zn + chas + nox + rm + dis + rad + tax + ptratio + black + lstat + I(lstat^2), data = Boston)
+
+summary(model_lstat2)
+```
+El R-squared pasa del 74% al 78.7%, y el estadístico F pasa de 128 a 151.6
+Parece una mejora.
+
+También, que zn ha dejado de ser significativo.
+
+[   
+
+PREGUNTA 2
+
+Si elimino zn, obtengo
+
+```{r}
+#model_lstat2 <- lm(medv ~ crim + chas + nox + rm + dis + rad + tax + ptratio + black + lstat + I(lstat^2), data = Boston)
+#summary(model_lstat2)
+```
+ 
+Multiple R-squared:  **0.7855**,	Adjusted R-squared:  0.7808 
+F-statistic: **164.5** on 11 and 494 DF,  p-value: < 2.2e-16
+
+Es decir, el valor de R² dismuinuye ligeramente, pero el valor del estadístico F aumenta.
+¿Es conveniente/merece la pena en este caso eliminar una variable como zn?
+
+Mi intuición (o sentido común) dice que sí, pero no estoy seguro ...
+
+]
+
+
+
+A ver qué dice el criterio de Akaike:
+
+```{r}
+#?step -> Choose a model by AIC in a Stepwise Algorithm 
+step(object = model_lstat2, direction = "both", trace = 1)
+```
+
+Se mantienen todas las variables, incluida zn.
+
+[  
+
+PREGUNTA 3 
+
+El "valor AIC" de este modelo es inferior.
+¿Tiene sentido comparar dos modelos según el AIC?
+
+]
+
+
+
+Dejamos como modelo final para hacer el último punto 
+
+medv ~ crim + zn + chas + nox + rm + dis + rad + tax + ptratio + black + lstat + I(lstat^2)
+
+
+
+Correlación entre lo que predice el modelo, y los datos reales:
+
+```{r}
+boston$pred <- predict(model_lstat2, boston)
+```    
+
+```{r}
+cor(boston$pred, boston$medv)
+```
+
+Es un valor bastante alto.
+
+
+```{r}
+plot(boston$pred, boston$medv)
+abline(a = 0, b = 1, col = "red", lwd = 3, lty = 2)
+```  
+
+Los puntos están bastante cerca de la línea roja discontinua que marca donde las predicciones están muy cerca de los valores reales.
+Quizá el modelo no haga predicciones tan erróneas después de todo.
+
+
+## Predicción
+
+
+En lugar de inventarme 5 registros, he pensado mejor combino de manera aleatoria parejas de registros existentes.
+(Como si fueran viviendas que están entre otras 2 viviendas ya evaluadas).
+
+```{r}
+boston1And10 <- (boston[1,]+boston[10,])/2
+boston1And10
+
+boston15And40 <- (boston[15,]+boston[40,])/2
+boston15And40$rad <- 3
+boston15And40
+
+boston100And110 <- (boston[100,]+boston[110,])/2
+boston100And110$rad <- 5
+boston100And110
+
+boston200And220 <- (boston[200,]+boston[220,])/2
+boston200And220
+
+boston300And500 <- (boston[300,]+boston[500,])/2
+boston300And500$rad <- 5
+```
+
+
+```{r}
+predict(model_lstat2, data.frame(crim=0.08818 , zn=15.25 , chas=0 , nox=0.531 , rm=6.2895 , dis=5.34105 , rad=3 , tax=303.5 , ptratio=15.25 , black=391.805 , lstat=11.04 ))
+#predict(model_lstat2, data.frame(boston1And10))
+``` 
+
+
+
+```{r}
+predict(model_lstat2, data.frame(boston15And40))
+``` 
+
+
+
+```{r}
+#predict(model_lstat2, data.frame(boston[100,]))  # -> 33.17257 
+#predict(model_lstat2, data.frame(boston[110,]))  # -> 18.12436
+predict(model_lstat2, data.frame(boston100And110))
+```  
+
+
+```{r}
+#predict(model_lstat2, data.frame(boston[200,]))  # -> 30.69801 
+#predict(model_lstat2, data.frame(boston[220,]))  # -> 28.37799
+predict(model_lstat2, data.frame(boston200And220))
+```  
+
+```{r}
+#predict(model_lstat2, data.frame(boston[300,]))  # -> 32.43072 
+#predict(model_lstat2, data.frame(boston[500,]))  # -> 17.2025
+predict(model_lstat2, data.frame(boston300And500))
+``` 
+
+
+Conclusión final:
+
+Los resultados me parecen "razonables", a pesar de lo comentado (predictores con muchos valores atípicos, variables categóricas(?) .. predictor "racista*" ..)
+
+
+*he encontrado críticas sobre este data set.
+Si buscas en internet "boston housing dataset criticism", salen unas cuantas ...
+(Parece que este dataset también estaba en sckit-learn, y en la versión 1.2 lo quitaron)
+
+
+
+
