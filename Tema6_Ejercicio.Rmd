@@ -84,6 +84,7 @@ Al ser numérica, está incluida en el resumen estadístico.
 #check there are no nulls
 
 boston <- Boston
+write.csv(boston,file='Chapter06/boston.csv') #<- export data to be used lately with Python & scikit-learn
 
 #sum(is.na(boston)) -> 0
 #count total missing values in each column of data frame
@@ -91,7 +92,8 @@ boston <- Boston
 colSums(is.na(boston))
 ```
 
-En el sumario estadístico, se puede ver que algunas variables tienen una media y mediana bastante separadas: crim, zn,
+En el sumario estadístico, se puede ver que algunas variables tienen una media y mediana bastante separadas: crim, zn.
+Las examinamos con más detalle mediante diagramas de caja.
 
 ```{r}
 boxplot(x = boston$crim, main = "Boxplot of boston$crim")
@@ -106,15 +108,15 @@ boxplot(x = boston$rm, main = "Boxplot of boston$rm")
 boxplot(x = boston$black, main = "Boxplot of boston$black")
 #boxplot(x = boston$lstat, main = "Boxplot of boston$lstat")
 ```
-Al hacer los diagramas de caja de todos (por si acaso), he visto que también hay muchos valores atípicos para black y rm.
+Al hacer los diagramas de caja de todos los predictores (por si acaso), he visto que también hay muchos valores atípicos para black y rm.
 (rm no creo que afecte tanto, porque el rango es muy pequeño -de hecho la mediana y la media de rm no son muy diferentes-).
-Entiendo que estas variables pueden provocar efectos indeseados en el conjunto.
+Entiendo que estas variables pueden provocar efectos indeseados en el resultado final.
 
 
 ## Análisis de correlación
 
 Para poder establecer un modelo de regresión lineal múltiple, lo primero es estudiar
-la relación que existe entre variables. Para ello, comenzamos obteniendo la matriz de
+la relación que existe entre las variables independientes. Para ello, comenzamos obteniendo la matriz de
 correlación entre todas las variables disponibles
 
 ```{r}
@@ -131,8 +133,8 @@ corr_matrix[,14][order(abs(corr_matrix[,14]))]
 
 Los valores que parecen más relacionados con el precio de la vivienda son 'lstat' (correlación negativa) y 'rm' (positiva).
 (Parece lógico -y un poco clasista también, pero bueno-: cuantas más habitaciones, mayor precio, cuanto más porcentaje de 'clase baja' en la zona, menor precio).
-Las variables que parecen menos relacionados con el precio de la vivienda son 'chas', 'dis', 'black' y 'zn'. 
 (Por no hablar de la variable 'black').
+Las variables que parecen menos relacionados con el precio de la vivienda son 'chas', 'dis', 'black' y 'zn'. 
 
 También se ve que están muy relacionadas entre sí 'indus' y 'nox', 'tax' y 'rad'.
 (Investigando en internet he visto que la multicolinealidad puede ser un problema).
@@ -146,13 +148,14 @@ se obtiene los diagramas de dispersión y la distribución de cada una de las va
 #ggpairs(boston, lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
 ```
 
-No puedo ver bien el resultado poniendo todas las variables juntas, así que elijo algunas de ellas:
+No puedo ver bien aquí el resultado poniendo todas las variables juntas, así que elijo algunas de ellas:
+(En python, como en la pantalla del navegador donde se ejecutan los notebooks the JupyterLab hay más espacio, se ve algo mejor).
 
 ```{r}
 ggpairs(boston[,c(13,14)], lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
 ```
 La relación entre lstat y medv puede que no sea exactamente lineal.
-Quizá pueda ser una posible mejora del modelo.
+Quizá pueda ser una mejora del modelo.
 
 ```{r}
 ggpairs(boston[,c(6,14)], lower = list(continuous = "smooth"), diag = list(continuous = "barDiag"), axisLabels = "none")
@@ -167,7 +170,7 @@ ggpairs(boston[,c(1,14)], lower = list(continuous = "smooth"), diag = list(conti
 ```
 
 No veo que entre estas dos variables haya alguna relación "razonable" la verdad.
-El diagrama de dispersion me parece extrañísimo ...
+El diagrama de dispersion me parece muy extraño.
 
 Una vez visto todo esto
 ( 
@@ -264,7 +267,7 @@ grid.arrange(plot_lstat, plot_rm)
 ```
 Hay la misma proporción de puntos arriba y abajo del 0.
 Pero para lstat los puntos se acumulan en la parte izquierda del eje x, y para rm en la parte central.
-No se reparten a lo largo del eje x de manera aleatoria.
+No se reparten a lo largo de todo el eje x de manera aleatoria.
         
         
 
@@ -374,8 +377,9 @@ qqnorm(model$residuals)
 qqline(model$residuals)
 ```
 
+La línea de puntos se separa de la línea recta .. (lo que indica no normalidad).
 
-**Shapiro-Wilk**  -> normalidad
+**Shapiro-Wilk**
 
 
 ```{r}
@@ -383,7 +387,20 @@ shapiro.test(model$residuals)
 ```
 
 
-Según el test de Shapiro-Wilk los residuos no siguen una distribución normal.
+Según el test de Shapiro-Wilk, se confirma que los residuos no siguen una distribución normal.
+(El valor p es significativo, por lo que el valor W que es superior a 0.05 indica la no normalidad).
+
+
+Otra manera/librería :
+
+```{r}
+if (!require(olsrr)) install.packages('olsrr', dependencies = T)
+library(olsrr)
+
+ols_plot_resid_hist(model)
+ols_plot_resid_qq(model)
+```
+
 
 
 ### Homocedasticidad
@@ -418,7 +435,7 @@ uniformemente a lo largo del eje x.
 bptest(model)
 ```
 
-El contraste de Breusch-Pagan  devuelve un valor muy inferior a 0, lo que indica la falta de homocedasticidad 
+El contraste de Breusch-Pagan  devuelve un valor muy superior a 0, siendo p muy pequeño, lo que indica la falta de homocedasticidad 
 (y la presencia de heterocedasticidad).
 
 [
@@ -452,6 +469,7 @@ Pues también se da la presencia de autocorrelación.
 
 Es decir, no tenemos normalidad ni homecedasticidad, y sí autocorrelación ...
 Deduzco que los valores predichos por el modelo no serán de una gran valor.
+
 
 
 ## Mejora del modelo
@@ -542,26 +560,27 @@ Quizá el modelo no haga predicciones tan erróneas después de todo.
 ## Predicción
 
 
-En lugar de inventarme 5 registros, he pensado mejor combino de manera aleatoria parejas de registros existentes.
+En lugar de inventarme 5 registros, he pensado mejor combinar de manera aleatoria parejas de registros existentes.
 (Como si fueran viviendas que están entre otras 2 viviendas ya evaluadas).
 
 ```{r}
 boston1And10 <- (boston[1,]+boston[10,])/2
-boston1And10
+#boston1And10
 
 boston15And40 <- (boston[15,]+boston[40,])/2
 boston15And40$rad <- 3
-boston15And40
+#boston15And40
 
 boston100And110 <- (boston[100,]+boston[110,])/2
 boston100And110$rad <- 5
-boston100And110
+#boston100And110
 
 boston200And220 <- (boston[200,]+boston[220,])/2
-boston200And220
+#boston200And220
 
 boston300And500 <- (boston[300,]+boston[500,])/2
 boston300And500$rad <- 5
+#boston300And500
 ```
 
 
@@ -600,12 +619,13 @@ predict(model_lstat2, data.frame(boston300And500))
 
 Conclusión final:
 
-Los resultados me parecen "razonables", a pesar de lo comentado (predictores con muchos valores atípicos, variables categóricas(?) .. predictor "racista*" ..)
+Los resultados me parecen "razonables", a pesar de lo comentado (predictores con muchos valores atípicos, variables categóricas(?) .. predictor "racista*" ..).
 
 
-*he encontrado críticas sobre este data set.
-Si buscas en internet "boston housing dataset criticism", salen unas cuantas ...
-(Parece que este dataset también estaba en sckit-learn, y en la versión 1.2 lo quitaron)
+
+*he encontrado críticas sobre este data set en internet.
+(Parece que este dataset también estaba en sckit-learn, y en la versión 1.2 lo quitaron. Al menos al hacer esta tarea con Python, me sale un mensaje avisando de esta circunstancia, como se puede ver en el repositorio de GitHub).
+
 
 
 
