@@ -1,0 +1,167 @@
+---
+title: "Tema7_nn_boston_housing_example"
+author: "Fran Camacho"
+date: "2025-02-16"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 7 - Redes neuronales
+
+Ejemplo 2: Predicción del Precio de la Vivienda en Boston
+
+Veamos ahora cómo podemos predecir el precio de la vivienda en el área de Boston.
+Para ello, utilizaremos el dataset Boston incluido en la librería MASS.
+
+https://www.cs.toronto.edu/%7Edelve/data/boston/bostonDetail.html
+
+## Paso 1: Carga de los datos
+
+```{r}
+#Load data from CRAN package MASS
+#install.packages("MASS")
+library(MASS)
+```
+
+
+## Paso 2: Explorar y preparar los datos
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+if (!require(neuralnet)) install.packages('neuralnet', dependencies = T)
+library(neuralnet)
+
+if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+library(ggplot2)
+```
+
+
+Examinamos la estructura y el aspecto del dataset importado:
+
+```{r}
+#Structure
+str(Boston)
+```
+
+```{r}
+#Summary
+summary(Boston)
+```
+
+Particionamos nuestros datos en los correspondientes conjuntos de
+entrenamiento y validación
+
+```{r}
+set.seed(65)
+
+datos <- Boston
+
+n <- nrow(datos)
+
+muestra <- sample(n, n * .70)
+train <- datos[muestra, ]
+test <- datos[-muestra, ]
+```
+
+
+A continuación, dado que los datos que introducimos en la red neuronal deben estar
+normalizados para su correcto procesamiento, procedemos a transformarlos usando
+en esta ocasión la función scale():
+
+```{r}
+maxs <- apply(train, 2, max)
+mins <- apply(train, 2, min)
+
+datos_nrm <- as.data.frame(scale(datos, center = mins, scale = maxs - mins))
+
+train_norm <- datos_nrm[muestra, ]
+test_norm <- datos_nrm[-muestra, ]
+```
+
+
+## Paso 3: Entrenamiento del modelo
+
+
+```{r}
+modelo.nn <- neuralnet(medv ~ .,  data = train_norm, hidden = c(7,5), threshold = 0.05, algorithm = "rprop+")
+```
+
+• hidden: vector de enteros especificando el número de neuronas ocultas de la
+red neuronal. En nuestro caso, especificamos una primera capa oculta con 7
+neuronas y una segunda capa oculta con 5 neuronas.
+• threshold: valor numérico que especifica el umbral para las derivadas
+parciales de la función de error. Este valor define el criterio de parada para que
+el algoritmo finalice el proceso de reajuste de pesos de la red neuronal.
+• algorithm: la función neuralnet permite seleccionar el algoritmo utilizado para
+calcular la red neuronal. Las opciones son las siguientes: backprop, rprop+,
+rprop-, sag y slr. Por defecto, se selecciona rprop+ (Resilient Backpropagation).
+
+
+Usando la función plot() podemos visualizar la arquitectura de la red entrenada y sus
+pesos:
+
+```{r}
+plot(modelo.nn)
+```
+
+
+## Paso 4: Evaluación del modelo
+
+Predicción del modelo.
+
+Una vez entrenada la red, pasamos a analizar la capacidad predictiva del modelo
+utilizando el dataset de validación:
+
+```{r}
+pr.nn <- compute(modelo.nn, within(test_norm,rm(medv)))
+
+# Desnormalización:
+medv.predict <- pr.nn$net.result*(max(datos$medv)- min(datos$medv))+min(datos$medv)
+
+medv.real <- (test_norm$medv)*(max(datos$medv)- min(datos$medv))+min(datos$medv)
+```
+
+
+
+A continuación, obtenemos el error cuadrático medio, una métrica que nos permite
+comparar la calidad de este modelo con otros que hayan usado los mismos datos:
+
+```{r}
+se.nn <- sum((medv.real - medv.predict)^2)/nrow(test_norm)
+se.nn
+```
+
+
+Finalmente, analizamos gráficamente la calidad del ajuste de nuestra red neuronal:
+
+
+```{r}
+qplot(x=medv.real, y=medv.predict, geom=c("point","smooth"), method="lm", 
+      main=paste("Real Vs Prediccion. Summa de Error Cuadratico=", 
+      round(se.nn,2)))
+```
+
+
+Dado que estamos prediciendo valores numéricos, no es posible utilizar una matriz de
+confusión. En este caso, vamos a abordar el problema de manera ligeramente
+diferente, estudiado la correlación entre los valores reales y las predicciones:
+
+```{r}
+cor(medv.real, medv.predict)
+```
+
+Podemos ver que la correlación es elevada, estando cerca de 1. Este resultado era de
+esperar dado el excelente ajuste de la recta que se apreciaba en el gráfico anterior. Por
+tanto, podemos afirmar que el modelo de redes neuronales obtenido es válido y ofrece
+buenos resultados.
+
+
+
+
+
+
+

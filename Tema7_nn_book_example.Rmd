@@ -1,0 +1,287 @@
+---
+title: "Tema7_nn_book_example"
+author: "Fran Camacho"
+date: "2025-02-16"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 7 - Black-Box-Methods: Neural Networks
+
+Example from the book "Machine Learning with R", by Brett Lantz:
+
+Modeling the strength of concrete with **ANNs**
+
+## Step 1 – collecting data
+
+For this analysis, we will utilize data on the compressive strength of concrete donated to the UCI
+Machine Learning Repository (http://archive.ics.uci.edu/ml) by I-Cheng Yeh. As he found
+success using neural networks to model this data, we will attempt to replicate Yeh’s work using
+a simple neural network model in R.
+
+
+```{r}
+# import the CSV file
+concrete <- read.csv(file.path("Chapter07", "concrete.csv"))
+```
+
+
+## Step 2 – Exploring and preparing the data
+
+Needed packages
+
+```{r}
+if (!require(neuralnet)) install.packages('neuralnet', dependencies = T)
+library(neuralnet)
+```
+
+
+```{r}
+# str
+str(concrete)
+```
+
+Neural networks work best when the input data is scaled to a narrow range around zero, 
+and here we see values ranging anywhere from zero to over a thousand.
+
+```{r}
+# str
+summary(concrete)
+```
+
+
+Typically, the solution to this problem is to rescale the data with a normalizing or standardization
+function.  If the data follows a bell-shaped curve (a normal distribution, as described in Chapter 2,
+Managing and Understanding Data), then it may make sense to use standardization via R’s built-in scale() 
+function. On the other hand, if the data follows a uniform distribution or is severely
+non-normal, then normalization to a zero-to-one range may be more appropriate. In this case,
+we’ll use the latter.
+
+
+```{r}
+normalize <- function(x) {
+return((x - min(x)) / (max(x) - min(x)))
+}
+
+concrete_norm <- as.data.frame(lapply(concrete, normalize))
+
+summary(concrete_norm)
+```
+
+Train-test split:
+
+```{r}
+concrete_train <- concrete_norm[1:773, ]
+concrete_test <- concrete_norm[774:1030, ]
+```
+
+## Step 3 – training a model on the data
+
+we will use a multilayer feedforward neural network. The **neuralnet** package by
+Stefan Fritsch and Frauke Guenther provides a standard and easy-to-use implementation of such
+networks. It also offers a function to plot the network topology.
+
+
+We’ll begin by training the simplest multilayer feedforward network with the default settings
+using only a single hidden node. Because the process of training an ANN involves randomization,
+the set.seed() function used here will ensure the same result is produced when the neuralnet()
+function is run:
+
+
+```{r}
+set.seed(12345)
+
+concrete_model <- neuralnet(strength ~ cement + slag + ash + water + superplastic + 
+                              coarseagg + fineagg + age, data = concrete_train)
+```
+
+
+Plot the neural network:
+
+```{r}
+plot(concrete_model)
+```
+
+In this simple model, there is one input node for each of the eight features, followed by a single
+hidden node and a single output node that predicts the concrete strength. The weights for each of
+the connections are also depicted, as are the bias terms indicated by the nodes labeled with the
+number 1. The bias terms are numeric constants that allow the value at the indicated nodes to be
+shifted upward or downward, much like the intercept in a linear equation.
+
+
+## Step 4 – evaluating model performance
+
+To generate predictions on the test dataset, we can use the compute() function as follows:
+
+
+```{r}
+model_results <- compute(concrete_model, concrete_test[1:8])
+
+model_results
+```
+
+Because this is a numeric prediction problem rather than a classification problem, we cannot use
+a confusion matrix to examine model accuracy. Instead, we’ll measure the correlation between
+our predicted concrete strength and the true value. If the predicted and actual values are highly
+correlated, the model is likely to be a useful gauge of concrete strength.
+
+
+```{r}
+predicted_strength <- model_results$net.result
+
+cor(predicted_strength, concrete_test$strength)
+# -> [1,] 0.8064656
+```
+
+Correlations close to one indicate strong linear relationships between two variables. Therefore,
+the correlation here of about 0.806 indicates a fairly strong relationship. This implies that our
+model is doing a fairly good job, even with only a single hidden node.
+
+
+## Step 5 – improving model performance
+
+Adding hidden layers
+
+```{r}
+set.seed(12345)
+
+concrete_model2 <- neuralnet(strength ~ cement + slag + ash + water + superplastic +
+coarseagg + fineagg + age, data = concrete_train, hidden = 5)
+```
+
+
+```{r}
+plot(concrete_model2)
+```
+
+Notice that the reported error (measured again by the SSE) has been reduced from 5.08 in the
+previous model to 1.63 here. Additionally, the number of training steps rose from 4,882 to 86,849.
+
+Applying the same steps to compare the predicted values to the true values
+
+```{r}
+model_results2 <- compute(concrete_model2, concrete_test[1:8])
+
+predicted_strength2 <- model_results2$net.result
+
+cor(predicted_strength2, concrete_test$strength)
+# -> [1,] 0.9244533
+```
+
+we now obtain a correlation of around 0.92, which is a considerable improvement 
+over the previous result of 0.80 with a single hidden node.
+
+### Other improvement: change activation function
+
+To define a softplus() function in R, use the following code:
+
+```{r}
+softplus <- function(x) { log(1 + exp(x)) }
+```
+
+This activation function can be provided to neuralnet() using the **act.fct** parameter
+
+```{r}
+set.seed(12345)
+
+concrete_model3 <- neuralnet(strength ~ cement + slag + ash + water + superplastic +
+  coarseagg + fineagg + age, data = concrete_train, hidden = c(5, 5),
+  act.fct = softplus)
+
+```
+
+Now we have
+
+```{r}
+plot(concrete_model3)
+```
+
+
+```{r}
+model_results3 <- compute(concrete_model3, concrete_test[1:8])
+
+predicted_strength3 <- model_results3$net.result
+
+cor(predicted_strength3, concrete_test$strength)
+# -> [1,] 0.9348395
+```
+
+The correlation between the predicted and actual strength was 0.935, which is our best
+performance yet.
+
+
+One important thing to be aware of is that, because we had normalized the data prior to train-
+ing the model, the predictions are also on a normalized scale from zero to one. For example, the
+following code shows a data frame comparing the original dataset’s concrete strength values to
+their corresponding predictions side by side:
+
+```{r}
+strengths <- data.frame(actual = concrete$strength[774:1030], pred = predicted_strength3)
+
+head(strengths, n = 3)
+```
+
+Using correlation as a performance metric, the choice of normalized or unnormalized data does not
+affect the result. For example, the correlation of 0.935 is the same whether the predicted strengths
+are compared to the original, unnormalized concrete strength values (strengths$actual) 
+
+```{r}
+cor(strengths$pred, strengths$actual)
+```
+
+or to the normalized values (concrete_test$strength):
+
+```{r}
+cor(strengths$pred, concrete_test$strength)
+```
+
+
+
+However, if we were to compute a different performance metric, such as the percentage difference
+between the predicted and actual values, the choice of scale would matter quite a bit.
+With this in mind, we can create an unnormalize() function that reverses the min-max nor-
+malization procedure and allow us to convert the normalized predictions into the original scale:
+
+```{r}
+unnormalize <- function(x) {
+    return(x * (max(concrete$strength) - min(concrete$strength)) + min(concrete$strength))
+}
+```
+
+
+```{r}
+strengths$pred_new <- unnormalize(strengths$pred)
+```
+
+The resulting error_pct is the percentage difference between the true and predicted values:
+
+```{r}
+strengths$error_pct <- (strengths$pred_new - strengths$actual) / strengths$actual
+
+head(strengths, n = 5)
+```
+
+Unsurprisingly, the correlation remains the same despite reversing the normalization:
+
+```{r}
+cor(strengths$pred_new, strengths$actual)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
