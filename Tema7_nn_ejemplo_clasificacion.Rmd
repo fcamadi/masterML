@@ -1,0 +1,215 @@
+---
+title: "Tema7_nn_ejemplo_clasificacion"
+author: "Fran Camacho"
+date: "2025-02-26"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 7 - Redes neuronales
+
+Retomamos el ejemplo de clasificación de flores iris que vimos en los temas 3 y 5. 
+Este dataset está compuesto por 150 observaciones y 5 variables, de las cuales 4 son
+variables numéricas (Sepal.Length, Sepal.Width, Petal.Length, Petal.Width) y 1
+cualitativa (Species).
+
+
+
+## Paso 1: Carga de los datos
+
+Cargamos el dataset con la función data()
+
+```{r}
+#Load data
+data(iris)
+```
+
+
+## Paso 2: Explorar y preparar los datos
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+if (!require(neuralnet)) install.packages('neuralnet', dependencies = T)
+library(neuralnet)
+
+if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+library(ggplot2)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+```
+
+
+```{r}
+#str
+str(iris)
+```
+
+
+```{r}
+#str
+summary(iris)
+```
+
+Normalizar los datos numéricos:
+
+```{r}
+#str
+iris_norm <- as.data.frame(apply(iris[, 1:4], 2, function(x) (x-min(x))/(max(x)-min(x)))) 
+
+iris_norm$Species <- iris$Species
+```
+
+
+```{r}
+#summary
+summary(iris_norm)
+```
+
+
+```{r}
+data <- iris_norm
+
+data$setosa <- NA
+data$setosa[iris[ncol(iris)]=='setosa']<-1
+data$setosa[iris[ncol(iris)]!='setosa']<-0
+
+data$versicolor <- NA
+data$versicolor[iris[ncol(iris)]=='versicolor']<-1
+data$versicolor[iris[ncol(iris)]!='versicolor']<-0
+
+data$virginica <- NA
+data$virginica[iris[ncol(iris)]=='virginica']<-1
+data$virginica[iris[ncol(iris)]!='virginica']<-0
+```
+
+
+```{r}
+head(data)
+```
+
+
+
+
+## Paso 3: Entrenamiento del modelo
+
+```{r}
+set.seed(12345)
+
+size <- floor(0.80 * nrow(iris_norm))
+
+idx <- sample(seq_len(nrow(iris_norm)), size = size)
+
+data_train <- data[idx, ]
+data_test <- data[-idx, ]
+```
+
+
+```{r}
+#model <- neuralnet(setosa+versicolor+virginica ~ .,  data=data_train[ , -which(names(data_train) %in% c("Species"))], hidden=8)  # (1)
+#model <- neuralnet(setosa+versicolor+virginica ~ .,  data=data_train[ , -which(names(data_train) %in% c("Species"))], hidden = c(12,3), threshold = 0.05, algorithm = "rprop+") (2)
+model <- neuralnet(setosa+versicolor+virginica ~ .,  data=data_train[ , -which(names(data_train) %in% c("Species"))], hidden=3)  # (0)
+```
+
+
+```{r}
+plot(model)
+```
+
+
+***Predicción del modelo***
+
+```{r}
+#prediction <- compute(model, data_test[ , -which(names(data_test) %in% c("Species"))])   #compute is deprecated! 
+                                                                                          # ?compute: The function compute is deprecated. Please refer to the new function predict.nn.
+#prediction_result <- as.data.frame(prediction$net.result)
+#prediction_result <- apply(prediction_result,1,which.max)
+
+prediction <- predict(model, data_test[ , -which(names(data_test) %in% c("Species"))])
+
+prediction_result <- apply(prediction,1,which.max)
+
+```
+
+
+```{r}
+prediction_result[prediction_result==1] <- "setosa"
+prediction_result[prediction_result==2] <- "versicolor"
+prediction_result[prediction_result==3] <- "virginica"
+```
+
+
+## Paso 4: Evaluación del modelo
+
+```{r}
+confusionMatrix(as.factor(data_test$Species), as.factor(prediction_result))
+```
+
+Resultado con este modelo con 8 neuronas internas:
+
+(1) model <- neuralnet(setosa+versicolor+virginica ~ .,  data=data_train[ , -which(names(data_train) %in% c("Species"))], hidden=8)
+
+Mismo resultado con
+
+(2) model <- neuralnet(setosa+versicolor+virginica ~ .,  data=data_train[ , -which(names(data_train) %in% c("Species"))], hidden = c(12,3), threshold = 0.05, algorithm = "rprop+")
+
+(0) model <- neuralnet(setosa+versicolor+virginica ~ .,  data=data_train[ , -which(names(data_train) %in% c("Species"))], hidden=3)
+
+Confusion Matrix and Statistics
+
+            Reference
+Prediction   setosa versicolor virginica
+  setosa         10          0         0
+  versicolor      0         10         0
+  virginica       0          1         9
+
+Overall Statistics
+                                          
+               Accuracy : 0.9667          
+                 95% CI : (0.8278, 0.9992)
+    No Information Rate : 0.3667          
+    P-Value [Acc > NIR] : 4.476e-12       
+                                          
+                  Kappa : 0.95            
+                                          
+ Mcnemar's Test P-Value : NA              
+
+Statistics by Class:
+
+                     Class: setosa Class: versicolor Class: virginica
+Sensitivity                 1.0000            0.9091           1.0000
+Specificity                 1.0000            1.0000           0.9524
+Pos Pred Value              1.0000            1.0000           0.9000
+Neg Pred Value              1.0000            0.9500           1.0000
+Prevalence                  0.3333            0.3667           0.3000
+Detection Rate              0.3333            0.3333           0.3000
+Detection Prevalence        0.3333            0.3333           0.3333
+Balanced Accuracy           1.0000            0.9545           0.9762
+
+
+
+La matriz de confusión obtenida nos indica que nuestra red neuronal ha clasificado
+correctamente los datos de validación en un 96.67% de los casos, ligeramente
+superior al valor obtenido en el caso de los kNN y similar al porcentaje de éxito
+obtenido con los árboles de decisión.
+
+
+En este ejemplo, con 3 neuronas en la capa interna ya se obtiene el mejor resultado.
+No he conseguido mejorar ese resultado, ni poniendo 2 capas intermedias (10,5), (12,3).
+Poniendo una capa de 20 neuronas, el resultado incluso empeora.
+(Poniendo 1 o 2, no se obtiene ningún resultado válido, da error).
+
+
+
+
+
+
+
+
+
+
+
