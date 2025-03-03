@@ -1,0 +1,171 @@
+---
+title: "Keras_Example"
+author: "Fran Camacho"
+date: "2025-03-03"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+
+if (!require(keras)) install.packages('keras', dependencies = T)
+library(keras3)
+install_keras()
+
+```
+
+```{r}
+
+#if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+#library(tidyverse)
+
+if (!require(fastDummies)) install.packages('fastDummies', dependencies = T)
+library(fastDummies)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+
+if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+library(ggplot2)
+
+```
+
+
+
+```{r}
+
+# import the CSV file
+df <- read.csv(file.path("Chapter07", "kyphosis.csv"), stringsAsFactors = TRUE)
+
+```
+
+
+```{r}
+#See the structure
+str(df)
+```
+
+
+```{r}
+#Summary
+summary(df)
+```
+
+
+```{r}
+#some registers
+head(df)
+```
+
+
+
+
+
+
+
+```{r}
+#transform categorical feature
+dummy_data <- fastDummies::dummy_cols(df,remove_first_dummy = TRUE)
+
+head(dummy_data)   
+```
+
+```{r}
+#Remove original target variable
+keep <- c('Age','Number','Start','Kyphosis_present')
+df_dummy <- dummy_data[keep]
+
+head(df_dummy) 
+```
+
+Prepare the data for Keras by scaling it.
+
+```{r}
+#scale numeric variables 
+maxs <- apply(df_dummy[c(1,2,3)], 2, max)
+mins <- apply(df_dummy[c(1,2,3)], 2, min)
+
+df_norm <- data.frame(scale(df_dummy[c(1,2,3)], center = mins, scale = maxs - mins))
+
+head(df_norm)
+```
+
+
+```{r}
+#summary after normalization
+summary(df_norm)
+```
+
+
+```{r}
+#
+final <- cbind(df_norm, df_dummy$Kyphosis_present)
+names(final)[4] <- c("Kyphosis_present")
+head(final)
+```
+
+Create training and test sets
+
+```{r}
+index <- createDataPartition(final$Kyphosis_present, p=0.7, list=FALSE)
+
+X_train <- final[index,]
+X_test <- final[-index,]
+print(nrow(final.training))
+print(nrow(final.test))
+```
+
+
+```{r}
+#create labels sets
+y_train <- final[index,]$Kyphosis_present
+y_test <- final[-index,]$Kyphosis_present
+print(length(y_train))
+print(length(y_test))
+```
+
+
+Keras model:
+
+
+```{r}
+model <- keras_model_sequential() 
+
+model %>% 
+  layer_dense(units = 256, activation = 'relu', input_shape = 4) %>% 
+  layer_dropout(rate = 0.4) %>% 
+  layer_dense(units = 128, activation = 'relu') %>%
+  layer_dropout(rate = 0.3) %>%
+  layer_dense(units = 2, activation = 'sigmoid')
+
+history <- model %>% compile(
+  loss = 'binary_crossentropy',
+  optimizer = 'adam',
+  metrics = c('accuracy')
+)
+```
+
+
+```{r}
+  model
+  #plot(model)
+```
+
+```{r}
+model %>% fit(
+  X_train, y_train, 
+  epochs = 100, 
+  batch_size = 5,
+  validation_split = 0.3
+)
+```
+
+
+
