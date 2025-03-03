@@ -18,16 +18,16 @@ Carga de paquetes que son necesarios para diversas funciones.
 
 ```{r}
 
-if (!require(keras)) install.packages('keras', dependencies = T)
+#if (!require(keras3)) install.packages('keras3', dependencies = T)
 library(keras3)
-install_keras()
+#install_keras()
 
 ```
 
 ```{r}
 
-#if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
-#library(tidyverse)
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
 
 if (!require(fastDummies)) install.packages('fastDummies', dependencies = T)
 library(fastDummies)
@@ -69,10 +69,6 @@ head(df)
 
 
 
-
-
-
-
 ```{r}
 #transform categorical feature
 dummy_data <- fastDummies::dummy_cols(df,remove_first_dummy = TRUE)
@@ -83,72 +79,66 @@ head(dummy_data)
 ```{r}
 #Remove original target variable
 keep <- c('Age','Number','Start','Kyphosis_present')
-df_dummy <- dummy_data[keep]
+final <- dummy_data[keep]
 
-head(df_dummy) 
-```
-
-Prepare the data for Keras by scaling it.
-
-```{r}
-#scale numeric variables 
-maxs <- apply(df_dummy[c(1,2,3)], 2, max)
-mins <- apply(df_dummy[c(1,2,3)], 2, min)
-
-df_norm <- data.frame(scale(df_dummy[c(1,2,3)], center = mins, scale = maxs - mins))
-
-head(df_norm)
+head(final) 
 ```
 
 
 ```{r}
-#summary after normalization
-summary(df_norm)
+index <- createDataPartition(final$Kyphosis_present, p=0.7, list=FALSE)
+```
+
+
+```{r}
+final.training <- final[index,]
+final.test <- final[-index,]
 ```
 
 
 ```{r}
 #
-final <- cbind(df_norm, df_dummy$Kyphosis_present)
-names(final)[4] <- c("Kyphosis_present")
-head(final)
+X_train <- final.training %>% 
+  select(-Kyphosis_present) %>% 
+  scale()
+  
+y_train <- keras3::to_categorical(final.training$Kyphosis_present)
 ```
 
 Create training and test sets
 
 ```{r}
-index <- createDataPartition(final$Kyphosis_present, p=0.7, list=FALSE)
+X_test <- final.test %>% 
+  select(-Kyphosis_present) %>% 
+  scale()
 
-X_train <- final[index,]
-X_test <- final[-index,]
-print(nrow(final.training))
-print(nrow(final.test))
+y_test <- keras3::to_categorical(final.test$Kyphosis_present)
 ```
 
 
 ```{r}
-#create labels sets
-y_train <- final[index,]$Kyphosis_present
-y_test <- final[-index,]$Kyphosis_present
-print(length(y_train))
-print(length(y_test))
+#
+typeof(X_train)
+typeof(y_train)
+typeof(X_test)
+typeof(y_test)
 ```
 
 
-Keras model:
+## Build Keras model:
 
 
 ```{r}
-model <- keras_model_sequential() 
+model <- keras_model_sequential(name = "keras_1") 
 
 model %>% 
-  layer_dense(units = 256, activation = 'relu', input_shape = 4) %>% 
-  layer_dropout(rate = 0.4) %>% 
-  layer_dense(units = 128, activation = 'relu') %>%
-  layer_dropout(rate = 0.3) %>%
-  layer_dense(units = 2, activation = 'sigmoid')
+  layer_dense(name = "dense_1", units = 256, activation = 'relu', input_shape = ncol(X_train)) %>% 
+  layer_dropout(name = "dropout_2", rate = 0.4) %>% 
+  layer_dense(name = "dense_3", units = 128, activation = 'relu') %>%
+  layer_dropout(name = "dropout_4", rate = 0.3) %>%
+  layer_dense(name = "dense_5", units = 2, activation = 'sigmoid')
 
-history <- model %>% compile(
+model <- model %>% compile(
   loss = 'binary_crossentropy',
   optimizer = 'adam',
   metrics = c('accuracy')
@@ -161,6 +151,8 @@ history <- model %>% compile(
   #plot(model)
 ```
 
+## Train model
+
 ```{r}
 model %>% fit(
   X_train, y_train, 
@@ -168,6 +160,45 @@ model %>% fit(
   batch_size = 5,
   validation_split = 0.3
 )
+```
+
+## Evaluate model:
+
+```{r}
+model %>% evaluate(X_test, y_test)
+```
+
+With epoch=100 :
+
+1/1 ━━━━━━━━━━━━━━━━━━━━ 0s 49ms/step - accuracy: 0.8333 - loss: 0.9819
+$accuracy
+[1] 0.8333333
+
+$loss
+[1] 0.9818876
+
+
+
+
+```{r}
+plot(model$metrics$loss, main="Model Loss", xlab = "epoch", ylab="loss", col="orange", type="l")
+
+lines(model$metrics$val_loss, col="skyblue")
+
+legend("topright", c("Training","Testing"), col=c("orange", "skyblue"), lty=c(1,1))
+```
+
+
+
+
+
+
+```{r}
+plot(history$metrics$acc, main="Model Accuracy", xlab = "epoch", ylab="accuracy", col="orange", type="l")
+
+lines(history$metrics$val_acc, col="skyblue")
+
+legend("topleft", c("Training","Testing"), col=c("orange", "skyblue"), lty=c(1,1))
 ```
 
 
