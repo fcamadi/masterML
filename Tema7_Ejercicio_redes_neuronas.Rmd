@@ -4,14 +4,14 @@ author: "Fran Camacho"
 date: "2025-02-24"
 output: word_document
 params:
-  neuralnet: FALSE
+  library: "keras"  #options: "neuralnet", "RSNNS", "keras"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-eval_library<- params$neuralnet 
-print(eval_library)
+library <- params$library 
+print(library)
 ```
 
 # Tema 7 - Ejercicio
@@ -50,27 +50,43 @@ bank_raw <- read.csv(file.path("Chapter07/Bank", "bank.csv"), sep = ";", strings
 
 ## Paso 2: Explorar y preparar los datos
 
-
 Carga de paquetes que son necesarios para diversas funciones.
 
 ```{r}
-if (!require(caret)) install.packages('caret', dependencies = T)
-library(caret)   
 
-if (eval_library) {
+if (library=="neuralnet") {
   print("Choosing neuralnet")
+  
   if (!require(neuralnet)) install.packages('neuralnet', dependencies = T)
   library(neuralnet)
+  
+} else if (library=="RSNNS") {
+  print("Choosing RSNNS")
+  
+  # Downloading packages -------------------------------------------------------
+  if (!require(RSNNS)) install.packages('RSNNS', dependencies = T)
+  library(RSNNS)
+  
+} else {
+  print("Choosing Keras")
+  
+  if (!require(keras3)) install.packages('keras3', dependencies = T)
+  library(keras3)
+  #install_keras()
+  
+  if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+  library(tidyverse)
+  
+  if (!require(jsonlite)) install.packages('jsonlite', dependencies = T)
+  library(jsonlite)
 }
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
 
 if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
 library(ggplot2)
 
-if (!eval_library) {
-   print("Choosing RSNNS")
-  if (!require(RSNNS)) install.packages('RSNNS', dependencies = T)
-  library(RSNNS)
-}
 ```
 
 
@@ -103,23 +119,22 @@ hist(bank_raw$pdays)
 hist(bank_raw$previous)
 ```
 
-La única que se aproxima a la distribución normal es la edad.
+La única variable que se aproxima a la distribución normal es la edad.
 Ninguna se aproxima a la uniforme.
 
-Así que normalizamos las variables numéricas de 0 a 1 con la ayuda de la función scale:
-(no se normalizan ni los días, ni los meses).
+Así que normalizamos las variables numéricas de 0 a 1 con la ayuda de la función scale.
+(No se normalizan ni los días ni los meses).
 
 ```{r}
 #scale numeric variables 
 maxs <- apply(bank_raw[c(1,6,12,13,14,15)], 2, max)
 mins <- apply(bank_raw[c(1,6,12,13,14,15)], 2, min)
 
-
 bank_norm <- data.frame(scale(bank_raw[c(1,6,12,13,14,15)], center = mins, scale = maxs - mins))
 ```
 
 ```{r}
-#Summary
+# normalize numeric features
 #bank_norm <- sapply(bank_raw, function(x) if(is.numeric(x)) {
 #                                scale(x)
 #                              } else x)
@@ -132,16 +147,18 @@ summary(bank_norm)
 ```
 
 
-Debemos transformar las variables categóricas en numéricas ("hot encoding")).
+Ahora debemos transformar las variables categóricas en numéricas ("hot encoding").
 La variable "month" he pensado transformarla en una sola variable:  Enero -> 1, Febrero -> 2 ...
-(Utilizar "hot enconding" con esta variable me parece que es añadir demasiadas variables sin necesidad).
+Utilizar "hot enconding" con esta variable me parece que es añadir demasiadas variables sin necesidad.
+(He leído que a las redes neuronales no les van demasiado bien las matrices dispersas).
 
 ```{r}
 #hot encoding of categorical features         
-dummies <- dummyVars(" ~ job + marital + education + default + housing + loan + contact + poutcome + y", data = bank_raw)
+dummies <- dummyVars(" ~ job + marital + education + default + housing + loan + contact + poutcome + y", data = bank_raw)  # y for neuralnet and RSNNS
 bank_hot_encoded_feat <-  data.frame(predict(dummies, newdata = bank_raw))
 head(bank_hot_encoded_feat,5)
 ```
+
 
 Transformar los meses en una variable numérica
 
@@ -151,9 +168,7 @@ Transformar los meses en una variable numérica
 #unique(bank_raw$month)  -> Levels: apr aug dec feb jan jul jun mar may nov oct sep
 
 month_to_number <- function(month_name) {
-
   month_and_number <- c("jan"=1,"feb"=2,"mar"=3,"apr"=4,"may"=5,"jun"=6,"jul"=7,"aug"=8,"sep"=9,"oct"=10,"nov"=11,"dec"=12)
-  
   return(month_and_number[as.character(month_name)])
 }
 
@@ -176,41 +191,63 @@ bank_raw$month_num <- sapply(bank_raw$month, month_to_number)
 head(bank_raw,5)
 ```
 
+```{r}
+#transform target categorical feature (keras)
+dummy_y <- fastDummies::dummy_cols(bank_raw$y,remove_first_dummy = TRUE)
+
+head(dummy_y)   
+```
+
 
 Juntamos todas las variables en un mismo dataframe
 
 ```{r}
-bank_processed <- cbind(bank_norm,bank_raw$day,bank_raw$month_num,bank_hot_encoded_feat,bank_raw$y)
+bank_processed <- cbind(bank_norm,as.numeric(bank_raw$day),bank_raw$month_num,bank_hot_encoded_feat,dummy_y$.data_yes)
 names(bank_processed)[7:8] <- c("day","month")
 names(bank_processed)[43] <- c("y")
 head(bank_processed,5)
 ```
 
 
-Finalmente, particionamos los datos en los correspondientes conjuntos de entrenamiento y validación:
+Finalmente, creamos los conjuntos de entrenamiento y validación:
 
 ```{r}
 #Set seed to make the process reproducible
 set.seed(9)
 
 #partitioning data frame into training (75%) and testing (25%) sets
-train_indices <- createDataPartition(bank_processed$y.no, times=1, p=.75, list=FALSE)
+train_indices <- createDataPartition(bank_processed$y, times=1, p=.75, list=FALSE)
 
 #create training set
 bank_processed_train <- bank_processed[train_indices, ]
+X_train_bank <- bank_processed_train
+y_train_bank <- bank_processed_train$y
 
 #create testing set
 bank_processed_test  <- bank_processed[-train_indices, ]
+X_test_bank <- bank_processed_test
+y_test_bank <- bank_processed_test$y
+  
+if (library == "keras") {
+  X_train_bank <- bank_processed_train %>% 
+    select(-y) %>% 
+    keras3::as_tensor(select(-y), dtype = "float32")  #c("y","y.yes","y.no") ?
+  
+  y_train_bank <- keras3::to_categorical(bank_processed_train$y)
+  
+  X_test_bank <- bank_processed_test %>% 
+  select(-y) %>% 
+  keras3::as_tensor(select(-y), dtype = "float32")
 
-#create labels sets
-#bank_processed_train_labels <- bank_processed[train_indices, ]$y
-#bank_processed_test_labels <- bank_processed[-train_indices, ]$y
+  y_test_bank <- keras3::to_categorical(bank_processed_test$y)
+}
+
 
 #view number of rows in each set
-nrow(bank_processed_train)  # 3391
-nrow(bank_processed_test)   # 1130
-#length(bank_processed_train_labels)  # 3391
-#length(bank_processed_test_labels)   # 1130
+nrow(X_train_bank)  # 3391
+nrow(y_train_bank)   # 3391
+nrow(X_test_bank)  # 1130
+nrow(y_test_bank)   # 1130
 ```
 
 
@@ -224,22 +261,87 @@ softplus <- function(x) { log(1 + exp(x)) }
 
 
 ```{r}
-if (eval_library) {
-  print("Choosing neuralnet")
+set.seed(9)
 
+if (library=="neuralnet") {
+  print("Choosing neuralnet")
+  
   system.time({
     model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], 
-                       hidden = 10,  
-                       threshold = 0.5, lifesign="full")  
-                        #act.fct = softplus, threshold = 0.01, algorithm = "backprop", learningrate=0.05 
+                       hidden = 40, threshold = 0.5, lifesign="full") 
+                       #act.fct = softplus, threshold = 0.01, algorithm = "backprop", learningrate=0.05 
   })
-} else { 
+  
+} else if  (library=="RSNNS") { 
   print("Choosing RSNNS")
+  
   system.time({
-      model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(40,10,4), learnFuncParams = c(0.05),  maxit = 1000)
+      #model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4), learnFuncParams = c(0.05), maxit = 1000)
+      model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4,2), learnFuncParams = c(0.05), maxit = 2000)
+      # with hiddenActFunc=softplus, it never ends
   })
+  
+} else { #Keras
+  print("Choosing Keras")
+  
+  #model <- keras_model_sequential(name = "keras_40_10", input_shape = 40, dtype="float32") 
+  model <- keras_model_sequential(name = "keras_1_2")
+  model %>%
+    layer_dense(name = "layer_1", units = 1, activation = 'relu', input_shape = ncol(X_train_bank)) %>%
+    #layer_dense(name = "layer_2", units = 10, activation = 'relu') %>%
+    layer_dense(name = "output_layer", units = 2, activation = 'sigmoid')
+  
+  model %>% compile(
+    optimizer = "adam",               # "rmsprop"
+    loss = "binary_crossentropy",     # "cosine_similarity"
+    metrics = 'accuracy'
+  )
+  
+  #Training
+  system.time({
+    history <- model %>% fit(
+      X_train_bank, y_train_bank, 
+      epochs = 50, 
+      batch_size = 40,
+      validation_split = 0.2
+    )
+  })
+  
+}
+
+```
+
+Visualizamos la arquitectura de la red entrenada y sus pesos:
+
+```{r, fig.width=100, fig.height=140}
+# neuralnet
+if (library=="neuralnet") {
+  plot(model)   #saved in file "Chapter07/neuralnet_10_neurons_model.png"
+}
+if (library=="keras") {
+  model
+  #plot(model)
 }
 ```
+
+```{r, fig.width=12, fig.height=6}
+if (library=="keras") {
+  plot(history)
+}
+```
+
+
+En el caso de utilizar la librería Keras&TensorFlow, podemos obtener un Json con información del modelo:
+
+```{r}
+if (library=="keras") {
+  #WE can print a json with the info of the model:
+  prettify(keras::model_to_json(model))
+}
+```
+
+
+### Primeros resultados con la librería neuralnet:
 
 (0)
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden=1) 
@@ -247,18 +349,19 @@ hidden=1
        User      System verstrichen 
        0.86        0.00        0.91 
        
-       
+(1)       
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden=10) 
 Warning: Algorithm did not converge in 1 of 1 repetition(s) within the stepmax.       <- !!!!!!
        User      System verstrichen 
     484.682       1.604     489.933 
-    
+  
+(2)    
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden = c(20,10), threshold = 0.05, algorithm = "rprop+") 
 Warning: Algorithm did not converge in 1 of 1 repetition(s) within the stepmax.       
        User      System verstrichen 
    1158.842       2.555    1161.369
    
-  
+(3)
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden = c(10,2))   
 Warning: Algorithm did not converge in 1 of 1 repetition(s) within the stepmax.       
        User      System verstrichen 
@@ -286,54 +389,76 @@ model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(
                    act.fct = softplus, threshold = 0.5, lifesign="full")   
 
 
-Visualizamos la arquitectura de la red entrenada y sus pesos:
 
-```{r, fig.width=100, fig.height=140}
-# neuralnet
-if (eval_library) {
-  plot(model)
-}
-```
 
 
 ## Paso 4: Evaluación del modelo
+
+
+```{r}
+if (library=="keras") {
+  model %>% evaluate(X_test_bank, y_test_bank)
+}
+```
+
 
 Una vez entrenado el modelo, pasamos a analizar su capacidad predictiva:
 
 ```{r}
 # neuralnet
-if (eval_library) {
-  #prediction <- compute(model, bank_processed_test[ , -which(names(bank_processed_test) %in% c("y"))])  #compute is deprecated!
-  #prediction <- predict(model, within(bank_processed_test,rm(y)), rep = 1)
-  #prediction <- predict(model, bank_processed_test[ , -which(names(data_test) %in% c("y"))])
+if (library=="neuralnet") {
+  #prediction <- compute(model, bank_processed_test[ , -which(names(bank_processed_test) %in% c("y"))])  #compute is deprecated, we use predict
+  predictions <- predict(model, bank_processed_test[ , -which(names(bank_processed_test) %in% c("y","y.yes","y.no"))])
+  
+} else if (library=="RSNNS") {
+  
+  predictions <- predict(model, bank_processed_test[, 1:40])
 
-  prediction <- predict(model, bank_processed_test[ , -which(names(bank_processed_test) %in% c("y"))])
-} else { # RSNNS
-  prediction <- predict(model, bank_processed_test[, 1:40])
+} else {  #Keras
+  
+  predictions <- model %>% predict(X_test_bank)
+  
 }
 ```
 
 
 ```{r}
-# RSNNS and neuralnet
+# neuralnet, RSNNS, keras
 
-prediction <- apply(prediction,1,which.max)  #find which column has the highest value
+prediction <- apply(predictions,1,which.max)  #find which column has the highest value
 
 prediction[prediction==1] <- "no"     #and translate that value to one of the two possible values
 prediction[prediction==2] <- "yes"
+
+if (library=="keras") {
+  y_test_bank_real <- apply(y_test_bank,1,which.max)  
+
+  y_test_bank_real[y_test_bank_real==1] <- "no"    
+  y_test_bank_real[y_test_bank_real==2] <- "yes"
+} else {
+  y_test_bank_real <- y_test_bank
+  
+  y_test_bank_real[y_test_bank_real==0] <- "no"    
+  y_test_bank_real[y_test_bank_real==1] <- "yes"
+}
+
+
 ```
 
 
+Matriz de confusión:
+
+
 ```{r}
-# RSNNS and neuralnet
-caret::confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction), positive="yes", mode = "everything")
+# Confussion matrix
+
+caret::confusionMatrix(as.factor(y_test_bank_real), as.factor(prediction), positive="yes", mode = "everything")
+
 ```
 
 
 (0)
-
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden=1)
-
 
 Confusion Matrix and Statistics
 
@@ -346,6 +471,13 @@ Prediction  no yes
                                           
        'Positive' Class : no    
        
+       
+Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no   64 929
+       yes  44  93       
        
 (4)
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden = c(10,2), threshold = 0.1, lifesign="full")
@@ -360,6 +492,8 @@ Prediction  no yes
                Accuracy : 0.1283          
                                           
        'Positive' Class : no    
+       
+       
 
 (5)
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden = 20, algorithm = "rprop+", threshold = 0.5, lifesign="full")    
@@ -374,7 +508,8 @@ Prediction  no yes
                Accuracy : 0.1416     
     
 (6)
-model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden = 43, threshold = 0.5, lifesign="full")    
+model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], 
+                        hidden = 40, threshold = 0.5, lifesign="full")    
        User      System verstrichen 
     245.882       2.815     250.844 
 
@@ -384,14 +519,14 @@ Prediction  no yes
        yes  51  86
                                           
                Accuracy : 0.154 
+               
+
 
 ATENCIÓN:
-Redes neuronales no son buenas con matrices dispersas ...
+Redes neuronales no son buenas con matrices dispersas ...  ?
 
 
-Probar RSNNS
-
-https://www.geeksforgeeks.org/rsnns-package/
+### Resultados con la librería RSNNS:
 
 (1)
 model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(10), learnFuncParams = c(0.1), maxit = 1000)
@@ -404,8 +539,7 @@ targets   1   2
 model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(10), learnFuncParams = c(0.1), maxit = 10000)
        User      System verstrichen 
     122.006       0.306     123.809
-    
-    
+   
           Reference
 Prediction  no yes
        no  948  45
@@ -464,7 +598,9 @@ Prediction  no yes
        'Positive' Class : yes 
 
   
-(4)
+(4) Ajustamos el número de neuronas de la primera capa oculta, y bajamos las iteraciones a 10000.
+La predicción se hace en mucho menos tiempo (menos de la decima parte), y el resultado es algo mejor:
+
 model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(40,10), learnFuncParams = c(0.1),  maxit = 1000)  
        User      System verstrichen 
      46.186       0.050      46.445   
@@ -497,7 +633,7 @@ Prediction  no yes
        'Positive' Class : yes        
      
      
-(5) No mejora añadir 10 neuronas en la segunda capa (se )
+(5) No hay mejora al añadir 10 neuronas más en la segunda capa
 
 model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(40,20), learnFuncParams = c(0.1),  maxit = 1000)     
        User      System verstrichen 
@@ -511,11 +647,13 @@ Prediction  no yes
                Accuracy : 0.8796      
                
                
-### (6) Sí mejora añadir una tercera capa con 4 !!!  c(40,10,4)
+### (6) Sí mejora añadir una tercera capa con 4 neuronas!
 
-model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(40,10,4), learnFuncParams = c(0.1),  maxit = 1000)               
+model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4), learnFuncParams = c(0.05), maxit = 1000)
        User      System verstrichen 
-     45.978       0.058      46.650
+     45.978       0.058      46.650   Toshiba
+       user      system elapsed 
+     28.122      0.000  28.188        Lenovo
      
           Reference
 Prediction  no yes
@@ -523,7 +661,6 @@ Prediction  no yes
        yes  89  48
                                           
                Accuracy : 0.8858 
-               
                
      
      Probar finalmente:
@@ -542,26 +679,123 @@ Prediction  no yes
                
                
 (8) Sin añadir más capas, usar ReLu (softplus)
-model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(40,10), hiddenActFunc=softplus, learnFuncParams = c(0.1),  maxit = 10000) 
+model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(40,10), hiddenActFunc=softplus, learnFuncParams = c(0.1),  maxit = 1000) 
 
 Cancelado. Llevaba más de 90 min. 
 
 
+(9) Con una cuarta capa, mejora ligeramente el resultado de 3 capas
+model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4,2), learnFuncParams = c(0.05), maxit = 2000)
+   user  system elapsed 
+ 65.524   0.460  57.800 
+ 
+Confusion Matrix and Statistics
 
-probar hiddenActFunc=softplus con 1000 iteraciones   
+          Reference
+Prediction  no yes
+       no  965  28
+       yes  91  46
+                                         
+               Accuracy : 0.8947
 
-model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(40,10), hiddenActFunc=softplus, learnFuncParams = c(0.1),  maxit = 1000)      
+### Resultados con la librería Keras&TensorFlow:
 
-dependiendo del resultado, con 10000
+Pues el 100 % al primer intento:
+
+keras_model_sequential(name = "keras_40_10_2")
+   user  system elapsed 
+224.615  15.739 270.078 
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  993   0
+       yes   0 137
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9967, 1)
+    No Information Rate : 0.8788     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+                                     
+ Mcnemar's Test P-Value : NA         
+                                     
+            Sensitivity : 1.0000     
+            Specificity : 1.0000     
+         Pos Pred Value : 1.0000     
+         Neg Pred Value : 1.0000     
+              Precision : 1.0000     
+                 Recall : 1.0000     
+                     F1 : 1.0000     
+             Prevalence : 0.1212     
+         Detection Rate : 0.1212     
+   Detection Prevalence : 0.1212     
+      Balanced Accuracy : 1.0000     
+                                     
+       'Positive' Class : yes  
+
+Vamos a intentar simplificar el modelo, y reducir el valor de epoch
+(Han sido menos de 4 minutos con este modelo).
+
+Con solo 2 capas, tarda solo 24 s, para el mismo resultado, con 40 y 20 neuronas obtiene el 100%.
+
+keras_model_sequential(name = "keras_40_2")
+   user  system elapsed 
+ 23.974   2.023  28.094
+ 
+ Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  993   0
+       yes   0 137
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9967, 1)
+    No Information Rate : 0.8788     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+                                     
+ Mcnemar's Test P-Value : NA         
+                                     
+            Sensitivity : 1.0000     
+            Specificity : 1.0000     
+         Pos Pred Value : 1.0000     
+         Neg Pred Value : 1.0000     
+              Precision : 1.0000     
+                 Recall : 1.0000     
+                     F1 : 1.0000     
+             Prevalence : 0.1212     
+         Detection Rate : 0.1212     
+   Detection Prevalence : 0.1212     
+      Balanced Accuracy : 1.0000     
+                                     
+       'Positive' Class : yes  
 
 
-En otro notebook
-Probar Keras
+Con 10+2 neuronas, mismo resultado en la mitad de tiempo (epoch=50)
+   user  system elapsed 
+ 12.703   0.865  14.253 
+ 
+ También con 4+2 ..
+ 
+ También con 2+2 ..
+ 
+ También con 1+2 !!!
+ 
+ (El tiempo no baja de 10-12 segundos)
+ 
+Para empeorar el resultado, hay que disminuir el valor de epoch.
+Con 1+2 neuronas, y epoch=25
 
+          Reference
+Prediction  no yes
+       no  993   0
+       yes  30 107
+                                         
+            Accuracy : 0.9735  
 
-
-
-
-
-
-
+ 
