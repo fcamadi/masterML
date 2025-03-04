@@ -4,7 +4,7 @@ author: "Fran Camacho"
 date: "2025-02-24"
 output: word_document
 params:
-  library: "keras"  #options: "neuralnet", "RSNNS", "keras"
+  library: "RSNNS"  #options: "neuralnet", "RSNNS", "keras"
 ---
 
 ```{r setup, include=FALSE}
@@ -160,7 +160,7 @@ head(bank_hot_encoded_feat,5)
 ```
 
 
-Transformar los meses en una variable numérica
+Transformar los meses en una variable numérica.
 
 ```{r}
 #encoding month (name to number)
@@ -199,7 +199,7 @@ head(dummy_y)
 ```
 
 
-Juntamos todas las variables en un mismo dataframe
+Juntamos todas las variables en un mismo dataframe.
 
 ```{r}
 bank_processed <- cbind(bank_norm,as.numeric(bank_raw$day),bank_raw$month_num,bank_hot_encoded_feat,dummy_y$.data_yes)
@@ -230,14 +230,15 @@ y_test_bank <- bank_processed_test$y
   
 if (library == "keras") {
   X_train_bank <- bank_processed_train %>% 
-    select(-y) %>% 
-    keras3::as_tensor(select(-y), dtype = "float32")  #c("y","y.yes","y.no") ?
+    select(-y,-y.yes,-y.no) %>%
+    keras3::as_tensor(dtype = "float32")  
   
   y_train_bank <- keras3::to_categorical(bank_processed_train$y)
+    
   
   X_test_bank <- bank_processed_test %>% 
-  select(-y) %>% 
-  keras3::as_tensor(select(-y), dtype = "float32")
+    select(-y,-y.yes,-y.no) %>%  
+    keras3::as_tensor(dtype = "float32")  
 
   y_test_bank <- keras3::to_categorical(bank_processed_test$y)
 }
@@ -245,8 +246,8 @@ if (library == "keras") {
 
 #view number of rows in each set
 nrow(X_train_bank)  # 3391
-nrow(y_train_bank)   # 3391
-nrow(X_test_bank)  # 1130
+nrow(X_test_bank)   # 1130
+nrow(y_train_bank)  # 3391
 nrow(y_test_bank)   # 1130
 ```
 
@@ -284,16 +285,15 @@ if (library=="neuralnet") {
 } else { #Keras
   print("Choosing Keras")
   
-  #model <- keras_model_sequential(name = "keras_40_10", input_shape = 40, dtype="float32") 
-  model <- keras_model_sequential(name = "keras_1_2")
+  model <- keras_model_sequential(name = "keras_20_2", input_shape = ncol(X_train_bank))
   model %>%
-    layer_dense(name = "layer_1", units = 1, activation = 'relu', input_shape = ncol(X_train_bank)) %>%
-    #layer_dense(name = "layer_2", units = 10, activation = 'relu') %>%
-    layer_dense(name = "output_layer", units = 2, activation = 'sigmoid')
+    layer_dense(name = "layer_1",units = 20, activation = 'relu') %>%
+
+    layer_dense(name = "output_layer_8", units = 2, activation = 'sigmoid')
   
   model %>% compile(
-    optimizer = "adam",               # "rmsprop"
-    loss = "binary_crossentropy",     # "cosine_similarity"
+    optimizer = "adam",               
+    loss = "binary_crossentropy",
     metrics = 'accuracy'
   )
   
@@ -301,7 +301,7 @@ if (library=="neuralnet") {
   system.time({
     history <- model %>% fit(
       X_train_bank, y_train_bank, 
-      epochs = 50, 
+      epochs = 1000, 
       batch_size = 40,
       validation_split = 0.2
     )
@@ -331,7 +331,7 @@ if (library=="keras") {
 ```
 
 
-En el caso de utilizar la librería Keras&TensorFlow, podemos obtener un Json con información del modelo:
+En el caso de utilizar las librerías Keras&TensorFlow, podemos obtener un Json con información del modelo:
 
 ```{r}
 if (library=="keras") {
@@ -456,6 +456,7 @@ caret::confusionMatrix(as.factor(y_test_bank_real), as.factor(prediction), posit
 
 ```
 
+### Resultados con la librería neuralnet:
 
 (0)
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden=1)
@@ -684,7 +685,7 @@ model <- mlp(bank_processed_train[1:40],  bank_processed_train[41:42], size = c(
 Cancelado. Llevaba más de 90 min. 
 
 
-(9) Con una cuarta capa, mejora ligeramente el resultado de 3 capas
+(9) Con una cuarta capa, mejora ligeramente el resultado de 3 capas (**mejor resultado de todos**)
 model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4,2), learnFuncParams = c(0.05), maxit = 2000)
    user  system elapsed 
  65.524   0.460  57.800 
@@ -700,102 +701,6 @@ Prediction  no yes
 
 ### Resultados con la librería Keras&TensorFlow:
 
-Pues el 100 % al primer intento:
 
-keras_model_sequential(name = "keras_40_10_2")
-   user  system elapsed 
-224.615  15.739 270.078 
-
-Confusion Matrix and Statistics
-
-          Reference
-Prediction  no yes
-       no  993   0
-       yes   0 137
-                                     
-               Accuracy : 1          
-                 95% CI : (0.9967, 1)
-    No Information Rate : 0.8788     
-    P-Value [Acc > NIR] : < 2.2e-16  
-                                     
-                  Kappa : 1          
-                                     
- Mcnemar's Test P-Value : NA         
-                                     
-            Sensitivity : 1.0000     
-            Specificity : 1.0000     
-         Pos Pred Value : 1.0000     
-         Neg Pred Value : 1.0000     
-              Precision : 1.0000     
-                 Recall : 1.0000     
-                     F1 : 1.0000     
-             Prevalence : 0.1212     
-         Detection Rate : 0.1212     
-   Detection Prevalence : 0.1212     
-      Balanced Accuracy : 1.0000     
-                                     
-       'Positive' Class : yes  
-
-Vamos a intentar simplificar el modelo, y reducir el valor de epoch
-(Han sido menos de 4 minutos con este modelo).
-
-Con solo 2 capas, tarda solo 24 s, para el mismo resultado, con 40 y 20 neuronas obtiene el 100%.
-
-keras_model_sequential(name = "keras_40_2")
-   user  system elapsed 
- 23.974   2.023  28.094
- 
- Confusion Matrix and Statistics
-
-          Reference
-Prediction  no yes
-       no  993   0
-       yes   0 137
-                                     
-               Accuracy : 1          
-                 95% CI : (0.9967, 1)
-    No Information Rate : 0.8788     
-    P-Value [Acc > NIR] : < 2.2e-16  
-                                     
-                  Kappa : 1          
-                                     
- Mcnemar's Test P-Value : NA         
-                                     
-            Sensitivity : 1.0000     
-            Specificity : 1.0000     
-         Pos Pred Value : 1.0000     
-         Neg Pred Value : 1.0000     
-              Precision : 1.0000     
-                 Recall : 1.0000     
-                     F1 : 1.0000     
-             Prevalence : 0.1212     
-         Detection Rate : 0.1212     
-   Detection Prevalence : 0.1212     
-      Balanced Accuracy : 1.0000     
-                                     
-       'Positive' Class : yes  
-
-
-Con 10+2 neuronas, mismo resultado en la mitad de tiempo (epoch=50)
-   user  system elapsed 
- 12.703   0.865  14.253 
- 
- También con 4+2 ..
- 
- También con 2+2 ..
- 
- También con 1+2 !!!
- 
- (El tiempo no baja de 10-12 segundos)
- 
-Para empeorar el resultado, hay que disminuir el valor de epoch.
-Con 1+2 neuronas, y epoch=25
-
-          Reference
-Prediction  no yes
-       no  993   0
-       yes  30 107
-                                         
-            Accuracy : 0.9735  
 
  
