@@ -1,0 +1,303 @@
+---
+title: "Tema7_Ejercicio_redes_neuronas_Keras"
+author: "Fran Camacho"
+date: "2025-03-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 7 - Ejercicio
+
+La base de datos incluida en el archivo Bank.csv (dentro de Bank.zip)
+recoge información de 4.521 clientes a los que se les ofreció contratar un
+depósito a plazo en una entidad bancaria portuguesa (el zip también
+contiene un fichero de texto denominado Bank-names.txt con el detalle
+completo de todas las variables incluidas)
+Utilizando dicha base de datos, elabore una red neuronal que permita
+pronosticar si, en base a sus características, el cliente contratará el
+depósito o no.
+
+De cara a la realización de este ejercicio, debe tener en cuenta que:
+
+- La variable objetivo de nuestro modelo es “y”, la cual tiene el valor
+“yes” si el cliente ha contratado el depósito y “no” en caso contrario.
+- Observe que hay múltiples variable de tipo cualitativo que deberá
+transformar antes de estimar el modelo.
+- No olvide normalizar los datos antes de introducirlos en el modelo.
+- Recuerde especificar el número de capas ocultas y neuronas
+utilizadas, así como el umbral de error permitido y el algoritmo de
+cálculo elegidos. Se permite realizar y presentar variaciones del
+modelo a fin de obtener un ajuste óptimo.
+- Deberá dejar un porcentaje del dataset para validar los resultados de
+la red neuronal estimada.
+
+## Paso 1: Carga de los datos
+
+```{r}
+# import the CSV file
+bank_raw <- read.csv(file.path("Chapter07/Bank", "bank.csv"), sep = ";", stringsAsFactors = TRUE)
+```
+
+
+## Paso 2: Explorar y preparar los datos
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+
+if (!require(keras3)) install.packages('keras3', dependencies = T)
+library(keras3)
+#install_keras()
+
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+
+if (!require(fastDummies)) install.packages('fastDummies', dependencies = T)
+library(fastDummies)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+
+if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+library(ggplot2)
+
+```
+
+Examinamos la estructura y el aspecto del fichero importado:
+
+```{r}
+#See the structure
+str(bank_raw)
+```
+
+```{r}
+#Summary
+summary(bank_raw)
+```
+
+```{r}
+#To scale the numeric variables 
+maxs <- apply(bank_raw[c(1,6,12,13,14,15)], 2, max)
+mins <- apply(bank_raw[c(1,6,12,13,14,15)], 2, min)
+
+bank_norm <- data.frame(scale(bank_raw[c(1,6,12,13,14,15)], center = mins, scale = maxs - mins))
+```
+
+
+```{r}
+#Summary
+summary(bank_norm)
+```
+
+
+```{r}
+#hot encoding of categorical features         
+dummies <- dummyVars(" ~ job + marital + education + default + housing + loan + contact + poutcome", data = bank_raw)
+bank_hot_encoded_feat <-  data.frame(predict(dummies, newdata = bank_raw))
+head(bank_hot_encoded_feat,5)
+```
+
+Transformar los meses en una variable numérica
+
+```{r}
+#encoding month (name to number)
+
+#unique(bank_raw$month)  -> Levels: apr aug dec feb jan jul jun mar may nov oct sep
+
+month_to_number <- function(month_name) {
+
+  month_and_number <- c("jan"=1,"feb"=2,"mar"=3,"apr"=4,"may"=5,"jun"=6,"jul"=7,"aug"=8,"sep"=9,"oct"=10,"nov"=11,"dec"=12)
+  
+  return(month_and_number[as.character(month_name)])
+}
+
+#tests
+month_to_number("oct")
+month_to_number("may")
+
+test <- bank_raw$month[1:5]
+test
+result <-sapply(test, month_to_number)
+result
+
+
+```
+
+```{r}
+bank_raw$month_num <- sapply(bank_raw$month, month_to_number)
+
+#bank_raw$month_num <- as.integer(factor(bank_raw$month, levels = unique(bank_raw$month))) # codifica poniendo los números según aparecen en los levels, no Enero=1, Febrero=2 ...
+head(bank_raw,5)
+```
+```{r}
+#transform target categorical feature
+dummy_y <- fastDummies::dummy_cols(bank_raw$y,remove_first_dummy = TRUE)
+
+head(dummy_y)   
+```
+
+Juntamos todas las variables en un mismo dataframe
+
+```{r}
+bank_processed <- cbind(bank_norm,as.numeric(bank_raw$day),bank_raw$month_num,bank_hot_encoded_feat,dummy_y$.data_yes)
+names(bank_processed)[7:8] <- c("day","month")
+names(bank_processed)[41] <- c("y")
+head(bank_processed,5)
+```
+
+
+Finalmente, particionamos los datos en los correspondientes conjuntos de entrenamiento y validación:
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+
+#partitioning data frame into training (75%) and testing (25%) sets
+index <- createDataPartition(bank_processed$y, times=1, p=.75, list=FALSE)
+
+
+#create training set
+bank_processed_train <- bank_processed[index,]
+X_train_bank <- bank_processed_train %>% 
+  select(-y) %>% 
+  keras3::as_tensor(select(-y), dtype = "float32")
+  
+y_train_bank <- keras3::to_categorical(bank_processed_train$y)
+
+
+#create testing set
+bank_processed_test <- bank_processed[-index,]
+
+X_test_bank <- bank_processed_test %>% 
+  select(-y) %>% 
+  keras3::as_tensor(select(-y), dtype = "float32")
+
+y_test_bank <- keras3::to_categorical(bank_processed_test$y)
+
+
+#view number of rows in each set
+nrow(X_train_bank)  # 3391
+nrow(y_train_bank)   # 3391
+nrow(X_test_bank)  # 1130
+nrow(y_test_bank)   # 1130
+```
+```{r}
+#
+typeof(X_train_bank)
+typeof(y_train_bank)
+typeof(X_test_bank)
+typeof(y_test_bank)
+```
+
+
+```{r}
+#
+summary(X_train_bank)
+table(y_train_bank)
+summary(X_test_bank)
+table(y_test_bank)
+```
+
+
+Construcción del modelo:
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+  
+model <- keras_model_sequential(name = "keras_40_10_4_2")
+
+model %>%
+  layer_dense(name = "layer_1", units = 40, activation = 'relu', input_shape = ncol(X_train_bank)) %>%
+  layer_dense(name = "layer_2", units = 10, activation = 'relu') %>%
+  layer_dense(name = "layer_3", units =  4, activation = 'relu') %>%
+  layer_dense(name = "output_layer", units = 2, activation = 'sigmoid')
+  
+  model %>% compile(
+    optimizer = 'adam',  
+    loss = 'binary_crossentropy',
+    metrics = 'accuracy'
+  )
+```
+
+
+
+```{r}
+model
+#plot(model)
+```
+
+Entrenamiento de la red neuronal:
+
+```{r}
+system.time({
+
+    history <- model %>% fit(
+      X_train_bank, y_train_bank, 
+      epochs = 100, 
+      batch_size = 40,
+      #validation_split = 0.2
+    )
+  })
+```
+
+
+## Evaluar modelo:
+
+```{r}
+model %>% evaluate(X_test_bank, y_test_bank)
+```
+
+```{r, fig.width=12, fig.height=6}
+  plot(history)
+```
+
+
+## Predicción:
+
+```{r}
+predictions <- model %>% predict(X_test_bank)
+```
+
+```{r}
+# neuralnet, RSNNS, keras
+
+prediction <- apply(predictions,1,which.max)  #find which column has the highest value
+
+prediction[prediction==1] <- "no"     #and translate that value to one of the two possible values
+prediction[prediction==2] <- "yes"
+```
+
+
+```{r}
+
+y_test_bank_real <- apply(y_test_bank,1,which.max)  #find which column has the highest value
+
+y_test_bank_real[y_test_bank_real==1] <- "no"     #and translate that value to one of the two possible values
+y_test_bank_real[y_test_bank_real==2] <- "yes"
+```
+
+
+```{r}
+caret::confusionMatrix(as.factor(y_test_bank_real), as.factor(prediction), positive="yes", mode = "everything")
+```
+
+          Reference
+Prediction  no yes
+       no  975  18
+       yes 117  20
+                                          
+               Accuracy : 0.8805 
+               
+               
+               
+
+
+
+
+
+
