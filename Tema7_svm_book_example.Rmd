@@ -1,0 +1,269 @@
+---
+title: "Tema7_svm_book_example"
+author: "Fran Camacho"
+date: "2025-03-04"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 7 - SVM example
+
+Example from the book "Machine Learning with R", by Brett Lantz:
+
+Performing OCR with SVMs
+
+## Step 1 – collecting data
+
+...
+
+In this exercise, we’ll assume that we have already developed the algorithm to partition the
+document into rectangular regions, each consisting of a single glyph. We will also assume the
+document contains only alphabetic characters in English. Therefore, we’ll simulate a process that
+involves matching glyphs to 1 of the 26 letters, A to Z.
+
+To this end, we’ll use a dataset donated to the UCI Machine Learning Repository (http://archive.
+ics.uci.edu/ml) by W. Frey and D. J. Slate. The dataset contains 20,000 examples of 26 English
+alphabet capital letters as printed using 20 different randomly reshaped and distorted black-
+and-white fonts.
+
+
+```{r}
+# import the CSV file
+letters <- read.csv(file.path("Chapter07/letterdata.csv"), stringsAsFactors = TRUE)
+```
+
+
+## Step 2 – exploring and preparing the data
+
+We will use the library kernlab
+
+https://www.jstatsoft.org/article/view/v011i09
+
+Other SVM libraries
+
+- LIBSVM
+
+The e1071 package from the Department of Statistics at the Vienna University of Technology (TU
+Wien) provides an R interface to the award-winning LIBSVM library, a widely used open-source
+SVM program written in C++.
+
+Refer to the authors’ website at  http://www.csie.ntu.edu.tw/~cjlin/libsvm/.
+
+4th of march:
+"Version 3.35 released on **September 1, 2024**. We fix some minor bugs. "
+
+- klaR
+
+The Department of Statistics at the Dortmund University of Technology (TU Dortmund) provides
+functions for working with SVMlight directly from R.
+
+For information on SVMlight, see https://www.cs.cornell.edu/people/tj/svm_light/.
+
+Version: 6.02
+Date: **14.08.2008**  <- it seems a bit old .. ?
+
+
+```{r}
+
+#https://www.jstatsoft.org/article/view/v011i09
+if (!require(kernlab)) install.packages('kernlab', dependencies = T)
+library(kernlab) 
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+
+if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+library(ggplot2)
+
+```
+
+
+```{r}
+#Structure
+str(letters)
+```
+
+SVM learners require all features to be numeric, and moreover, that each feature is scaled to a
+fairly small interval. In this case, every feature is an integer, so we do not need to convert any
+factors into numbers. On the other hand, some of the ranges for these integer variables appear
+wide. This indicates that we need to normalize or standardize the data. However, we can skip
+this step for now because the R package that we will use for fitting the SVM model will perform
+rescaling automatically.
+
+```{r}
+#Summary
+summary(letters)
+```
+
+
+Given that there is no data preparation left to perform, we can move directly to the training and
+testing phases of the machine learning process. In previous analyses, we randomly divided the
+data between the training and testing sets. Although we could do so here, Frey and Slate have
+already randomized the data and therefore suggest using the first 16,000 records (80 percent) for
+building the model and the next 4,000 records (20 percent) for testing. Following their advice,
+we can create training and testing data frames as follows:
+
+
+```{r}
+#Create training and test sets
+letters_train <- letters[1:16000, ]
+letters_test <- letters[16001:20000, ]
+```
+
+
+## Step 3 – training a model on the data
+
+To provide a baseline measure of SVM performance, let’s begin by training a simple linear SVM
+classifier:
+
+```{r}
+#Create model
+system.time({
+  letter_classifier <- ksvm(letter ~ ., data = letters_train, kernel = "vanilladot")
+})
+```
+
+
+Depending on the performance of your computer, this operation may take some time to complete.
+When it finishes, type the name of the stored model to see some basic information about the
+training parameters and the fit of the model:
+
+```{r}
+#Model info
+letter_classifier
+```
+This information tells us very little about how well the model will perform in the real world. We’ll
+need to examine its performance on the testing dataset to know whether it generalizes well to
+unseen data.
+
+
+## Step 4 – evaluating model performance
+
+The predict() function allows us to use the letter classification model to make predictions on
+the testing dataset:
+
+```{r}
+#Prediction
+letter_predictions <- predict(letter_classifier, letters_test)
+```
+
+Because we didn’t specify the type parameter, the default type = "response" was used. This
+returns a vector containing a predicted letter for each row of values in the testing data. Using the
+head() function, we can see that the first six predicted letters were U, N, V, X, N, and H:
+
+```{r}
+#Prediction
+head(letter_predictions)
+```
+
+To examine how well our classifier performed, we need to compare the predicted letter with the
+true letter in the testing dataset. We’ll use the table() function
+
+```{r}
+#Prediction
+table(letter_predictions, letters_test$letter)
+```
+
+The diagonal values of 144, 121, 120, 156, and 127 indicate the total number of records where
+the predicted letter matches the true value. Similarly, the number of mistakes is also listed. For
+example, the value of 5 in row B and column D indicates that there were 5 cases where the letter
+D was misidentified as a B.
+
+To check the total of correct predictions:
+
+```{r}
+agreement <- letter_predictions == letters_test$letter
+
+table(agreement)
+
+prop.table(table(agreement))*100
+```
+
+In percentage terms, the accuracy is about 84 percent.
+
+## Step 5 – improving model performance
+
+- Changing the SVM kernel function.
+
+A popular convention is to begin with the Gaussian RBF kernel, which has been shown to perform well for
+many types of data.
+
+```{r}
+#Replace kernel by "rbfdot")
+set.seed(12345)
+
+system.time({
+  letter_classifier_rbf <- ksvm(letter ~ ., data = letters_train, kernel = "rbfdot")
+})
+```
+
+```{r}
+#Prediction
+letter_predictions_rbf <- predict(letter_classifier_rbf, letters_test)
+```
+
+
+To check the total of correct predictions:
+
+```{r}
+agreement <- letter_predictions_rbf == letters_test$letter
+
+table(agreement)
+
+prop.table(table(agreement))*100
+```
+
+We have improved from 84% to 93%.
+
+- Identifying the best SVM cost parameter
+
+If this level of performance is still unsatisfactory for the OCR program, it is certainly possible to
+test additional kernels. However, another fruitful approach is to vary the cost parameter, which
+modifies the width of the SVM decision boundary.
+
+This governs the model’s balance between overfitting and underfitting the training data.
+
+
+Rather than repeating the training and evaluation process repeatedly, we can use the sapply() 
+function to apply a custom function to a vector of potential cost values. We begin by using the seq() 
+function to generate this vector as a sequence counting from 5 to 40 by 5. Then, as shown in the 
+following code, the custom function trains the model as before, each time using the cost value 
+and making predictions on the test dataset.
+
+```{r}
+cost_values <- c(1, seq(from = 5, to = 40, by = 5))
+
+accuracy_values <- sapply(cost_values, function(x) {
+  set.seed(12345)
+  
+  m <- ksvm(letter ~ ., data = letters_train, kernel = "rbfdot", C = x)
+  
+  pred <- predict(m, letters_test)
+
+  agree <- ifelse(pred == letters_test$letter, 1, 0)
+
+  accuracy <- sum(agree) / nrow(letters_test)
+
+  return (accuracy)
+})
+
+plot(cost_values, accuracy_values, type = "b")
+
+```
+
+As depicted in the visualization, with an accuracy of 93 percent, the default SVM cost parame-
+ter of C = 1 resulted in by far the least accurate model among the 9 models evaluated. Instead,
+setting C to a value of 10 or higher results in an accuracy of around 97 percent.
+
+
+
+
+
+
+
+
+
+
