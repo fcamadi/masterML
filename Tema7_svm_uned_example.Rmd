@@ -107,7 +107,7 @@ planos lineales con una tasa de error de entreno del 1.67%.
 
 ## Paso 4 – Predicción del modelo
 
-Con la red entrenada podemos realizar predicciones usando el dataset de validación y
+Con el modelo entrenado podemos realizar predicciones usando el dataset de validación y
 obteniendo la pertinente matriz de confusión:
 
 ```{r}
