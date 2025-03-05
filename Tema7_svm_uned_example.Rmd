@@ -1,0 +1,147 @@
+---
+title: "Tema7_svm_uned_example"
+author: "Fran Camacho"
+date: "2025-03-05"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 7 - Ejemplo SVM 
+
+Clasificación de Flores Iris.
+
+
+## Paso 1 – Recolección de datos
+
+Consideramos nuevamente la clasificación de flores iris que vimos en los temas 3, 5 y
+7. Este dataset está compuesto por 150 observaciones y 5 variables, de las cuales 4
+son variables numéric
+
+```{r}
+# import the iris dataset
+data(iris)
+```
+
+
+## Paso 2 – Exploración y preparación de los datos
+
+Importar librerías necesarias:
+
+```{r}
+
+#https://www.jstatsoft.org/article/view/v011i09
+if (!require(kernlab)) install.packages('kernlab', dependencies = T)
+library(kernlab) 
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+
+if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+library(ggplot2)
+
+```
+
+
+```{r}
+# import the iris dataset
+str(iris)
+```
+
+
+```{r}
+# import the iris dataset
+summary(iris)
+```
+
+
+Normalización:
+
+```{r}
+# normalization
+norm <- function(x) (x -min(x))/(max(x)-min(x))
+
+iris_norm <- as.data.frame(apply(iris[, 1:4], 2, norm))
+iris_norm$Species <- iris$Species
+
+summary(iris_norm)
+```
+
+
+## Paso 3 – Entrenamiento del modelo
+
+Creación de conjuntos de entrenamiento y de test.
+
+```{r}
+#create training and test sets
+
+set.seed(12345)
+
+size <- floor(0.80 * nrow(iris_norm))
+idx <- sample(seq_len(nrow(iris_norm)), size = size)
+
+iris_train <- iris_norm[idx, ]
+iris_test <- iris_norm[-idx, ]
+```
+
+
+Con los datasets ya separados podemos entrenar nuestro modelo, usando la función
+ksvm() de la librería kernlab, indicándole que queremos usar un separador (kernel)
+lineal (especificado mediante la opción kernel=”vanilladot”):
+
+
+```{r}
+#train the model
+
+model_vanilladot <- ksvm (Species ~ ., data=iris_train, kernel="vanilladot")
+
+model_vanilladot
+```
+
+
+Los resultados obtenidos nos indican que el modelo ha sido generado mediante 25
+planos lineales con una tasa de error de entreno del 1.67%.
+
+
+## Paso 4 – Predicción del modelo
+
+Con la red entrenada podemos realizar predicciones usando el dataset de validación y
+obteniendo la pertinente matriz de confusión:
+
+```{r}
+#prediction of the model
+
+prediction <- predict(model_vanilladot, iris_test)
+
+confusionMatrix(as.factor(iris_test$Species), as.factor(prediction))
+```
+
+Vemos que el clasificador que hemos construido con Support Vector Machines usando
+un separador lineal iguala el rendimiento de la red neuronal, obteniendo una tasa de
+éxito del 96.67%, con tan solo 1 observación del dataset de validación mal clasificada.
+
+
+## Paso 5 - Mejora del modelo
+
+Difícil, no queda mucho margen de mejora. Pero vamos a probar con otro kernel:
+
+```{r}
+#train the model
+
+model_rbfdot <- ksvm (Species ~ ., data=iris_train, kernel="rbfdot")
+
+model_rbfdot
+```
+
+```{r}
+#prediction of the model
+
+prediction <- predict(model_rbfdot, iris_test)
+
+confusionMatrix(as.factor(iris_test$Species), as.factor(prediction))
+```
+
+Pues para este dataset tan pequeño, este otro kernel clasifica un caso menos que el anterior.
+
