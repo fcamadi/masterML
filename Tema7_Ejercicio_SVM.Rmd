@@ -11,14 +11,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Tema 7 - Ejercicio SVM 
 
-Mismos datos que en la parte de redes de neuronas. 
+Ejercicio equivalente al de redes de neuronas, pero usando "support vector machines".
 
 
 ## Paso 1 – Carga de los datos
 
-Consideramos nuevamente la clasificación de flores iris que vimos en los temas 3, 5 y
-7. Este dataset está compuesto por 150 observaciones y 5 variables, de las cuales 4
-son variables numéric
+Mismos datos que en la parte de redes de neuronas. 
 
 ```{r}
 # import the CSV file
@@ -31,17 +29,12 @@ bank_raw <- read.csv(file.path("Chapter07/Bank", "bank.csv"), sep = ";", strings
 Importar librerías necesarias:
 
 ```{r}
-
 #https://www.jstatsoft.org/article/view/v011i09
 if (!require(kernlab)) install.packages('kernlab', dependencies = T)
 library(kernlab) 
 
 if (!require(caret)) install.packages('caret', dependencies = T)
 library(caret)   
-
-
-#if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
-#library(ggplot2)
 
 ```
 
@@ -119,6 +112,7 @@ model_rbfdot
 ```
 
 El error es ligeramente más pequeño con el kernel rbf ("radial basis function").
+
 
 
 ## Paso 4 – Predicción del modelo
