@@ -1,0 +1,244 @@
+---
+title: "Tema7_Ejercicio_SVM"
+author: "Fran Camacho"
+date: "2025-03-05"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 7 - Ejercicio SVM 
+
+Mismos datos que en la parte de redes de neuronas. 
+
+
+## Paso 1 – Carga de los datos
+
+Consideramos nuevamente la clasificación de flores iris que vimos en los temas 3, 5 y
+7. Este dataset está compuesto por 150 observaciones y 5 variables, de las cuales 4
+son variables numéric
+
+```{r}
+# import the CSV file
+bank_raw <- read.csv(file.path("Chapter07/Bank", "bank.csv"), sep = ";", stringsAsFactors = TRUE)
+```
+
+
+## Paso 2 – Exploración y preparación de los datos
+
+Importar librerías necesarias:
+
+```{r}
+
+#https://www.jstatsoft.org/article/view/v011i09
+if (!require(kernlab)) install.packages('kernlab', dependencies = T)
+library(kernlab) 
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+
+
+#if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+#library(ggplot2)
+
+```
+
+
+Preparamos el dataset de igual manera que para las redes de neuronas:
+
+```{r}
+#scale numeric variables (neither day nor month)
+maxs <- apply(bank_raw[c(1,6,12,13,14,15)], 2, max)
+mins <- apply(bank_raw[c(1,6,12,13,14,15)], 2, min)
+
+bank_norm <- data.frame(scale(bank_raw[c(1,6,12,13,14,15)], center = mins, scale = maxs - mins))
+
+#hot encoding of categorical features         
+dummies <- dummyVars(" ~ job + marital + education + default + housing + loan + contact + poutcome", data = bank_raw)
+bank_hot_encoded_feat <-  data.frame(predict(dummies, newdata = bank_raw))
+
+#encoding month (name to number)
+month_to_number <- function(month_name) {
+  month_and_number <- c("jan"=1,"feb"=2,"mar"=3,"apr"=4,"may"=5,"jun"=6,"jul"=7,"aug"=8,"sep"=9,"oct"=10,"nov"=11,"dec"=12)
+  return(month_and_number[as.character(month_name)])
+}
+bank_raw$month_num <- sapply(bank_raw$month, month_to_number)
+
+
+#put all features in the same dataframe
+bank_processed <- cbind(bank_norm,as.numeric(bank_raw$day),bank_raw$month_num,bank_hot_encoded_feat,bank_raw$y)
+names(bank_processed)[7:8] <- c("day","month")
+names(bank_processed)[41] <- "y"
+head(bank_processed,5)
+
+```
+
+
+Finalmente, creamos los conjuntos de entrenamiento y validación de igual manera que para las redes de neuronas:
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(bank_processed$y, times=1, p=.75, list=FALSE)
+
+#create training set
+bank_processed_train <- bank_processed[train_indices, ]
+
+#create testing set
+bank_processed_test  <- bank_processed[-train_indices, ]
+
+
+#view number of rows in each set
+nrow(bank_processed_train)  # 3391
+nrow(bank_processed_test)   # 1130
+
+```
+
+
+
+## Paso 3: Entrenamiento del modelo
+
+Vamos a comparar dos kernels de la librería kernlab.
+
+```{r}
+#train the model
+
+model_vanilladot <- ksvm (y ~ ., data=bank_processed_train, kernel="vanilladot")
+model_vanilladot
+```
+
+```{r}
+#train the model
+
+model_rbfdot <- ksvm (y ~ ., data=bank_processed_train, kernel="rbfdot")
+model_rbfdot
+```
+
+El error es ligeramente más pequeño con el kernel rbf ("radial basis function").
+
+
+## Paso 4 – Predicción del modelo
+
+Con la red entrenada podemos realizar predicciones usando el dataset de validación y
+obteniendo la pertinente matriz de confusión:
+
+```{r}
+#Confusion matrix
+prediction_vanilladot <- predict(model_vanilladot, bank_processed_test)
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_vanilladot))
+```
+
+```{r}
+#Confusion matrix
+prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot))
+```
+
+## Paso 5 – Mejora del modelo
+
+Como se explica en el libro, vamos a intentar averiguar si con algún valor del parámetro coste (parámetro C en la función ksvm), 
+se puede obtener una exactitud mejor que con el valor por defecto (C=1):
+
+```{r}
+set.seed(12345)
+
+cost_values <- c(1, seq(from = 5, to = 50, by = 5))
+
+accuracy_values <- sapply(cost_values, function(x) {
+
+  m <-ksvm (y ~ ., data=bank_processed_train, kernel="rbfdot", C = x)
+  pred <- predict(m, bank_processed_test)
+
+  agree <- ifelse(pred == bank_processed_test$y, 1, 0)
+  accuracy <- sum(agree) / nrow(bank_processed_test)
+
+  return (accuracy)
+})
+
+plot(cost_values, accuracy_values, type = "b")
+
+```
+
+El mejor resultado se obtiene para C=5.
+
+Examinamos con más detalle los valores alrededor de 5:
+
+```{r}
+set.seed(12345)
+
+cost_values <- c(seq(from = 2, to = 8, by = 1))
+
+accuracy_values <- sapply(cost_values, function(x) {
+
+  m <-ksvm (y ~ ., data=bank_processed_train, kernel="rbfdot", C = x)
+  pred <- predict(m, bank_processed_test)
+
+  agree <- ifelse(pred == bank_processed_test$y, 1, 0)
+  accuracy <- sum(agree) / nrow(bank_processed_test)
+
+  print(sprintf("C: %f - acc: %f", x, accuracy))
+
+  return (accuracy)
+})
+
+```
+
+La gráfica:
+
+```{r}
+
+plot(cost_values, accuracy_values, type = "b")
+
+```
+
+Aunque por muy poco, el mejor valor de la exactitud se da para C=3.
+Entonces entrenamos el modelo y hacemos la predicción con ese valor.
+
+
+```{r}
+#train the model
+
+model_rbfdot_C <- ksvm (y ~ ., data=bank_processed_train, kernel="rbfdot", C = 3)
+model_rbfdot_C
+```
+
+C = 5
+
+Support Vector Machine object of class "ksvm" 
+
+SV type: C-svc  (classification) 
+ parameter : cost C = 5 
+
+Gaussian Radial Basis kernel function. 
+ Hyperparameter : sigma =  0.0182756619058051 
+
+Number of Support Vectors : 969 
+
+Objective Function Value : -2627.335 
+Training error : 0.055146 
+
+
+```{r}
+#Confusion matrix
+prediction_rbfdot <- predict(model_rbfdot_C, bank_processed_test)
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot))
+```
+
+C_= 5
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  977  23
+       yes  98  32
+                                          
+               Accuracy : 0.8929 
+
+
+Al igual que con las redes de neuronas, parece como si hubiera un muro en el 88-89%, y no consigo pasar de esta exactitud.
+
