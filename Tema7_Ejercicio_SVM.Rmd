@@ -36,6 +36,9 @@ library(kernlab)
 if (!require(caret)) install.packages('caret', dependencies = T)
 library(caret)   
 
+# LIBSVM   https://www.csie.ntu.edu.tw/~cjlin/libsvm/
+if (!require(e1071)) install.packages('e1071', dependencies = T)
+library(e1071)
 ```
 
 
@@ -98,21 +101,32 @@ nrow(bank_processed_test)   # 1130
 Vamos a comparar dos kernels de la librería kernlab.
 
 ```{r}
-#train the model
-
-model_vanilladot <- ksvm (y ~ ., data=bank_processed_train, kernel="vanilladot")
+#train the model vanilladot
+model_vanilladot <- ksvm(y ~ ., data=bank_processed_train, kernel="vanilladot")
 model_vanilladot
 ```
 
 ```{r}
-#train the model
-
-model_rbfdot <- ksvm (y ~ ., data=bank_processed_train, kernel="rbfdot")
+#train the model rbfdot
+model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
 model_rbfdot
 ```
 
 El error es ligeramente más pequeño con el kernel rbf ("radial basis function").
 
+
+[ 
+
+EXTRA:
+
+Probamos también con la librería LIBSVM.
+
+```{r}
+#train the model e1071
+model_e1071 <- svm (y ~ ., data=bank_processed_train, scale = FALSE)  # default values:  kernel = RBF, cost = 1
+model_e1071
+```
+]
 
 
 ## Paso 4 – Predicción del modelo
@@ -121,16 +135,28 @@ Con la red entrenada podemos realizar predicciones usando el dataset de validaci
 obteniendo la pertinente matriz de confusión:
 
 ```{r}
-#Confusion matrix
+#Confusion matrix vanilladot
 prediction_vanilladot <- predict(model_vanilladot, bank_processed_test)
-confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_vanilladot))
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_vanilladot), positive="yes", mode = "everything")
 ```
 
 ```{r}
-#Confusion matrix
+#Confusion matrix rbfdot
 prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
-confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot))
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot), positive="yes", mode = "everything")
 ```
+
+
+```{r}
+#Confusion matrix e1071
+prediction_e1071 <- predict(model_e1071, bank_processed_test)
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_e1071), positive="yes", mode = "everything")
+```
+
+Con los valores por defecto, se obtiene la misma exactitud .. pero con muchos falsos positivos 
+(El modelo predice 129 positivos que en realidad son negativos. Solo predice correctamente 1 de los 130!)
+
+
 
 ## Paso 5 – Mejora del modelo
 
@@ -168,7 +194,7 @@ cost_values <- c(seq(from = 2, to = 8, by = 1))
 
 accuracy_values <- sapply(cost_values, function(x) {
 
-  m <-ksvm (y ~ ., data=bank_processed_train, kernel="rbfdot", C = x)
+  m <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot", C = x)
   pred <- predict(m, bank_processed_test)
 
   agree <- ifelse(pred == bank_processed_test$y, 1, 0)
@@ -196,7 +222,7 @@ Entonces entrenamos el modelo y hacemos la predicción con ese valor.
 ```{r}
 #train the model
 
-model_rbfdot_C <- ksvm (y ~ ., data=bank_processed_train, kernel="rbfdot", C = 3)
+model_rbfdot_C <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot", C = 3)
 model_rbfdot_C
 ```
 
@@ -236,3 +262,88 @@ Prediction  no yes
 
 Al igual que con las redes de neuronas, parece como si hubiera un muro en el 88-89%, y no consigo pasar de esta exactitud.
 
+
+
+[  
+
+EXTRA:
+
+Intentamos mejorar también el resultado del modelo **e10701** variando el parámetro coste:
+
+
+```{r}
+set.seed(12345)
+
+cost_values <- c(1, seq(from = 5, to = 50, by = 5))
+
+accuracy_values <- sapply(cost_values, function(x) {
+
+  m <- svm(y ~ ., data=bank_processed_train, cost = x, cross = 5)
+  pred <- predict(m, bank_processed_test)
+
+  agree <- ifelse(pred == bank_processed_test$y, 1, 0)
+  accuracy <- sum(agree) / nrow(bank_processed_test)
+
+  print(sprintf("C: %f - acc: %f", x, accuracy))
+    
+  return (accuracy)
+})
+
+```
+
+
+```{r}
+
+plot(cost_values, accuracy_values, type = "b")
+
+```
+
+
+El mejor resultado parece ser con cost=1 ...
+
+
+```{r}
+set.seed(12345)
+
+cost_values <- c(seq(from = 0.25, to = 4, by = 0.25))
+
+accuracy_values <- sapply(cost_values, function(x) {
+
+  m <- svm(y ~ ., data=bank_processed_train, cost = x)
+  pred <- predict(m, bank_processed_test)
+
+  agree <- ifelse(pred == bank_processed_test$y, 1, 0)
+  accuracy <- sum(agree) / nrow(bank_processed_test)
+  
+  print(sprintf("C: %f - acc: %f", x, accuracy))
+
+  return (accuracy)
+})
+
+```
+
+
+```{r}
+
+plot(cost_values, accuracy_values, type = "b")
+
+```
+
+Pues es mejor con 2.
+
+```{r}
+#train the model e1071
+model_e1071_C2 <- svm(y ~ ., data=bank_processed_train, cost = 2 , scale = FALSE)
+model_e1071_C2
+```
+
+
+```{r}
+#Confusion matrix e1071
+prediction_e1071 <- predict(model_e1071_C2, bank_processed_test)
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_e1071), positive="yes", mode = "everything")
+```
+
+
+
+]
