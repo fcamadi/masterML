@@ -4,7 +4,7 @@ author: "Fran Camacho"
 date: "2025-02-24"
 output: word_document
 params:
-  library: "RSNNS"  #options: "neuralnet", "RSNNS", "keras"
+  library: "keras"  #options: "neuralnet", "RSNNS", "keras"
 ---
 
 ```{r setup, include=FALSE}
@@ -220,27 +220,30 @@ train_indices <- createDataPartition(bank_processed$y, times=1, p=.75, list=FALS
 
 #create training set
 bank_processed_train <- bank_processed[train_indices, ]
-X_train_bank <- bank_processed_train
-y_train_bank <- bank_processed_train$y
 
 #create testing set
 bank_processed_test  <- bank_processed[-train_indices, ]
-X_test_bank <- bank_processed_test
-y_test_bank <- bank_processed_test$y
+
   
 if (library == "keras") {
-  X_train_bank <- bank_processed_train %>% 
-    select(-y,-y.yes,-y.no) %>%
+  X_train_bank <- bank_processed_train %>% #select(-y,-y.yes,-y.no) %>%
+    select(-y,-y.yes,-y.no) %>%  
     keras3::as_tensor(dtype = "float32")  
   
   y_train_bank <- keras3::to_categorical(bank_processed_train$y)
     
-  
   X_test_bank <- bank_processed_test %>% 
     select(-y,-y.yes,-y.no) %>%  
     keras3::as_tensor(dtype = "float32")  
 
   y_test_bank <- keras3::to_categorical(bank_processed_test$y)
+  
+} else {
+  X_train_bank <- bank_processed_train[ , -c(41,42,43)] 
+  y_train_bank <- bank_processed_train[ , c(41,42)] 
+
+  X_test_bank <- bank_processed_test[ , -c(41,42,43)]
+  y_test_bank <- bank_processed_test[ , c(41,42)] 
 }
 
 
@@ -278,18 +281,20 @@ if (library=="neuralnet") {
   
   system.time({
       #model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4), learnFuncParams = c(0.05), maxit = 1000)
-      model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4,2), learnFuncParams = c(0.05), maxit = 2000)
+      model <- mlp(X_train_bank, y_train_bank, size = c(40,10,4,2), learnFuncParams = c(0.05), maxit = 20)
       # with hiddenActFunc=softplus, it never ends
   })
   
 } else { #Keras
   print("Choosing Keras")
   
-  model <- keras_model_sequential(name = "keras_20_2", input_shape = ncol(X_train_bank))
+  model <- keras_model_sequential(name = "keras_mid_complex", input_shape = ncol(X_train_bank))
   model %>%
-    layer_dense(name = "layer_1",units = 20, activation = 'relu') %>%
-
-    layer_dense(name = "output_layer_8", units = 2, activation = 'sigmoid')
+    layer_dense(name = "dense_1",units = 40, activation = 'relu') %>%
+    layer_dropout(name = "droput_1", rate = 0.8) %>% 
+    layer_dense(name = "dense_2",units = 10, activation = 'relu') %>%
+    layer_dropout(name = "droput_2", rate = 0.4) %>% 
+    layer_dense(name = "output_layer", units = 2, activation = 'sigmoid')
   
   model %>% compile(
     optimizer = "adam",               
@@ -421,6 +426,7 @@ if (library=="neuralnet") {
 }
 ```
 
+repasar esto !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ```{r}
 # neuralnet, RSNNS, keras
@@ -434,14 +440,13 @@ if (library=="keras") {
   y_test_bank_real <- apply(y_test_bank,1,which.max)  
 
   y_test_bank_real[y_test_bank_real==1] <- "no"    
-  y_test_bank_real[y_test_bank_real==2] <- "yes"
+  y_test_bank_real[y_test_bank_real==2] <- "yes"  
 } else {
   y_test_bank_real <- y_test_bank
   
   y_test_bank_real[y_test_bank_real==0] <- "no"    
   y_test_bank_real[y_test_bank_real==1] <- "yes"
 }
-
 
 ```
 
@@ -700,6 +705,381 @@ Prediction  no yes
                Accuracy : 0.8947
 
 ### Resultados con la librería Keras&TensorFlow:
+
+
+
+
+keras_complex:
+-------------------------------------------------------------------------------------------
+
+  model <- keras_model_sequential(name = "keras_complex", input_shape = ncol(X_train_bank))
+  model %>%
+    layer_dense(name = "layer_1",units = 40, activation = 'relu') %>%
+    layer_dropout(name = "droput_2", rate = 0.4) %>% 
+    layer_dense(name = "layer_3", units = 20, activation = 'relu') %>%
+    layer_dropout(name = "droput_4", rate = 0.3) %>% 
+    layer_dense(name = "layer_5", units = 10, activation = 'relu') %>%
+    layer_dropout(name = "droput_6", rate = 0.15) %>% 
+    layer_dense(name = "layer_7", units =  4, activation = 'relu') %>%
+    layer_dense(name = "output_layer_8", units = 2, activation = 'sigmoid')
+  
+  model %>% compile(
+    optimizer = "adam",               
+    loss = "binary_crossentropy",
+    metrics = 'accuracy'
+  )
+  
+  #Training
+  system.time({
+    history <- model %>% fit(
+      X_train_bank, y_train_bank, 
+      epochs = 1000, 
+      batch_size = 40,
+      validation_split = 0.2
+    )
+  })
+  
+  
+  Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  953  40
+       yes  91  46
+                                         
+               Accuracy : 0.8841                  <- Quitando validación, la exactitud es 0.8717.  
+                 95% CI : (0.864, 0.9022)            Probando con otros valores en las capas dropout, se obtiene 0.8788
+    No Information Rate : 0.9239         
+    P-Value [Acc > NIR] : 1              
+                                         
+                  Kappa : 0.352          
+                                         
+ Mcnemar's Test P-Value : 1.251e-05      
+                                         
+            Sensitivity : 0.53488        
+            Specificity : 0.91284        
+         Pos Pred Value : 0.33577        
+         Neg Pred Value : 0.95972        
+              Precision : 0.33577        
+                 Recall : 0.53488        
+                     F1 : 0.41256        
+             Prevalence : 0.07611        
+         Detection Rate : 0.04071        
+   Detection Prevalence : 0.12124        
+      Balanced Accuracy : 0.72386        
+                                         
+       'Positive' Class : yes 
+       
+  
+keras_mid_complex:
+-------------------------------------------------------------------------------------------     
+       
+  model <- keras_model_sequential(name = "keras_mid_complex", input_shape = ncol(X_train_bank))
+  model %>%
+    layer_dense(name = "layer_1",units = 40, activation = 'relu') %>%
+    layer_dropout(name = "droput_2", rate = 0.4) %>% 
+
+    layer_dense(name = "layer_5", units = 10, activation = 'relu') %>%
+    layer_dropout(name = "droput_6", rate = 0.15) %>% 
+
+    layer_dense(name = "output_layer_8", units = 2, activation = 'sigmoid')
+  
+  model %>% compile(
+    optimizer = "adam",               
+    loss = "binary_crossentropy",
+    metrics = 'accuracy'
+  )
+  
+  #Training
+  system.time({
+    history <- model %>% fit(
+      X_train_bank, y_train_bank, 
+      epochs = 1000, 
+      batch_size = 40,
+      validation_split = 0.2
+    )
+  })       
+ 
+    user  system elapsed 
+259.342  15.925 315.008 
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  953  40
+       yes  99  38
+                                          
+               Accuracy : 0.877           
+                 95% CI : (0.8564, 0.8956)
+    No Information Rate : 0.931           
+    P-Value [Acc > NIR] : 1               
+                                          
+                  Kappa : 0.2911          
+                                          
+ Mcnemar's Test P-Value : 8.677e-07       
+                                          
+            Sensitivity : 0.48718         
+            Specificity : 0.90589         
+         Pos Pred Value : 0.27737         
+         Neg Pred Value : 0.95972         
+              Precision : 0.27737         
+                 Recall : 0.48718         
+                     F1 : 0.35349         
+             Prevalence : 0.06903         
+         Detection Rate : 0.03363         
+   Detection Prevalence : 0.12124         
+      Balanced Accuracy : 0.69654         
+                                          
+       'Positive' Class : yes  
+
+ keras_mid_complex lots of neurons:
+------------------------------------------------------------------------------------------- 
+
+  model <- keras_model_sequential(name = "keras_mid_complex", input_shape = ncol(X_train_bank))
+  model %>%
+    layer_dense(name = "layer_1",units = 120, activation = 'relu') %>%
+    layer_dropout(name = "droput_2", rate = 0.5) %>% 
+    layer_dense(name = "layer_2",units = 40, activation = 'relu') %>%
+    layer_dense(name = "output_layer", units = 2, activation = 'sigmoid')
+  
+  model %>% compile(
+    optimizer = "adam",               
+    loss = "binary_crossentropy",
+    metrics = 'accuracy'
+  )
+  
+  #Training
+  system.time({
+    history <- model %>% fit(
+      X_train_bank, y_train_bank, 
+      epochs = 1000, 
+      batch_size = 40,
+      validation_split = 0.2
+    )
+  })
+  
+          Reference
+Prediction  no yes
+       no  946  47
+       yes  92  45
+                                          
+               Accuracy : 0.877
+
+Mismo modelo, pero sin validación y con epoch=500:
+
+          Reference
+Prediction  no yes
+       no  958  35
+       yes  91  46
+                                          
+               Accuracy : 0.8885 
+
+
+ keras_40_10_2:
+-------------------------------------------------------------------------------------------       
+      
+  model <- keras_model_sequential(name = "keras_40_10_2", input_shape = ncol(X_train_bank))
+  model %>%
+    layer_dense(name = "layer_1",units = 40, activation = 'relu') %>%
+
+    layer_dense(name = "layer_5", units = 10, activation = 'relu') %>%
+
+    layer_dense(name = "output_layer_8", units = 2, activation = 'sigmoid')
+  
+  model %>% compile(
+    optimizer = "adam",               
+    loss = "binary_crossentropy",
+    metrics = 'accuracy'
+  )
+  
+  #Training
+  system.time({
+    history <- model %>% fit(
+      X_train_bank, y_train_bank, 
+      epochs = 1000, 
+      batch_size = 40,
+      validation_split = 0.2
+    )
+  })     
+     
+ user  system elapsed 
+249.202  16.037 309.785 
+
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  944  49
+       yes  97  40
+                                          
+               Accuracy : 0.8708          
+                 95% CI : (0.8498, 0.8898)
+    No Information Rate : 0.9212          
+    P-Value [Acc > NIR] : 1.0000000       
+                                          
+                  Kappa : 0.2858          
+                                          
+ Mcnemar's Test P-Value : 0.0001003       
+                                          
+            Sensitivity : 0.44944         
+            Specificity : 0.90682         
+         Pos Pred Value : 0.29197         
+         Neg Pred Value : 0.95065         
+              Precision : 0.29197         
+                 Recall : 0.44944         
+                     F1 : 0.35398         
+             Prevalence : 0.07876         
+         Detection Rate : 0.03540         
+   Detection Prevalence : 0.12124         
+      Balanced Accuracy : 0.67813         
+                                          
+       'Positive' Class : yes
+
+keras_40_10_4_2
+-------------------------------------------------------------------------------------------
+
+  model <- keras_model_sequential(name = "keras_40_10_4_2", input_shape = ncol(X_train_bank))
+  model %>%
+    layer_dense(name = "layer_1",units = 40, activation = 'relu') %>%
+    layer_dense(name = "layer_2", units = 10, activation = 'relu') %>%
+    layer_dense(name = "layer_3", units = 4, activation = 'relu') %>%
+    layer_dense(name = "output_layer_4", units = 2, activation = 'sigmoid')
+  
+  model %>% compile(
+    optimizer = "adam",               
+    loss = "binary_crossentropy",
+    metrics = 'accuracy'
+  )
+  
+  #Training
+  system.time({
+    history <- model %>% fit(
+      X_train_bank, y_train_bank, 
+      epochs = 10000, 
+      batch_size = 40,
+      validation_split = 0.2
+    )
+  })
+    
+user   system  elapsed 
+2552.557  168.099 3210.650 
+
+ Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  926  67
+       yes  90  47
+                                          
+               Accuracy : 0.8611          
+                 95% CI : (0.8395, 0.8807)
+    No Information Rate : 0.8991          
+    P-Value [Acc > NIR] : 0.99998         
+                                          
+                  Kappa : 0.2971          
+                                          
+ Mcnemar's Test P-Value : 0.07912         
+                                          
+            Sensitivity : 0.41228         
+            Specificity : 0.91142         
+         Pos Pred Value : 0.34307         
+         Neg Pred Value : 0.93253         
+              Precision : 0.34307         
+                 Recall : 0.41228         
+                     F1 : 0.37450         
+             Prevalence : 0.10088         
+         Detection Rate : 0.04159         
+   Detection Prevalence : 0.12124         
+      Balanced Accuracy : 0.66185         
+                                          
+       'Positive' Class : yes       
+
+
+
+keras_20_2
+-------------------------------------------------------------------------------------------
+
+  model <- keras_model_sequential(name = "keras_20_2", input_shape = ncol(X_train_bank))
+  model %>%
+    layer_dense(name = "layer_1",units = 20, activation = 'relu') %>%
+
+    layer_dense(name = "output_layer_8", units = 2, activation = 'sigmoid')
+  
+ 
+  user  system elapsed 
+246.888  16.245 306.973   
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  952  41
+       yes  97  40
+                                          
+               Accuracy : 0.8779          
+                 95% CI : (0.8574, 0.8964)
+    No Information Rate : 0.9283          
+    P-Value [Acc > NIR] : 1               
+                                          
+                  Kappa : 0.3043          
+                                          
+ Mcnemar's Test P-Value : 2.842e-06       
+                                          
+            Sensitivity : 0.49383         
+            Specificity : 0.90753         
+         Pos Pred Value : 0.29197         
+         Neg Pred Value : 0.95871         
+              Precision : 0.29197         
+                 Recall : 0.49383         
+                     F1 : 0.36697         
+             Prevalence : 0.07168         
+         Detection Rate : 0.03540         
+   Detection Prevalence : 0.12124         
+      Balanced Accuracy : 0.70068         
+                                          
+       'Positive' Class : yes
+
+ 
+keras_20_2  exponential
+-------------------------------------------------------------------------------------------   
+    
+  model <- keras_model_sequential(name = "keras_20_2", input_shape = ncol(X_train_bank))
+  model %>%
+    layer_dense(name = "layer_1",units = 20, activation = 'exponential') %>%
+
+    layer_dense(name = "output_layer_8", units = 2, activation = 'sigmoid')
+  
+  model %>% compile(
+    optimizer = "adam",               
+    loss = "binary_crossentropy",
+    metrics = 'accuracy'
+  )
+  
+  #Training
+  system.time({
+    history <- model %>% fit(
+      X_train_bank, y_train_bank, 
+      epochs = 1000, 
+      batch_size = 40,
+      validation_split = 0.2
+    )
+  })
+
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction  no yes
+       no  931  62
+       yes  94  43
+                                          
+               Accuracy : 0.8619  
+               
+               
+Da igual el valor de epoch, el número de capas internas, y la función de activación.
+Es como si hubiera un muro en el 88-89%.
 
 
 
