@@ -347,3 +347,39 @@ confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_e1071), p
 
 
 ]
+
+## Mejorar el modelo con "grid search".
+
+Después de haber visto cómo se intenta mejorar un modelo en Python con la función GridSearchCV de la librería scikit-learn, he buscado cómo hacerlo de manera equivalente en R, para así probar no solo con valores del parámetro coste, sino también del parámetro gamma*.
+Voy a utilizar la librería caret (también se puede hacer con la librería e1071):
+
+Probamos con los mismos valores que en Python
+
+*lo que en Python se llama gamma, en R se llama sigma ... ?!
+
+```{r}
+#gridsearch with caret
+set.seed(12345)
+
+# 5-fold cross-validation
+control <- trainControl(method = "cv", number = 5) 
+
+#https://topepo.github.io/caret/available-models.html
+grid <- expand.grid(C = c(1,3,10,100,1000),
+                    sigma = c(0.1, 0.01, 0.001, 0.0001))
+
+# https://topepo.github.io/caret/train-models-by-tag.html#Support_Vector_Machines
+svmGridSearch <- train(y ~ ., data = bank_processed_train, method = "svmRadial",  
+                      trControl = control, 
+                      tuneGrid = grid)
+```
+
+
+Mostrar el contenido del "grid search":
+
+```{r}
+svmGridSearch
+```
+
+
+
