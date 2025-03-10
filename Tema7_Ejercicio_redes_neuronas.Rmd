@@ -4,7 +4,7 @@ author: "Fran Camacho"
 date: "2025-02-24"
 output: word_document
 params:
-  library: "keras"  #options: "neuralnet", "RSNNS", "keras"
+  library: "RSNNS"  #options: "neuralnet", "RSNNS", "keras"
 ---
 
 ```{r setup, include=FALSE}
@@ -281,7 +281,7 @@ if (library=="neuralnet") {
   
   system.time({
       #model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4), learnFuncParams = c(0.05), maxit = 1000)
-      model <- mlp(X_train_bank, y_train_bank, size = c(40,10,4,2), learnFuncParams = c(0.05), maxit = 20)
+      model <- mlp(X_train_bank, y_train_bank, size = c(40,10,4), learnFuncParams = c(0.05), maxit = 1000)
       # with hiddenActFunc=softplus, it never ends
   })
   
@@ -306,7 +306,7 @@ if (library=="neuralnet") {
   system.time({
     history <- model %>% fit(
       X_train_bank, y_train_bank, 
-      epochs = 1000, 
+      epochs = 500, 
       batch_size = 40,
       validation_split = 0.2
     )
@@ -346,7 +346,9 @@ if (library=="keras") {
 ```
 
 
-### Primeros resultados con la librería neuralnet:
+[
+
+Primeros resultados obtenidos con la librería neuralnet:
 
 (0)
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden=1) 
@@ -393,7 +395,7 @@ Warning: Algorithm did not converge in 1 of 1 repetition(s) within the stepmax. 
 model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], hidden = 43,  
                    act.fct = softplus, threshold = 0.5, lifesign="full")   
 
-
+]
 
 
 
@@ -417,7 +419,7 @@ if (library=="neuralnet") {
   
 } else if (library=="RSNNS") {
   
-  predictions <- predict(model, bank_processed_test[, 1:40])
+  predictions <- predict(model, X_test_bank)
 
 } else {  #Keras
   
@@ -426,7 +428,10 @@ if (library=="neuralnet") {
 }
 ```
 
-repasar esto !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+Matriz de confusión:
+
 
 ```{r}
 # neuralnet, RSNNS, keras
@@ -436,22 +441,11 @@ prediction <- apply(predictions,1,which.max)  #find which column has the highest
 prediction[prediction==1] <- "no"     #and translate that value to one of the two possible values
 prediction[prediction==2] <- "yes"
 
-if (library=="keras") {
-  y_test_bank_real <- apply(y_test_bank,1,which.max)  
+y_test_bank_real <- apply(y_test_bank,1,which.max)  # the same for test data
 
-  y_test_bank_real[y_test_bank_real==1] <- "no"    
-  y_test_bank_real[y_test_bank_real==2] <- "yes"  
-} else {
-  y_test_bank_real <- y_test_bank
-  
-  y_test_bank_real[y_test_bank_real==0] <- "no"    
-  y_test_bank_real[y_test_bank_real==1] <- "yes"
-}
-
+y_test_bank_real[y_test_bank_real==1] <- "no"    
+y_test_bank_real[y_test_bank_real==2] <- "yes"  
 ```
-
-
-Matriz de confusión:
 
 
 ```{r}
@@ -460,6 +454,8 @@ Matriz de confusión:
 caret::confusionMatrix(as.factor(y_test_bank_real), as.factor(prediction), positive="yes", mode = "everything")
 
 ```
+
+
 
 ### Resultados con la librería neuralnet:
 
@@ -551,7 +547,7 @@ Prediction  no yes
        no  948  45
        yes 115  22
                                           
-               Accuracy : **0.8584**
+               Accuracy : 0.8584
                  95% CI : (0.8367, 0.8782)
     No Information Rate : 0.9407          
     P-Value [Acc > NIR] : 1               
@@ -703,6 +699,8 @@ Prediction  no yes
        yes  91  46
                                          
                Accuracy : 0.8947
+
+
 
 ### Resultados con la librería Keras&TensorFlow:
 
