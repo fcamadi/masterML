@@ -1,0 +1,450 @@
+---
+title: "Tema8_as_rules_book_example"
+author: "Fran Camacho"
+date: "2025-03-12"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 8 - Association rules
+
+Example from the book "Machine Learning with R", by Brett Lantz:
+
+Identifying frequently purchased groceries with association rules.
+
+## Step 1 – collecting data
+
+Our market basket analysis will utilize purchase data from one month of operation at a real-world
+grocery store. The data contains 9,835 transactions, or about 327 transactions per day (roughly 30
+transactions per hour in a 12-hour business day), suggesting that the retailer is not particularly
+large, nor is it particularly small.
+
+[
+The dataset used here was adapted from the Groceries dataset in the arules R
+package. For more information, see Implications of Probabilistic Data Modeling for
+Mining Association Rules, Hahsler, M., Hornik, K., Reutterer, T., 2005. In From Data and
+Information Analysis to Knowledge Engineering, Gaul, W., Vichi, M., Weihs, C., Studies in
+Classification, Data Analysis, and Knowledge Organization, 2006, pp. 598–605. 
+]
+
+... This reduces the number of grocery items to a more manageable 169 types, using broad categories
+such as chicken, frozen meals, margarine, and soda.
+
+```{r}
+if (!require(arules)) install.packages('arules', dependencies = T)
+library(arules)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+
+if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+library(ggplot2)
+
+```
+
+
+
+## Step 2 – exploring and preparing the data
+
+
+Transactional data is stored in a slightly different format than we have used previously
+Transactional data is more freeform. As usual, each row in the data specifies a single
+example—in this case, a transaction. Each record comprises a comma-separated list of any 
+number of items, from one to many. (The items belonging to that transaction).
+
+Data preparation – creating a sparse matrix for transaction data
+The solution to this problem utilizes a data structure called a sparse matrix
+
+
+```{r}
+# import the CSV file
+groceries <- read.transactions(file.path("Chapter08", "groceries.csv"), sep = ",")
+```
+
+
+
+Structure and summary of the dataset:
+
+```{r}
+str(groceries)
+```
+
+
+
+
+```{r}
+summary(groceries)
+```
+The output 9835 rows refers to the number of transactions, and 169 columns indicates each of
+the 169 different items that might appear in someone’s grocery basket. Each cell in the matrix is
+a 1 if the item was purchased for the corresponding transaction, or 0 otherwise.
+
+The density value of 0.02609146 (2.6 percent) refers to the proportion of non-zero matrix cells.
+Since there are 9,835 * 169 = 1,662,115 positions in the matrix, we can calculate that a total of
+1,662,115 * 0.02609146 = 43,367 items were purchased during the store’s 30 days of operation.
+
+
+To look at the contents of the sparse matrix, use the inspect() function in combination
+with R’s vector operators. The first five transactions can be viewed as follows:
+
+
+```{r}
+inspect(groceries[1:5])
+```
+
+When formatted using the inspect() function, the data does not look very different from what
+we had seen in the original CSV file.
+
+Because the groceries object is stored as a sparse item matrix, the [row, column] notation can be
+used to examine desired items as well as desired transactions. Using this with the itemFrequency()
+function allows us to see the proportion of all transactions that contain the specified item. 
+
+For instance, to view the support level for the first three items across all rows in the grocery data, 
+use the following command:
+
+
+```{r}
+itemFrequency(groceries[, 1:3])
+```
+
+
+### Visualizing item support – item frequency plots
+
+
+```{r}
+itemFrequencyPlot(groceries, support = 0.1)   # at least 10 percent support
+```
+
+
+
+```{r}
+itemFrequencyPlot(groceries, topN = 20) # top 20 items in the groceries data
+```
+
+
+### Visualizing the transaction data – plotting the sparse matrix
+
+In addition to looking at specific items, it’s also possible to obtain a bird’s-eye view of the entire
+sparse matrix using the image() function. Of course, because the matrix itself is very large, it is
+usually best to request a subset of the entire matrix. The command to display the sparse matrix
+for the first five transactions is as follows:
+
+```{r}
+image(groceries[1:50])
+```
+
+
+This visualization can be a useful tool for exploring transactional data. For one, it may help with
+the identification of potential data issues. Columns that are filled all the way down could indicate
+items that are purchased in every transaction—a problem that could arise, perhaps, if a retailer’s
+name or identification number was inadvertently included in the transaction dataset.
+
+
+Keep in mind that this visualization will not be as useful for extremely large transaction databases
+because the cells will be too small to discern. Still, by combining it with the sample() function,
+you can view the sparse matrix for a randomly sampled set of transactions. The command to
+create a random selection of 100 transactions is as follows:
+
+
+
+```{r}
+image(sample(groceries, 100))
+```
+
+
+## Step 3 – training a model on the data
+
+
+With data preparation complete, we can now work at finding associations among shopping cart
+items. We will use an implementation of the Apriori algorithm in the arules package we’ve been
+using for exploring and preparing the groceries data.
+
+Although running the apriori() function is straightforward, there can sometimes be a fair amount
+of trial and error needed to find the support and confidence parameters that produce a reason-
+able number of association rules. If you set these levels too high, then you might find no rules,
+or might find rules that are too generic to be very useful. On the other hand, a threshold too low
+might result in an unwieldy number of rules. Worse, the operation might take a very long time
+or run out of memory during the learning phase.
+
+On the groceries data, using the default settings of **support = 0.1** and **confidence = 0.8** leads
+to a disappointing outcome:
+
+```{r}
+apriori(groceries)
+```
+...
+writing ... [0 rule(s)] done [0.00s].
+creating S4 object  ... done [0.00s].
+**set of 0 rules **
+
+[
+If you think about it, this outcome should not have been terribly surprising. Because
+support = 0.1 by default, in order to generate a rule, an item must have appeared
+in at least 0.1 * 9,385 = 938.5 transactions. Since only eight items appeared this
+frequently in our data, it’s no wonder we didn’t find any rules.
+]
+
+
+```{r}
+system.time({
+groceryrules <- apriori(groceries, parameter = list(support = 0.006, confidence = 0.25, minlen = 2))
+})
+```
+Apriori
+
+Parameter specification:
+
+Algorithmic control:
+
+Absolute minimum support count: **59** 
+
+set item appearances ...[0 item(s)] done [0.00s].
+set transactions ...[169 item(s), **9835 transaction(s)**] done [0.01s].
+sorting and recoding items ... [109 item(s)] done [0.00s].
+creating transaction tree ... done [0.00s].
+checking subsets of size 1 2 3 4 done [0.00s].
+writing ... **[463 rule(s)] done [0.00s].**
+creating S4 object  ... done [0.00s].
+
+```{r}
+groceryrules
+```
+
+[ 
+Other try
+
+```{r}
+system.time({
+groceryrules_small <- apriori(groceries, parameter = list(support = 0.015, confidence = 0.25, minlen = 2))
+})
+```
+]
+
+
+## Step 4 – evaluating model performance
+
+
+To obtain a high-level overview of the association rules, we can use summary() as follows. The
+rule length distribution tells us how many rules have each count of items. In our rule set, 150 rules
+have only two items, while 297 have three, and 16 have four
+
+```{r}
+summary(groceryrules)
+```
+
+The **support** and **confidence** measures should not be very surprising, since we used these as
+selection criteria for the rules. We might be alarmed if most or all of the rules had support and
+confidence very near the minimum thresholds, as this would mean that we may have set the
+bar too high. This is not the case here, as there are many rules with much higher values of each.
+
+The count and coverage measures are closely related to support and confidence. 
+
+As defined here, **count** is simply the numerator of the support metric or the number (rather than proportion) 
+of transactions that contained the item. 
+Because the absolute minimum support count was 59, it is unsurprising that the minimum observed count of 60 
+is close to the parameter setting. 
+
+The maximum count of 736 suggests that an item appeared in 736 out of 9,835 transactions; this
+relates to the maximum observed support as 736 / 9,835 = 0.074835.
+
+The **coverage** of an association rule is simply the support of the left-hand side of the rule, but it
+has a useful real-world interpretation: 
+
+it can be understood as the chance that a rule applies to any given transaction in the dataset, selected at random. 
+
+Thus, the minimum coverage of 0.009964 suggests that the least applicable rule covers only about one percent of transactions; 
+the maximum coverage of 0.255516 suggests that at least one rule covers more than 25 percent of transactions.
+
+The **lift** of a rule measures how much more likely one item or itemset is to be purchased relative to its typical rate of purchase, 
+given that you know another item or itemset has been purchased.
+
+lift(X->Y) = confidence(X->Y) / support(Y)
+
+( Unlike confidence, where the item order matters, lift(X → Y) is the same as lift(Y → X) ).
+
+
+For example, suppose at a grocery store, most people purchase milk and bread. By chance alone,
+we would expect to find many transactions with both milk and bread. However, if lift(milk → bread)
+is greater than 1, this implies that the two items are found together more often than expected by
+chance alone. In other words, someone who purchases one of the items is more likely to purchase
+the other. **A large lift value is therefore a strong indicator that a rule is important** and reflects a
+true connection between the items, and that the rule will be useful for business purposes. 
+
+Keep in mind, however, that this is only the case for sufficiently large transactional datasets; 
+lift values can be exaggerated for items with low support.
+
+
+
+[
+
+Other try
+
+```{r}
+summary(groceryrules_small)
+```
+
+```{r}
+inspect(groceryrules_small)
+```
+
+]
+
+
+```{r}
+inspect(groceryrules[1:3])
+```
+
+The first rule can be read in plain language as “if a customer buys potted plants, they will also buy whole milk.” 
+With a support of about 0.007 and a confidence of 0.400, we can determine that this rule covers about 0.7 percent of 
+transactions and is correct in 40 percent of purchases involving potted plants. 
+
+The lift value tells us how much more likely a customer is to buy whole milk relative to the average customer, 
+given that they bought a potted plant. 
+
+Since we know that about 25.6 percent of customers bought whole milk (support), while 40 percent of customers
+buying a potted plant bought whole milk (confidence), we can compute the lift as 0.40 / 0.256
+= 1.56, which matches the value shown.
+
+
+Although the confidence and lift are high, does {potted plants} → {whole milk} seem like a very
+useful rule? Probably not, as there doesn’t seem to be a logical reason why someone would be
+more likely to buy milk with a potted plant. Yet our data suggests otherwise. How can we make
+sense of this fact?
+
+A common approach is to take the association rules and divide them into the following three categories:
+
+•**Actionable**
+•**Trivial**
+•**Inexplicable**
+
+Rules are inexplicable if the connection between the items is so unclear that figuring out how to
+use the information is impossible or nearly impossible
+
+
+## Step 5 – improving model performance
+
+
+It’s useful to be able to sort the rules according to different criteria and get them out of R in a form that can
+be shared with marketing teams and examined in more depth.
+
+
+**Sorting the set of association rules.**
+Depending upon the objectives of the market basket analysis, the most useful rules might be
+those with the highest support, confidence, or lift.
+
+
+```{r}
+inspect(sort(groceryrules, by = "lift")[1:5])
+```
+
+These rules appear to be more interesting than the ones we looked at previously. 
+
+The first rule, with a lift of about 3.96, implies that people who buy herbs are nearly four times more likely
+to buy root vegetables than the typical customer— perhaps for a stew of some sort. 
+
+Rule two isalso interesting. Whipped cream is over three times more likely to be found in a shopping cart
+with berries versus other carts, suggesting perhaps a dessert pairing.
+
+
+[
+
+```{r}
+inspect(sort(groceryrules, by = "confidence")[1:5])
+```
+
+]
+
+**Taking subsets of association rules**
+
+.. to investigate whether berries are often purchased with other items. 
+To answer this question, we’ll need to find all the rules that include berries in some form.
+
+The subset() function provides a method for searching for subsets of transactions, items, or
+rules. To use it to find any rules with berries appearing in the rule, use the following command.
+
+```{r}
+berryrules <- subset(groceryrules, items %in% "berries")
+```
+
+Inspect berryrules:
+
+```{r}
+inspect(berryrules)
+```
+
+The subset() function is very powerful. The criteria for choosing the subset can be defined with
+several keywords and operators.
+
+(Have a lookt with **?subset**).
+
+
+
+**Saving association rules to a file or data frame**
+
+File:
+
+```{r}
+write(groceryrules, file = "groceryrules.csv", sep = ",", quote = TRUE, row.names = FALSE)
+```
+
+Dataframe:
+
+```{r}
+groceryrules_df <- as(groceryrules, "data.frame")
+
+str(groceryrules_df)
+```
+
+Saving the rules to a data frame may be useful if you want to perform additional processing on
+the rules or need to export them to another database.
+
+
+### Using the Eclat algorithm for greater efficiency
+
+The **Eclat** algorithm (**“equivalence class itemset clustering and bottom-up lattice traversal”**), 
+is a slightly more modern and substantially faster association rule learning algorithm.
+
+Apriori is a form of a breadth-first algorithm because it searches wide before it searches deep.
+Eclat is considered a depth-first algorithm in that it dives to the final endpoint and searches only as wide as needed.
+
+A key tradeoff with Eclat’s fast searching is that it skips the phase in Apriori in which confidence
+is calculated. It assumes that once the itemsets with high support are obtained, the most useful
+associations can be identified later—whether manually via a subjective eyeball test, or via an-
+other round of processing to compute metrics like confidence and lift.
+
+```{r}
+groceryitemsets_eclat <- eclat(groceries, support = 0.006)
+```
+
+
+```{r}
+inspect(groceryitemsets_eclat[1:5])
+```
+
+To produce rules from the itemsets, use the ruleInduction() function with the desired confidence
+parameter value as follows:
+
+```{r}
+groceryrules_eclat <- ruleInduction(groceryitemsets_eclat, confidence = 0.25)
+
+groceryrules_eclat
+```
+
+
+```{r}
+inspect(groceryrules_eclat[1:5])
+```
+
+
+
+Given the ease of use with either method, if you have a very large transactional dataset, it may
+be worth testing Eclat and Apriori on smaller random samples of transactions to see if one out-
+performs the other.
+
+
+
+
+

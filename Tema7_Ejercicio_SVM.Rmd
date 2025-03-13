@@ -380,6 +380,6 @@ Mostrar el contenido del "grid search":
 ```{r}
 svmGridSearch
 ```
-
-
+C     sigma  Accuracy 
+100  1e-03  0.8964906  -> 89.65%
 
