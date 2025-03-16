@@ -1,0 +1,324 @@
+---
+title: "Tema8_Ejercicio_reglas_asociacion"
+author: "Fran Camacho"
+date: "2025-03-13"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 8 - Ejercicio Reglas de Asociación
+
+Utilizando el dataset IncomeESL incluido con la librería arules, se pide generar reglas de asociación.
+
+Para ello, previamente deberá depurar el dataset. En particular:
+
+- Revisar que no haya valores omitidos.
+- Transformar los factores en valores numéricos. ← no es necesario!!!
+- Una vez depurado el dataset, crear la matriz de transacciones usando la función transactions.
+
+A la hora de ejecutar el algoritmo para obtener las reglas, no olvide establecer
+los valores de los parámetros de la función apriori, justificando el motivo de su
+elección.
+
+Por último, elabore un breve informe resumiendo las reglas obtenidas y analizando su significado.
+
+
+## Paso 1: Carga de los datos
+
+```{r}
+if (!require(arules)) install.packages('arules', dependencies = T)
+library(arules) 
+
+data("IncomeESL")
+#data("Income")
+```
+
+
+Descripción de las variables del dataset:
+
+https://rdrr.io/cran/arules/man/Income.html
+
+income
+    an ordered factor with levels: ⁠[0,10)⁠ < ⁠[10,15)⁠ < ⁠[15,20)⁠ < ⁠[20,25)⁠ < ⁠[25,30)⁠ < ⁠[30,40)⁠ < ⁠[40,50)⁠ < ⁠[50,75)⁠ < ⁠75+⁠
+
+sex
+    a factor with levels: male female
+
+marital status
+    a factor with levels: married cohabitation divorced widowed single
+
+age
+    an ordered factor with levels: 14-17 < 18-24 < 25-34 < 35-44 < 45-54 < 55-64 < ⁠65+⁠
+
+education
+    an ordered factor with levels: grade <9 < ⁠grades 9-11⁠ < ⁠high school graduate⁠ < college (1-3 years) < ⁠college graduate⁠ < ⁠graduate study⁠
+
+occupation
+    a factor with levels: professional/managerial sales laborer clerical/service homemaker student military retired unemployed
+
+years in bay area
+    an ordered factor with levels: ⁠<1⁠ < 1-3 < 4-6 < 7-10 < ⁠>10⁠
+
+dual incomes
+    a factor with levels: ⁠not married⁠ yes no
+
+number in household
+    an ordered factor with levels: 1 < 2 < 3 < 4 < 5 < 6 < 7 < 8 < ⁠9+⁠
+
+number of children
+    an ordered factor with levels: 0 < 1 < 2 < 3 < 4 < 5 < 6 < 7 < 8 < ⁠9+⁠
+
+householder status
+    a factor with levels: own, rent, ⁠live with parents/family⁠
+
+type of home
+    a factor with levels: house condominium apartment mobile Home other
+
+ethnic classification
+    a factor with levels: ⁠american indian,⁠ asian black ⁠east indian⁠ hispanic ⁠pacific islander⁠ white other
+    
+language in home
+    a factor with levels: english spanish other
+
+
+
+## Paso 2: Explorar y preparar los datos
+
+```{r}
+income_raw <- IncomeESL
+```
+
+
+```{r}
+#structure
+str(income_raw)
+```
+
+
+Nos quedamos con las observaciones que estén completas:
+
+```{r}
+# only complete observations
+income_complete <- income_raw[complete.cases(income_raw), ]
+```
+
+
+Y obtenemos las transacciones con ellas:
+
+
+```{r}
+# get transactions
+income_transac <- transactions(income_complete)
+```
+
+
+Estructura y sumario de las transacciones:
+
+```{r}
+#See the structure
+str(income_transac)
+```
+
+Resumen estadístico
+
+```{r}
+#See the structure
+summary(income_transac)
+```
+
+Hay 6876 filas, y hay 84 valores que pueden aparecer en ellas (en las 14 columnas como máximo), siendo la densidad el 16.67%.
+(No soy sociólogo, pero los items más frecuentes, dan una idea bastante clara de la población de la muestra).
+
+Examinamos un par de transacciones con inspect:
+
+```{r}
+inspect(income_transac[1:2])
+```
+
+
+
+
+### Visualización de los datos
+
+-Items con al menos un 25% de frecuencia
+
+```{r}
+itemFrequencyPlot(income_transac, support = 0.25)   # at least 25 percent support
+```
+
+- Los 20 items más frecuentes
+
+```{r}
+itemFrequencyPlot(income_transac, topN = 20) # top 20 items 
+```
+
+- Matriz dispersa 
+(por si vemos algo extraño)
+
+```{r}
+image(income_transac[1:50])
+image(income_transac[1000:1050])
+image(income_transac[2000:2050])
+image(income_transac[5000:5050])
+image(sample(income_transac, 50))
+```
+
+
+## Paso 3: Entrenamiento del modelo
+
+
+
+```{r}
+system.time({
+  income_rules <- apriori(income_transac)
+})
+```
+
+writing ... [21906 rule(s)] done [0.01s].
+
+Con los parámetros por defecto ("support" 10%), se obtienen 1111 reglas (siendo el mínimo total absoluto 687).
+
+Vamos a aumentar tanto el soporte como la confianza requeridas:
+
+```{r}
+system.time({
+income_rules <- apriori(income_transac, parameter = list(support = 0.5, confidence = 0.5, minlen = 2))
+})
+```
+
+Ahora obtenemos solo 12 reglas:
+
+```{r}
+inspect(income_rules)
+```
+
+Las 2 últimas reglas no aportan nada de información. 
+Las 10 primeras, tampoco. 
+(Son todas triviales).
+
+
+
+Vamos a buscar algo intermedio ...
+
+
+
+```{r}
+system.time({
+income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2))
+
+
+#income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2), 
+#                          appearance = list(rhs=c("language in home=english", "language in home=spanish", "language in home=other")))
+})
+```
+
+```{r}
+inspect(sort(income_rules, by = "lift"))
+```
+Se pueden sacar conclusiones de estas reglas, creo.
+
+
+
+
+Vamos a examinar con más detalle los ingresos:
+
+```{r}
+# only complete observations
+table(income_complete$income)
+```
+
+
+Vamos a dividirlos en tres rangos (bajos, medios, altos), y vamos a crear otra vez las transacciones con ese nuevo conjunto de datos.
+
+```{r}
+levels(income_complete[["income"]])
+```
+
+```{r}
+# only complete observations
+income_complete["income3levels"] <- income_complete["income"]
+levels(income_complete[["income3levels"]]) <- c("0-20k$","0-20k$","0-20k$","20k-50k$","20k-50k$","20k-50k$","20k-50k$","50k+","50k+")
+income_complete[0:5,c("income","income3levels")]
+```
+
+```{r}
+income3L_complete <- income_complete[,-1]
+```
+
+
+Y obtenemos las transacciones con este dataframe
+
+
+```{r}
+# get transactions
+income3L_transac <- transactions(income3L_complete)
+```
+
+
+Ahora aplicamos el algoritmo Apriori a estas nuevas transacciones:
+
+```{r}
+system.time({
+income3L_rules <- apriori(income3L_transac, parameter = list(support = 0.1, confidence = 0.2, minlen = 2))
+})
+```
+
+Si inspeccionamos las reglas, veremos que son las mismas 
+(Solo si no cambiamos el nivel de soporte y de confianza, claro).
+
+
+```{r}
+inspect(sort(income3L_rules, by = "lift")[1:10])
+```
+Lo que se pretende es encontrar las reglas que en el lado derecho tengan alguno de los 3 niveles de ingresos:
+
+```{r}
+system.time({
+income3L_rules_RHS <- apriori(income3L_transac, parameter = list(support = 0.33, confidence = 0.5, minlen = 2), 
+                          appearance = list(rhs=c("income3levels=0-20k$", "income3levels=20k-50k$", "income3levels=50k+")))
+})
+```
+0 reglas obtenidas buscando el nivel de ingresos en la parte derecha de las reglas ... ?!
+
+Probamos en el lado izquierdo:
+
+```{r}
+system.time({
+income3L_rules_LHS <- apriori(income3L_transac, parameter = list(support = 0.33, confidence = 0.5, minlen = 2), 
+                          appearance = list(lhs=c("income3levels=0-20k$", "income3levels=20k-50k$", "income3levels=50k+")))
+})
+```
+```{r}
+inspect(income3L_rules_LHS)
+```
+
+La regla es trivial (por no decir ridícula ..)
+
+
+
+Quitamos la variable idioma:
+
+```{r}
+# get transactions
+income_raw_transac <- transactions(income_raw[,-14])
+```
+
+```{r}
+system.time({
+income_raw_rules <- apriori(income_raw_transac, parameter = list(support = 0.20, confidence = 0.5, minlen = 2))
+
+
+#income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2), 
+#                          appearance = list(rhs=c("language in home=english", "language in home=spanish", "language in home=other")))
+})
+```
+
+```{r}
+inspect(sort(income_raw_rules, by = "lift")[1:10])
+```
+
+
+
