@@ -1,0 +1,205 @@
+---
+title: "Tema8_assoc_rules_uned_example"
+author: "Fran Camacho"
+date: "2025-03-17"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 8 - Ejemplo Reglas de Asociación (material complementario de la UNED)
+
+
+## Paso 1: Carga de los datos
+
+Para este ejemplo vamos a usar nuevamente el dataset Titanic, aunque en esta ocasión
+necesitamos su versión en bruto. Para ello la descargamos usando la librería httr, que
+permite descargar datos vía HTTP (en este caso, desde el repositorio disponible en
+RDataMining.com)
+
+
+```{r}
+
+if (!file.exists("titanic.raw.rdata")) {
+  if (!require(httr)) install.packages('httr', dependencies = T)
+  library(httr)
+  resp <- GET("https://github.com/ethen8181/machine-learning/raw/master/association_rule/R/titanic.raw.rdata")
+  writeBin(content(resp, 'raw'), "./Chapter08/titanic.raw.rdata")
+}
+load("./Chapter08/titanic.raw.rdata")
+
+```
+
+
+## Paso 2: Explorar y preparar los datos
+
+
+Cargamos librerías necesarias.
+
+```{r}
+if (!require(arules)) install.packages('arules', dependencies = T)
+library(arules) 
+
+# package graph must be installed first (and it is not available anymore in CRAN)
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("Rgraphviz")
+BiocManager::install("graph")
+
+if (!require(arulesViz)) install.packages('arulesViz', dependencies = T)
+library(arulesViz)
+```
+
+Seguidamente analizamos el dataset con str() y summary():
+
+```{r}
+str(titanic.raw)
+```
+
+
+```{r}
+summary(titanic.raw)
+```
+
+
+```{r}
+head(titanic.raw)
+```
+
+
+Vamos a tratar de encontrar reglas de asociación con la función apriori() incluida en
+la librería arules:
+
+```{r}
+rules <- apriori(titanic.raw, parameter = list(minlen=2, supp=0.005, conf=0.8), appearance = list(rhs=c("Survived=No", "Survived=Yes"),
+                  default="lhs"), control = list(verbose=F))
+                  rules.sorted <- sort(rules, by="lift")
+                  
+inspect(rules.sorted)
+```
+La función sort() nos permite ordenar los resultados de mayor a menor en base a los valores de la columna lift. 
+Este **lift** o **elevación** es un factor que mide la proporción en la que la probabilidad de co-ocurrencia de A y B 
+excede a la probabilidad esperada de que A y B co-ocurran, de haber sido independientes. Por tanto, cuanto mayor sea 
+la elevación, mayor será la probabilidad de que A y B ocurran juntos.
+
+
+Para eliminar las reglas redundantes, podemos utilizar la función **is.subset()** para comprobar cuáles de estas reglas 
+están contenidas dentro de otras para así eliminarlas:
+
+
+```{r}
+subset.matrix <- is.subset(rules.sorted,rules.sorted)
+subset.matrix
+```
+
+Para mayor comodidad, podemos eliminar las ocurrencias que se producen en la
+diagonal principal o por debajo de ella:
+
+```{r}
+subset.matrix[lower.tri(subset.matrix, diag=T)] <- F
+subset.matrix
+```
+
+Con esto ya podemos extraer las reglas de asociación redundantes, que serán aquellas
+que tengan una columna cuya suma sea igual o superior a 1:
+
+```{r}
+redundant<-colSums(subset.matrix,na.rm = T)>=1
+redundant
+```
+
+
+Las reglas marcadas como TRUE son consideradas redundantes por lo que podemos
+eliminarlas de los resultados iniciales:
+
+```{r}
+rules.pruned <- rules.sorted[!redundant]
+inspect(rules.pruned)
+```
+
+Pasamos a continuación a evaluar las reglas obtenidas a través de diferentes métricas
+que podemos generar con la función interestMeasure() disponible en la librería arules:
+
+
+```{r}
+interestMeasure(rules.pruned, c("support", "chiSquare", "confidence", "conviction", "cosine", "coverage", "leverage", "lift", "oddsRatio"), titanic.raw)
+```
+
+De todas ellas, resulta especialmente interesante la columna **“chiSquared”**, que nos
+permite contrastar la independencia entre el lado izquierdo (lhs) y el lado derecho
+(rhs) de la regla de asociación. El valor crítico de este contraste al 95% de confianza es
+el de una chi-cuadrado con 1 grado de libertad, es decir, 3.84. 
+
+En caso de que los valores del estadístico obtenido superen ese nivel, aceptaremos que 
+lhs y rhs no son independientes. Dicho de otro modo, valores grandes del estadístico 
+chi-cuadrado indican una clara evidencia de que la regla de asociación obtenida representa 
+una relación fuerte. Tal sería el caso de las reglas 1, 2, 4 y 5 de nuestro ejemplo.   <- 2,3,7 y 8
+
+Pasamos a la interpretación de las reglas obtenidas. En la práctica resulta muy fácil
+encontrar reglas con altas elevaciones pero interpretarlas no lo es tanto. Veamos un
+ejemplo para entender mejor esto: si examinamos las reglas finales que hemos
+obtenido, vemos que la 
+
+Regla [1], {Class=2nd, Age=Child} => {Survived=Yes},
+
+presenta una confianza de 1 y una elevación ligeramente por encima de 3. 
+
+Sin embargo, en el resultado obtenido no aparecen reglas para los niños que viajaban en
+1a o 3a clase. Un investigador poco riguroso podría concluir, a partir de estos
+resultados, que los niños que viajaban en 2a clase tenían una tasa de supervivencia
+mayor que la de los otros niños, lo cual es del todo incorrecto.
+
+Lo que nos está diciendo la Regla [1] es que los niños que viajaban en 2a clase
+sobrevivieron, pero no proporciona información para comparar las tasas de
+supervivencia entre diferentes clases. Para que se entienda mejor este análisis, vamos
+a repetir la obtención de reglas, pero indicando ahora que en la parte derecha (rhs)
+solo deben estar los que sí sobrevivieron, y en la parte izquierda, consideraremos las
+diferentes clases, así como las edades (niños y adultos). Para facilitar asimismo que el
+algoritmo encuentre más reglas, reducimos los valores de soporte y confianza.
+
+
+```{r}
+rules <- apriori(titanic.raw, parameter = list(minlen=3, supp=0.002, conf=0.2), 
+                  appearance = list(rhs=c("Survived=Yes"), lhs=c("Class=1st", "Class=2nd", "Class=3rd", "Age=Child", "Age=Adult"), default="none"),
+                  control = list(verbose=F))
+
+rules.sorted <- sort(rules, by="lift")
+
+inspect(rules.sorted)
+```
+
+
+Examinando la confianza de los resultado obtenidos en esta segunda ejecución del
+algoritmo, observamos en las dos primeras reglas que los niños que viajaban en 1a
+clase tenían la misma tasa de supervivencia que los que viajaban en 2a, y que además
+todos se salvaron. La regla de los niños que viajaban en 1a clase no ha aparecido antes
+sencillamente por su nivel de soporte estaba por debajo del umbral fijado. Por su
+parte, los niños que viajaban en 3a clase tuvieron un peor desenlace por cuanto solo
+sobrevivieron un 34.17% de ellos según indica la confianza de la Regla [5].
+
+
+Por último, finalizamos este ejemplo mostrando cómo visualizar las reglas de
+asociación. Para ello, debemos usar la librería arulesViz:
+
+```{r}
+plot(rules.pruned)
+```
+
+También podemos visualizar las reglas agrupándolas mediante el siguiente código:
+
+```{r}
+plot(rules.pruned, method="grouped")
+```
+
+
+Por último, también podemos crear un gráfico de conexiones entre reglas:
+
+```{r}
+plot(rules.pruned, method="graph")
+```
+
+
+
+
