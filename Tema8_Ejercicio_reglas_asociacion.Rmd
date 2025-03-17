@@ -228,7 +228,7 @@ income_rules <- apriori(income_transac, parameter = list(support = 0.25, confide
 ```
 
 ```{r}
-inspect(sort(income_rules, by = "lift")[1:20])
+inspect(sort(income_rules, by = "lift"))
 ```
 Creo que se pueden sacar conclusiones de estas reglas.
 Pero de todas maneras, considero que son demasiadas, y no veo el nivel de ingresos por ningún lado.
@@ -258,7 +258,7 @@ income_complete[0:5,c("income","income3levels")]
 ```
 
 ```{r}
-#remove income with 9 levels
+# remove income with 9 levels
 income3L_complete <- income_complete[,-1]
 ```
 
@@ -284,7 +284,7 @@ Con el mismo nivel de soporte y confianza, obtenemos ahora 199 reglas, en lugar 
 Presupongo que son las mismas o muy parecidas:
 
 ```{r}
-inspect(sort(income3L_rules, by = "lift")[1:20])
+inspect(sort(income3L_rules, by = "lift"))
 ```
 
 Lo que se pretende es encontrar las reglas que en el lado derecho tengan alguno de los 3 niveles de ingresos.
@@ -297,20 +297,18 @@ system.time({                                                 # supp = 0.33, con
                                                               # upp = 0.1, conf = 0.5 -> 3676
   income3L_rules <- apriori(income3L_transac, parameter = list(supp = 0.2, conf = 0.8, minlen = 2)) 
 })
-```
-```{r}
-inspect(sort(income3L_rules, by = "lift"))
+
+#inspect(sort(income3L_rules, by = "lift"))
 ```
 
-
-Y probamos con los niveles de ingreso en el lado derecho:
+Probamos con los niveles de ingreso en el lado derecho:
 
 ```{r}
 system.time({                                                   # supp = 0.33, conf = 0.5 -> 0 rules
                                                                 # supp = 0.2, conf = 0.8 -> 0
                                                                 # supp = 0.1, conf = 0.5 -> 101
                                                                 # supp = 0.1, conf = 0.6 -> 29
-income3L_rules_RHS <- apriori(income3L_transac, parameter = list(supp=0.1, conf=0.55, minlen = 2), 
+income3L_rules_RHS <- apriori(income3L_transac, parameter = list(supp = 0.1, conf = 0.55, minlen = 2), 
                           appearance = list(rhs=c("income3levels=0-20k$", "income3levels=20k-50k$", "income3levels=50k+")))
 })
 ```
@@ -336,17 +334,19 @@ subset_matrix
 
 [
 
-output:
-
-101 x 101 sparse Matrix of class "ngCMatrix"
-  [[ suppressing 101 column names ‘{dual incomes=yes,householder status=own,income3levels=50k+}’, ‘{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+}’, ‘{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+}’ ... ]]
-  [[ suppressing 101 column names ‘{dual incomes=yes,householder status=own,income3levels=50k+}’, ‘{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+}’, ‘{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+}’ ... ]]
-                                                                                                                                                                                                                                         
-{dual incomes=yes,householder status=own,income3levels=50k+}                                            | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+} . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+} . . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-{occupation=professional/managerial,householder status=own,income3levels=50k+}                          . . | | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-{marital status=married,occupation=professional/managerial,income3levels=50k+}    
+57 x 57 sparse Matrix of class "ngCMatrix"
+  [[ suppressing 57 column names ‘{dual incomes=yes,householder status=own,income3levels=50k+}’, ‘{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+}’, ‘{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+}’ ... ]]
+  [[ suppressing 57 column names ‘{dual incomes=yes,householder status=own,income3levels=50k+}’, ‘{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+}’, ‘{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+}’ ... ]]
+                                                                                                                                                                                                               
+{dual incomes=yes,householder status=own,income3levels=50k+}                                            | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+} . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+} . . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{occupation=professional/managerial,householder status=own,income3levels=50k+}                          . . | | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=married,occupation=professional/managerial,income3levels=50k+}                          . | . . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{occupation=student,dual incomes=not married,language in home=english,income3levels=0-20k$}             . . . . . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,occupation=student,income3levels=0-20k$}                                         . . . . . . | | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,occupation=student,dual incomes=not married,income3levels=0-20k$}                . . . . . . . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{occupation=student,dual incomes=not married,income3levels=0-20k$}                                      . . . . . | . | | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 ...
 
 ]
@@ -355,7 +355,7 @@ Eliminamos las ocurrencias que se producen en la diagonal principal y por debajo
 
 
 ```{r}
-subset_matrix[lower.tri(subset_matrix, diag=T)] <- F
+subset_matrix[lower.tri(subset_matrix, diag = T)] <- F
 subset_matrix
 ```
 
@@ -363,15 +363,19 @@ subset_matrix
 
 output:
 
-101 x 101 sparse Matrix of class "ngCMatrix"
-  [[ suppressing 94 column names ‘{dual incomes=yes,householder status=own,income3levels=50k+}’, ‘{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+}’, ‘{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+}’ ... ]]
-  [[ suppressing 94 column names ‘{dual incomes=yes,householder status=own,income3levels=50k+}’, ‘{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+}’, ‘{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+}’ ... ]]
-                                                                                                                                                                                                                     
-{dual incomes=yes,householder status=own,income3levels=50k+}                                            . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+} . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+} . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-{occupation=professional/managerial,householder status=own,income3levels=50k+}                          . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-{marital status=married,occupation=professional/managerial,income3levels=50k+}                          . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+57 x 57 sparse Matrix of class "ngCMatrix"
+  [[ suppressing 57 column names ‘{dual incomes=yes,householder status=own,income3levels=50k+}’, ‘{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+}’, ‘{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+}’ ... ]]
+  [[ suppressing 57 column names ‘{dual incomes=yes,householder status=own,income3levels=50k+}’, ‘{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+}’, ‘{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+}’ ... ]]
+                                                                                                                                                                                                               
+{dual incomes=yes,householder status=own,income3levels=50k+}                                            . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=married,occupation=professional/managerial,language in home=english,income3levels=50k+} . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{occupation=professional/managerial,householder status=own,language in home=english,income3levels=50k+} . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{occupation=professional/managerial,householder status=own,income3levels=50k+}                          . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=married,occupation=professional/managerial,income3levels=50k+}                          . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{occupation=student,dual incomes=not married,language in home=english,income3levels=0-20k$}             . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,occupation=student,income3levels=0-20k$}                                         . . . . . . . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,occupation=student,dual incomes=not married,income3levels=0-20k$}                . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{occupation=student,dual incomes=not married,income3levels=0-20k$}                                      . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 ...
 
 ]
@@ -379,7 +383,7 @@ output:
 Ahora podemos extraer las reglas de asociación redundantes, que serán aquellas que tengan una columna cuya suma sea igual o superior a 1:
 
 ```{r}
-redundant <- colSums(subset_matrix, na.rm = T)>=1
+redundant <- colSums(subset_matrix, na.rm = T) >= 1
 redundant
 ```
 
@@ -402,21 +406,20 @@ output:
                                                                            {marital status=single,occupation=student,income3levels=0-20k$} 
                                                                                                                                      FALSE 
                                                   {marital status=single,occupation=student,dual incomes=not married,income3levels=0-20k$} 
-                                                                                                                                    **TRUE**
+                                                                                                                                      TRUE 
                                                                         {occupation=student,dual incomes=not married,income3levels=0-20k$} 
-                                                                                                                                     FALSE 
-{marital status=married,householder status=own,type of home=house,ethnic classification=white,language in home=english,income3levels=50k+} 
-                                                                                                                                     FALSE 
+                                                                                                                                     FALSE  
 ...
 
 ]
 
-Las reglas marcadas como TRUE son consideradas redundantes por lo que podemos eliminarlas de los resultados:
+Las reglas marcadas como TRUE son consideradas redundantes por lo que podemos eliminarlas:
 
 ```{r}
 rules_pruned <- income3L_rules_RHS_sortedByLift[!redundant]
 inspect(rules_pruned)
 ```
+Nos quedamos al final con 36 reglas.
 
 Las reglas con más elevación son las que incluyen los sueldos altos. Las que menos, las que incluyen los sueldos intermedios.
 
@@ -426,10 +429,10 @@ La 35 por ejemplo indica que una edad entre 25 y 34, si vive de alquiler, es por
 La regla 31 indica que las personas solteras, y con una edad entre 18 y 24, tendrán probablemente un sueldo inferior a 20k $.
 (Igual que la regla 29 y 30 ..)
 Si la ocupación es estudiante, entonces la regla de asociación con un sueldo bajo tiene una elevación una confianza todavía mayores (regla 14).
-(Y mayores todavía si la regla incluye en la parte izquierda que se está solter y se es estudiante, regla 7).
+(Y mayores todavía si la regla incluye en la parte izquierda que se está soltero y se es estudiante, regla 7).
 
 En cuanto a los sueldos más altos:
-Si hay dos sueldos en la unidad familiar, y se tiene la propiedad de la vivienda (regla 1), eso indica que es bastante probable que sea porque los sueldos son altos.
+Si hay dos sueldos en la unidad familiar, y se tiene la propiedad de la vivienda (regla 1), eso indica que es bastante probable que se trate de sueldos altos.
 (También si la categoría profesional es alta, y se tiene en propiedad la casa -y más si se habla inglés-, reglas 2 y 3).
 
 
@@ -445,22 +448,22 @@ interestMeasure(rules_pruned, c("support",  "confidence", "lift", "chiSquare",  
 
 Los valores de "chi squared" para las 26 primeras reglas son muy altos (también son altos para las últimas 10). 
 Esto indica una relación muy fuerte entre la parte izquierda y derecha de las reglas.
-Entiendo que las reglas de asociación obtenidas tienen validez (no son triviales).
+Entiendo por tanto que las reglas de asociación obtenidas tienen validez (no son triviales).
 
 
 ### Visualización de las reglas
 
-Con la ayuda de la librería arulesViz, vamos a visualizar las reglas obtenidas, para ver si podemos obtener algo más de información:
+Con la ayuda de la librería arulesViz, vamos a visualizar las reglas obtenidas, para ver si podemos deducir algo más:
 
 ```{r, fig.height=8}
 plot(rules_pruned)
 ```
 
 Se puede ver gráficamente que el grado de confianza supera el 55% (lógico, ese fue el parámetro que elegí), y el soporte no es muy alto.
-Tuve que disminuirlo hasta poder encontrar reglas de asociación relacionadas con los niveles de ingreso.
+Tuve que disminuirlo hasta ese nivel para poder encontrar reglas de asociación relacionadas con los niveles de ingreso.
 
 
-Gráfico de grupos entre reglas:
+Gráfico de grupos de reglas:
 
 ```{r, fig.height=8}
 plot(rules_pruned, method="grouped")
