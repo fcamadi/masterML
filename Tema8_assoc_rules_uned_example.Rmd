@@ -48,7 +48,16 @@ if (!require("BiocManager", quietly = TRUE))
 BiocManager::install("Rgraphviz")
 BiocManager::install("graph")
 
-if (!require(arulesViz)) install.packages('arulesViz', dependencies = T)
+if (!require(arulesViz)) {
+  # package graph must be installed first (and it is not available anymore in CRAN)
+  if (!require("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+    BiocManager::install("Rgraphviz")
+    BiocManager::install("graph")
+  }
+  install.packages('arulesViz', dependencies = T)
+}
+
 library(arulesViz)
 ```
 
