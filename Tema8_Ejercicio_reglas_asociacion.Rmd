@@ -298,6 +298,10 @@ system.time({                                                 # supp = 0.33, con
   income3L_rules <- apriori(income3L_transac, parameter = list(supp = 0.2, conf = 0.8, minlen = 2)) 
 })
 ```
+```{r}
+inspect(sort(income3L_rules, by = "lift"))
+```
+
 
 Y probamos con los niveles de ingreso en el lado derecho:
 
@@ -306,17 +310,17 @@ system.time({                                                   # supp = 0.33, c
                                                                 # supp = 0.2, conf = 0.8 -> 0
                                                                 # supp = 0.1, conf = 0.5 -> 101
                                                                 # supp = 0.1, conf = 0.6 -> 29
-income3L_rules_RHS <- apriori(income3L_transac, parameter = list(supp=0.1, conf=0.5, minlen = 2), 
+income3L_rules_RHS <- apriori(income3L_transac, parameter = list(supp=0.1, conf=0.55, minlen = 2), 
                           appearance = list(rhs=c("income3levels=0-20k$", "income3levels=20k-50k$", "income3levels=50k+")))
 })
 ```
 
+Vamos a examinar las 57 reglas obtenidas:
+(Estas son las reglas de asociación que estaba buscando).
+
 ```{r}
 inspect(sort(income3L_rules_RHS, by = "lift"))
 ```
-
-Estas son las reglas de asocación que estaba buscando.
-
 
 Vamos a intentar encontrar ahora las reglas redundantes (con la función **is.subset()**), eliminarlas y simplicar así el conjunto de reglas:
 
@@ -411,15 +415,27 @@ Las reglas marcadas como TRUE son consideradas redundantes por lo que podemos el
 
 ```{r}
 rules_pruned <- income3L_rules_RHS_sortedByLift[!redundant]
-inspect(rules_pruned[1:10])
-inspect(rules_pruned[40:49])
-inspect(rules_pruned[50:59])
+inspect(rules_pruned)
 ```
 
-Las reglas con más "elevación" son las que incluyen los sueldos altos. Las que menos, las que incluyen los sueldos intermedios.
+Las reglas con más elevación son las que incluyen los sueldos altos. Las que menos, las que incluyen los sueldos intermedios.
 
-Pasamos a continuación a evaluar las reglas obtenidas a través de diferentes métricas
-que podemos generar con la función interestMeasure() disponible en la librería arules:
+Las reglas de asociación de este grupo de población con sueldos intermedios son las 3 últimas (34,35 y 36).
+La 35 por ejemplo indica que una edad entre 25 y 34, si vive de alquiler, es porque probablemente tendrá un sueldo que le permite vivir de manera independiente (ni en el domicilio de los padres .. ni adquirir una propiedad).
+
+La regla 31 indica que las personas solteras, y con una edad entre 18 y 24, tendrán probablemente un sueldo inferior a 20k $.
+(Igual que la regla 29 y 30 ..)
+Si la ocupación es estudiante, entonces la regla de asociación con un sueldo bajo tiene una elevación una confianza todavía mayores (regla 14).
+(Y mayores todavía si la regla incluye en la parte izquierda que se está solter y se es estudiante, regla 7).
+
+En cuanto a los sueldos más altos:
+Si hay dos sueldos en la unidad familiar, y se tiene la propiedad de la vivienda (regla 1), eso indica que es bastante probable que sea porque los sueldos son altos.
+(También si la categoría profesional es alta, y se tiene en propiedad la casa -y más si se habla inglés-, reglas 2 y 3).
+
+
+
+
+Se pueden generar diferentes métricas con la función interestMeasure() disponible en la librería arules:
 
 
 ```{r}
@@ -427,16 +443,45 @@ que podemos generar con la función interestMeasure() disponible en la librería
 interestMeasure(rules_pruned, c("support",  "confidence", "lift", "chiSquare",  "coverage"), income3L_complete)
 ```
 
+Los valores de "chi squared" para las 26 primeras reglas son muy altos (también son altos para las últimas 10). 
+Esto indica una relación muy fuerte entre la parte izquierda y derecha de las reglas.
+Entiendo que las reglas de asociación obtenidas tienen validez (no son triviales).
 
-Para ver si es más fácil analizarlas, vamos a visualizar las reglas obtenidas con la ayuda de la librería arulesViz:
 
-```{r}
+### Visualización de las reglas
+
+Con la ayuda de la librería arulesViz, vamos a visualizar las reglas obtenidas, para ver si podemos obtener algo más de información:
+
+```{r, fig.height=8}
 plot(rules_pruned)
 ```
 
+Se puede ver gráficamente que el grado de confianza supera el 55% (lógico, ese fue el parámetro que elegí), y el soporte no es muy alto.
+Tuve que disminuirlo hasta poder encontrar reglas de asociación relacionadas con los niveles de ingreso.
+
+
+Gráfico de grupos entre reglas:
+
+```{r, fig.height=8}
+plot(rules_pruned, method="grouped")
+```
+
+
 Gráfico de conexiones entre reglas:
 
-```{r}
-#plot(rules_pruned, method="grouped")
+```{r, fig.height=8}
 plot(rules_pruned, method="graph")
 ```
+
+En este gráfico pueden apreciar 2 "clusters", y algunos puntos sueltos en la parte inferior.
+En el cluster de la parte izquierda se puede ver "estudiante", "sueldo inferior a 20k $", "edad 18 a 24", "vive con los padres" ..
+En el cluster de la parte derecha "casado", "sueldo superior a 50k $", "vivienda en propiedad" ...
+Y en la parte inferior, lo también descrito: las personas con edades entre 25 y 34, que viven de alquiler, y tienen un sueldo intermedio entre 20k y 50k $.
+
+
+
+
+
+
+
+
