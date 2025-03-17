@@ -1,0 +1,220 @@
+---
+title: "Tema8_Ejercicio_reglas_asociacion_ECLAT"
+author: "Fran Camacho"
+date: "2025-03-13"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 8 - Ejercicio Reglas de Asociación (Usando ECLAT en lugar de Apriori)
+
+Utilizando el dataset IncomeESL incluido con la librería arules, se pide generar reglas de asociación.
+
+Para ello, previamente deberá depurar el dataset. En particular:
+
+- Revisar que no haya valores omitidos.
+- Transformar los factores en valores numéricos. ← no es necesario!!!
+- Una vez depurado el dataset, crear la matriz de transacciones usando la función transactions.
+
+A la hora de ejecutar el algoritmo para obtener las reglas, no olvide establecer
+los valores de los parámetros de la función apriori, justificando el motivo de su
+elección.
+
+Por último, elabore un breve informe resumiendo las reglas obtenidas y analizando su significado.
+
+
+## Paso 1: Carga de los datos
+
+```{r}
+if (!require(arules)) install.packages('arules', dependencies = T)
+library(arules) 
+
+# to plot rules we use package arulesViz
+if (!require(arulesViz)) {
+  # package graph -and other packages too- must be installed first (and it is not available anymore in CRAN)
+  if (!require("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+    BiocManager::install("Rgraphviz")
+    BiocManager::install("graph")
+  }
+  install.packages('arulesViz', dependencies = T)
+}
+
+data("IncomeESL")
+#data("Income")
+```
+
+
+Descripción de las variables del dataset:
+
+https://rdrr.io/cran/arules/man/Income.html
+
+income:
+    an ordered factor with levels: ⁠[0,10)⁠ < ⁠[10,15)⁠ < ⁠[15,20)⁠ < ⁠[20,25)⁠ < ⁠[25,30)⁠ < ⁠[30,40)⁠ < ⁠[40,50)⁠ < ⁠[50,75)⁠ < ⁠75+⁠
+
+sex:
+    a factor with levels: male female
+
+marital status:
+    a factor with levels: married cohabitation divorced widowed single
+
+age:
+    an ordered factor with levels: 14-17 < 18-24 < 25-34 < 35-44 < 45-54 < 55-64 < ⁠65+⁠
+
+education:
+    an ordered factor with levels: grade <9 < ⁠grades 9-11⁠ < ⁠high school graduate⁠ < college (1-3 years) < ⁠college graduate⁠ < ⁠graduate study⁠
+
+occupation:
+    a factor with levels: professional/managerial sales laborer clerical/service homemaker student military retired unemployed
+
+years in bay area:
+    an ordered factor with levels: ⁠<1⁠ < 1-3 < 4-6 < 7-10 < ⁠>10⁠
+
+dual incomes:
+    a factor with levels: ⁠not married⁠ yes no
+
+number in household:
+    an ordered factor with levels: 1 < 2 < 3 < 4 < 5 < 6 < 7 < 8 < ⁠9+⁠
+
+number of children:
+    an ordered factor with levels: 0 < 1 < 2 < 3 < 4 < 5 < 6 < 7 < 8 < ⁠9+⁠
+
+householder status:
+    a factor with levels: own, rent, ⁠live with parents/family⁠
+
+type of home:
+    a factor with levels: house condominium apartment mobile Home other
+
+ethnic classification:
+    a factor with levels: ⁠american indian,⁠ asian black ⁠east indian⁠ hispanic ⁠pacific islander⁠ white other
+    
+language in home:
+    a factor with levels: english spanish other
+
+
+
+## Paso 2: Explorar y preparar los datos
+
+```{r}
+income_raw <- IncomeESL
+```
+
+
+```{r}
+#structure
+str(income_raw)
+```
+
+
+Nos quedamos con las observaciones que estén completas:
+
+```{r}
+# only complete observations
+income_complete <- income_raw[complete.cases(income_raw), ]
+```
+
+
+Y obtenemos las transacciones con ellas:
+
+
+```{r}
+# get transactions
+income_transac <- transactions(income_complete)
+```
+
+
+Estructura y sumario de las transacciones:
+
+```{r}
+#See the structure
+str(income_transac)
+```
+
+Resumen estadístico
+
+```{r}
+#See the structure
+summary(income_transac)
+```
+
+Hay 6876 filas, y hay 84 valores que pueden aparecer en ellas (en las 14 columnas como máximo), siendo la densidad el 16.67%.
+(No soy sociólogo, pero los items más frecuentes, dan una idea bastante clara de la población de la muestra).
+
+Examinamos un par de transacciones con inspect:
+
+```{r}
+inspect(income_transac[1:2])
+```
+
+
+
+### Visualización de los datos
+
+
+(Ver notebook con la versión Apriori).
+
+
+## Paso 3: Entrenamiento del modelo
+
+
+Vamos a probar primero con los valores por defecto:
+
+
+```{r}
+system.time({
+  income_items_eclat <- eclat(income_transac)
+})
+```
+Con los parámetros por defecto (soporte 0.1), se obtienen 1204 itemsets.
+
+Vamos a aumentar tanto el soporte como la confianza requeridas:
+
+```{r}
+system.time({
+#income_items_eclat <- eclat(income_transac, parameter = list(support = 0.25, minlen = 2))  # confidence = 0.5
+income_items_eclat_020 <- eclat(income_transac, parameter = list(support = 0.2, minlen = 2))  # confidence = 0.5
+})
+```
+
+Ahora obtenemos 189 itemsets:
+
+```{r}
+inspect(income_items_eclat_020)
+```
+
+Obtenemos las reglas de esos 2 itemsets:
+
+```{r}
+income_rules_eclat <- ruleInduction(income_items_eclat, confidence = 0.9)
+
+income_rules_eclat
+```
+
+
+```{r}
+income_rules_eclat_020 <- ruleInduction(income_items_eclat_020, confidence = 0.5)
+
+income_rules_eclat_020
+```
+
+
+No entiendo la razón de que dé este error.
+
+Los dos objetos creados son iguales, solo difieren en el tamaño:
+
+
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("./Chapter08/income_rules_eclat.png")
+```
+
+
+```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
+knitr::include_graphics("./Chapter08/income_rules_eclat_020.png")
+```
+
+
