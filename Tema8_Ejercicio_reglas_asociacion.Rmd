@@ -32,6 +32,17 @@ Por último, elabore un breve informe resumiendo las reglas obtenidas y analizan
 if (!require(arules)) install.packages('arules', dependencies = T)
 library(arules) 
 
+# to plot rules we use package arulesViz
+if (!require(arulesViz)) {
+  # package graph -and other packages too- must be installed first (and it is not available anymore in CRAN)
+  if (!require("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+    BiocManager::install("Rgraphviz")
+    BiocManager::install("graph")
+  }
+  install.packages('arulesViz', dependencies = T)
+}
+
 data("IncomeESL")
 #data("Income")
 ```
@@ -41,46 +52,46 @@ Descripción de las variables del dataset:
 
 https://rdrr.io/cran/arules/man/Income.html
 
-income
+income:
     an ordered factor with levels: ⁠[0,10)⁠ < ⁠[10,15)⁠ < ⁠[15,20)⁠ < ⁠[20,25)⁠ < ⁠[25,30)⁠ < ⁠[30,40)⁠ < ⁠[40,50)⁠ < ⁠[50,75)⁠ < ⁠75+⁠
 
-sex
+sex:
     a factor with levels: male female
 
-marital status
+marital status:
     a factor with levels: married cohabitation divorced widowed single
 
-age
+age:
     an ordered factor with levels: 14-17 < 18-24 < 25-34 < 35-44 < 45-54 < 55-64 < ⁠65+⁠
 
-education
+education:
     an ordered factor with levels: grade <9 < ⁠grades 9-11⁠ < ⁠high school graduate⁠ < college (1-3 years) < ⁠college graduate⁠ < ⁠graduate study⁠
 
-occupation
+occupation:
     a factor with levels: professional/managerial sales laborer clerical/service homemaker student military retired unemployed
 
-years in bay area
+years in bay area:
     an ordered factor with levels: ⁠<1⁠ < 1-3 < 4-6 < 7-10 < ⁠>10⁠
 
-dual incomes
+dual incomes:
     a factor with levels: ⁠not married⁠ yes no
 
-number in household
+number in household:
     an ordered factor with levels: 1 < 2 < 3 < 4 < 5 < 6 < 7 < 8 < ⁠9+⁠
 
-number of children
+number of children:
     an ordered factor with levels: 0 < 1 < 2 < 3 < 4 < 5 < 6 < 7 < 8 < ⁠9+⁠
 
-householder status
+householder status:
     a factor with levels: own, rent, ⁠live with parents/family⁠
 
-type of home
+type of home:
     a factor with levels: house condominium apartment mobile Home other
 
-ethnic classification
+ethnic classification:
     a factor with levels: ⁠american indian,⁠ asian black ⁠east indian⁠ hispanic ⁠pacific islander⁠ white other
     
-language in home
+language in home:
     a factor with levels: english spanish other
 
 
@@ -140,7 +151,6 @@ inspect(income_transac[1:2])
 
 
 
-
 ### Visualización de los datos
 
 -Items con al menos un 25% de frecuencia
@@ -155,7 +165,7 @@ itemFrequencyPlot(income_transac, support = 0.25)   # at least 25 percent suppor
 itemFrequencyPlot(income_transac, topN = 20) # top 20 items 
 ```
 
-- Matriz dispersa 
+- Visualizamos también las matrices dispersas para algunos tramos de datos
 (por si vemos algo extraño)
 
 ```{r}
@@ -166,9 +176,13 @@ image(income_transac[5000:5050])
 image(sample(income_transac, 50))
 ```
 
+Se ve cómo predomina el idioma inglés. No veo nada más que sea digno de mención.
+
 
 ## Paso 3: Entrenamiento del modelo
 
+
+Vamos a probar primero con los valores por defecto:
 
 
 ```{r}
@@ -177,9 +191,7 @@ system.time({
 })
 ```
 
-writing ... [21906 rule(s)] done [0.01s].
-
-Con los parámetros por defecto ("support" 10%), se obtienen 1111 reglas (siendo el mínimo total absoluto 687).
+Con los parámetros por defecto (soporte 10%), se obtienen 1111 reglas.
 
 Vamos a aumentar tanto el soporte como la confianza requeridas:
 
@@ -204,11 +216,9 @@ Las 10 primeras, tampoco.
 Vamos a buscar algo intermedio ...
 
 
-
 ```{r}
 system.time({
 income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2))
-
 
 #income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2), 
 #                          appearance = list(rhs=c("language in home=english", "language in home=spanish", "language in home=other")))
@@ -218,12 +228,12 @@ income_rules <- apriori(income_transac, parameter = list(support = 0.25, confide
 ```{r}
 inspect(sort(income_rules, by = "lift"))
 ```
-Se pueden sacar conclusiones de estas reglas, creo.
+Creo que se pueden sacar conclusiones de estas reglas.
+Pero de todas maneras, considero que son demasiadas, y no veo el nivel de ingresos por ningún lado.
 
+Voy a examinar con más detalle los ingresos.
+Voy a dividirlos en 3 niveles (bajo, medio, alto), y voy a intentar obtener reglas en las que estos 3 niveles intervengan.
 
-
-
-Vamos a examinar con más detalle los ingresos:
 
 ```{r}
 # only complete observations
@@ -241,10 +251,12 @@ levels(income_complete[["income"]])
 # only complete observations
 income_complete["income3levels"] <- income_complete["income"]
 levels(income_complete[["income3levels"]]) <- c("0-20k$","0-20k$","0-20k$","20k-50k$","20k-50k$","20k-50k$","20k-50k$","50k+","50k+")
+#test
 income_complete[0:5,c("income","income3levels")]
 ```
 
 ```{r}
+#remove income with 9 levels
 income3L_complete <- income_complete[,-1]
 ```
 
@@ -262,63 +274,52 @@ Ahora aplicamos el algoritmo Apriori a estas nuevas transacciones:
 
 ```{r}
 system.time({
-income3L_rules <- apriori(income3L_transac, parameter = list(support = 0.1, confidence = 0.2, minlen = 2))
+income3L_rules <- apriori(income3L_transac, parameter = list(supp = 0.25, conf = 0.5, minlen = 2))
 })
 ```
 
-Si inspeccionamos las reglas, veremos que son las mismas 
-(Solo si no cambiamos el nivel de soporte y de confianza, claro).
-
+Con el mismo nivel de soporte y confianza, obtenemos ahora 199 reglas, en lugar de 186.
+Presupongo que son las mismas o muy parecidas:
 
 ```{r}
-inspect(sort(income3L_rules, by = "lift")[1:10])
+inspect(sort(income3L_rules, by = "lift"))
 ```
-Lo que se pretende es encontrar las reglas que en el lado derecho tengan alguno de los 3 niveles de ingresos:
+
+Lo que se pretende es encontrar las reglas que en el lado derecho tengan alguno de los 3 niveles de ingresos.
+
+Probamos sin especificar nada en el lado derecho:
 
 ```{r}
-system.time({
-income3L_rules_RHS <- apriori(income3L_transac, parameter = list(support = 0.33, confidence = 0.5, minlen = 2), 
+system.time({                                                 # supp = 0.33, conf = 0.5 -> 0 rules
+                                                              # supp = 0.2, conf = 0.8 -> 146
+                                                              # upp = 0.1, conf = 0.5 -> 3676
+  income3L_rules <- apriori(income3L_transac, parameter = list(supp = 0.2, conf = 0.8, minlen = 2)) 
+})
+```
+
+Y probamos con los niveles de ingreso en el lado derecho:
+
+```{r}
+system.time({                                                   # supp = 0.33, conf = 0.5 -> 0 rules
+                                                                # supp = 0.2, conf = 0.8 -> 0
+                                                                # supp = 0.1, conf = 0.5 -> 101
+income3L_rules_RHS <- apriori(income3L_transac, parameter = list(supp=0.1, conf=0.5, minlen = 2), 
                           appearance = list(rhs=c("income3levels=0-20k$", "income3levels=20k-50k$", "income3levels=50k+")))
 })
 ```
-0 reglas obtenidas buscando el nivel de ingresos en la parte derecha de las reglas ... ?!
-
-Probamos en el lado izquierdo:
 
 ```{r}
-system.time({
-income3L_rules_LHS <- apriori(income3L_transac, parameter = list(support = 0.33, confidence = 0.5, minlen = 2), 
-                          appearance = list(lhs=c("income3levels=0-20k$", "income3levels=20k-50k$", "income3levels=50k+")))
-})
-```
-```{r}
-inspect(income3L_rules_LHS)
+inspect(sort(income3L_rules_RHS, by = "lift"))
 ```
 
-La regla es trivial (por no decir ridícula ..)
+Estas son las reglas de asocación que estaba buscando.
 
 
 
-Quitamos la variable idioma:
-
-```{r}
-# get transactions
-income_raw_transac <- transactions(income_raw[,-14])
-```
-
-```{r}
-system.time({
-income_raw_rules <- apriori(income_raw_transac, parameter = list(support = 0.20, confidence = 0.5, minlen = 2))
 
 
-#income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2), 
-#                          appearance = list(rhs=c("language in home=english", "language in home=spanish", "language in home=other")))
-})
-```
 
-```{r}
-inspect(sort(income_raw_rules, by = "lift")[1:10])
-```
+
 
 
 
