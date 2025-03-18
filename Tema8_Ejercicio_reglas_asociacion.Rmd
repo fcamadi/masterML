@@ -3,8 +3,8 @@ title: "Tema8_Ejercicio_reglas_asociacion"
 author: "Fran Camacho"
 date: "2025-03-13"
 output:
-  word_document: default
   pdf_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -228,7 +228,7 @@ income_rules <- apriori(income_transac, parameter = list(support = 0.25, confide
 ```
 
 ```{r}
-inspect(sort(income_rules, by = "lift"))
+inspect(sort(income_rules, by = "lift")[1:20])
 ```
 Creo que se pueden sacar conclusiones de estas reglas.
 Pero de todas maneras, considero que son demasiadas, y no veo el nivel de ingresos por ningún lado.
@@ -284,7 +284,7 @@ Con el mismo nivel de soporte y confianza, obtenemos ahora 199 reglas, en lugar 
 Presupongo que son las mismas o muy parecidas:
 
 ```{r}
-inspect(sort(income3L_rules, by = "lift"))
+inspect(sort(income3L_rules, by = "lift")[1:20])
 ```
 
 Lo que se pretende es encontrar las reglas que en el lado derecho tengan alguno de los 3 niveles de ingresos.
@@ -329,7 +329,7 @@ income3L_rules_RHS_sortedByLift <- sort(income3L_rules_RHS, by = "lift")
 
 ```{r}
 subset_matrix <- is.subset(income3L_rules_RHS_sortedByLift,income3L_rules_RHS_sortedByLift)
-subset_matrix
+#subset_matrix
 ```
 
 [
@@ -356,7 +356,7 @@ Eliminamos las ocurrencias que se producen en la diagonal principal y por debajo
 
 ```{r}
 subset_matrix[lower.tri(subset_matrix, diag = T)] <- F
-subset_matrix
+#subset_matrix
 ```
 
 [
@@ -384,7 +384,7 @@ Ahora podemos extraer las reglas de asociación redundantes, que serán aquellas
 
 ```{r}
 redundant <- colSums(subset_matrix, na.rm = T) >= 1
-redundant
+#redundant
 ```
 
 [
@@ -443,8 +443,9 @@ Se pueden generar diferentes métricas con la función interestMeasure() disponi
 
 ```{r}
 #interestMeasure(rules_pruned, c("support", "chiSquare", "confidence", "conviction", "cosine", "coverage", "leverage", "lift", "oddsRatio"), income3L_complete)
-interestMeasure(rules_pruned, c("support",  "confidence", "lift", "chiSquare",  "coverage"), income3L_complete)
+interestMeasure(rules_pruned[1:10], c("support",  "confidence", "lift", "chiSquare",  "coverage"), income3L_complete)
 ```
+
 
 Los valores de "chi squared" para las 26 primeras reglas son muy altos (también son altos para las últimas 10). 
 Esto indica una relación muy fuerte entre la parte izquierda y derecha de las reglas.
