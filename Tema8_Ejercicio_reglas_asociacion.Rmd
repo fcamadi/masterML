@@ -424,11 +424,12 @@ Nos quedamos al final con 36 reglas.
 Las reglas con más elevación son las que incluyen los sueldos altos. Las que menos, las que incluyen los sueldos intermedios.
 
 Las reglas de asociación de este grupo de población con sueldos intermedios son las 3 últimas (34,35 y 36).
-La 35 por ejemplo indica que una edad entre 25 y 34, si vive de alquiler, es porque probablemente tendrá un sueldo que le permite vivir de manera independiente (ni en el domicilio de los padres .. ni adquirir una propiedad).
+La 35 por ejemplo indica que una edad entre 25 y 34, si vive de alquiler, es porque probablemente tendrá un sueldo que le permite vivir de manera independiente 
+(ni en el domicilio de los padres .. ni tampoco adquirir una propiedad).
 
 La regla 31 indica que las personas solteras, y con una edad entre 18 y 24, tendrán probablemente un sueldo inferior a 20k $.
 (Igual que la regla 29 y 30 ..)
-Si la ocupación es estudiante, entonces la regla de asociación con un sueldo bajo tiene una elevación una confianza todavía mayores (regla 14).
+Si la ocupación es estudiante, entonces la regla de asociación con un sueldo bajo tiene una elevación y una confianza todavía mayores (regla 14).
 (Y mayores todavía si la regla incluye en la parte izquierda que se está soltero y se es estudiante, regla 7).
 
 En cuanto a los sueldos más altos:
@@ -436,9 +437,9 @@ Si hay dos sueldos en la unidad familiar, y se tiene la propiedad de la vivienda
 (También si la categoría profesional es alta, y se tiene en propiedad la casa -y más si se habla inglés-, reglas 2 y 3).
 
 
+Métricas:
 
-
-Se pueden generar diferentes métricas con la función interestMeasure() disponible en la librería arules:
+Se pueden generar diferentes métricas con la función interestMeasure() disponible en la librería arules.
 
 
 ```{r}
@@ -447,7 +448,7 @@ interestMeasure(rules_pruned[1:10], c("support",  "confidence", "lift", "chiSqua
 ```
 
 
-Los valores de "chi squared" para las 26 primeras reglas son muy altos (también son altos para las últimas 10). 
+Los valores de "chi squared" para las 26 primeras reglas son muy altos (también son bastante altos para las últimas 10). 
 Esto indica una relación muy fuerte entre la parte izquierda y derecha de las reglas.
 Entiendo por tanto que las reglas de asociación obtenidas tienen validez (no son triviales).
 
