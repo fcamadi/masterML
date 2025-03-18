@@ -142,10 +142,13 @@ Resumen estadístico
 summary(income_transac)
 ```
 
-Hay 6876 filas, y hay 84 valores que pueden aparecer en ellas (en las 14 columnas como máximo), siendo la densidad el 16.67%.
+La matriz dispersa tiene 6876 filas y 84 columnas. 
+Al no tratarse de un problema como el de la cesta de la compra, y al tener las filas originales todas 14 valores por 
+haber eliminado las filas que tenían valores nulos, todas las transacciones tienen 14 valores.
+La densidad es el 16.67%.
 (No soy sociólogo, pero los items más frecuentes, dan una idea bastante clara de la población de la muestra).
 
-Examinamos un par de transacciones con inspect:
+Examinamos un par de transacciones con "inspect":
 
 ```{r}
 inspect(income_transac[1:2])
@@ -172,9 +175,9 @@ itemFrequencyPlot(income_transac, topN = 20) # top 20 items
 
 ```{r}
 image(income_transac[1:50])
-image(income_transac[1000:1050])
-image(income_transac[2000:2050])
-image(income_transac[5000:5050])
+#image(income_transac[1000:1050])
+#image(income_transac[2000:2050])
+#image(income_transac[5000:5050])
 image(sample(income_transac, 50))
 ```
 
@@ -211,7 +214,7 @@ inspect(income_rules)
 
 Las 2 últimas reglas no aportan nada de información. 
 Las 10 primeras, tampoco. 
-(Son todas triviales).
+(Considero todas triviales).
 
 
 
@@ -220,10 +223,7 @@ Vamos a buscar algo intermedio ...
 
 ```{r}
 system.time({
-income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2))
-
-#income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2), 
-#                          appearance = list(rhs=c("language in home=english", "language in home=spanish", "language in home=other")))
+  income_rules <- apriori(income_transac, parameter = list(support = 0.25, confidence = 0.5, minlen = 2))
 })
 ```
 
@@ -234,7 +234,7 @@ Creo que se pueden sacar conclusiones de estas reglas.
 Pero de todas maneras, considero que son demasiadas, y no veo el nivel de ingresos por ningún lado.
 
 Voy a examinar con más detalle los ingresos.
-Voy a dividirlos en 3 niveles (bajo, medio, alto), y voy a intentar obtener reglas en las que estos 3 niveles intervengan.
+Voy a dividirlos en 3 niveles (bajo, medio, alto), y voy a intentar obtener reglas en las que estos 3 niveles aparezcan.
 
 
 ```{r}
@@ -250,7 +250,6 @@ levels(income_complete[["income"]])
 ```
 
 ```{r}
-# only complete observations
 income_complete["income3levels"] <- income_complete["income"]
 levels(income_complete[["income3levels"]]) <- c("0-20k$","0-20k$","0-20k$","20k-50k$","20k-50k$","20k-50k$","20k-50k$","50k+","50k+")
 #test
@@ -258,13 +257,12 @@ income_complete[0:5,c("income","income3levels")]
 ```
 
 ```{r}
-# remove income with 9 levels
+# remove income variable with 9 levels
 income3L_complete <- income_complete[,-1]
 ```
 
 
 Y obtenemos las transacciones con este dataframe
-
 
 ```{r}
 # get transactions
@@ -301,7 +299,7 @@ system.time({                                                 # supp = 0.33, con
 #inspect(sort(income3L_rules, by = "lift"))
 ```
 
-Probamos con los niveles de ingreso en el lado derecho:
+Probamos con los niveles de ingreso en el lado derecho, y ajustamos los valores de soporte y confianza:
 
 ```{r}
 system.time({                                                   # supp = 0.33, conf = 0.5 -> 0 rules
@@ -447,10 +445,11 @@ Se pueden generar diferentes métricas con la función interestMeasure() disponi
 interestMeasure(rules_pruned[1:10], c("support",  "confidence", "lift", "chiSquare",  "coverage"), income3L_complete)
 ```
 
-
-Los valores de "chi squared" para las 26 primeras reglas son muy altos (también son bastante altos para las últimas 10). 
+Los valores por ejemplo de "chi squared" para las 26 primeras reglas son muy altos (también son bastante altos para las últimas 10). 
 Esto indica una relación muy fuerte entre la parte izquierda y derecha de las reglas.
 Entiendo por tanto que las reglas de asociación obtenidas tienen validez (no son triviales).
+
+[Nota: he tenido que reducir mucho las salidas del código. Si no el fichero word generado por el RStudio salía tan grande que el LibreOffice no era capaz de abrirlo.]
 
 
 ### Visualización de las reglas
