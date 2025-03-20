@@ -4,7 +4,7 @@ author: "Fran Camacho"
 date: "2025-02-24"
 output: word_document
 params:
-  library: "RSNNS"  #options: "neuralnet", "RSNNS", "keras"
+  library: "keras"  #options: "neuralnet", "RSNNS", "keras"
 ---
 
 ```{r setup, include=FALSE}
@@ -272,7 +272,7 @@ if (library=="neuralnet") {
   
   system.time({
     model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], 
-                       hidden = 40, threshold = 0.5, lifesign="full") 
+                       hidden = c(40,10,4), threshold = 0.05, lifesign="full") 
                        #act.fct = softplus, threshold = 0.01, algorithm = "backprop", learningrate=0.05 
   })
   
@@ -281,7 +281,7 @@ if (library=="neuralnet") {
   
   system.time({
       #model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4), learnFuncParams = c(0.05), maxit = 1000)
-      model <- mlp(X_train_bank, y_train_bank, size = c(40,10,4), learnFuncParams = c(0.05), maxit = 1000)
+      model <- mlp(X_train_bank, y_train_bank, size = c(40,10,4), learnFuncParams = c(0.05), maxit = 2000)
       # with hiddenActFunc=softplus, it never ends
   })
   
@@ -291,9 +291,13 @@ if (library=="neuralnet") {
   model <- keras_model_sequential(name = "keras_mid_complex", input_shape = ncol(X_train_bank))
   model %>%
     layer_dense(name = "dense_1",units = 40, activation = 'relu') %>%
-    layer_dropout(name = "droput_1", rate = 0.8) %>% 
-    layer_dense(name = "dense_2",units = 10, activation = 'relu') %>%
-    layer_dropout(name = "droput_2", rate = 0.4) %>% 
+    layer_dropout(name = "droput_1", rate = 0.5) %>% 
+    layer_dense(name = "dense_2",units = 20, activation = 'relu') %>%
+    layer_dropout(name = "droput_2", rate = 0.3) %>% 
+    layer_dense(name = "dense_3",units = 10, activation = 'relu') %>%
+    layer_dropout(name = "droput_3", rate = 0.2) %>% 
+    layer_dense(name = "dense_4",units = 4, activation = 'relu') %>%
+    layer_dropout(name = "droput_4", rate = 0.1) %>% 
     layer_dense(name = "output_layer", units = 2, activation = 'sigmoid')
   
   model %>% compile(
@@ -321,7 +325,7 @@ Visualizamos la arquitectura de la red entrenada y sus pesos:
 ```{r, fig.width=100, fig.height=140}
 # neuralnet
 if (library=="neuralnet") {
-  plot(model)   #saved in file "Chapter07/neuralnet_10_neurons_model.png"
+  #plot(model)   #saved in file "Chapter07/neuralnet_10_neurons_model.png"
 }
 if (library=="keras") {
   model
@@ -523,9 +527,21 @@ Prediction  no yes
                Accuracy : 0.154 
                
 
+(7)
+model <- neuralnet(y.yes+y.no ~ .,  data = bank_processed_train[ , -which(names(bank_processed_train) %in% c("y"))], 
+                       hidden = c(40,10,4), threshold = 0.05, lifesign="full") 
 
-ATENCIÓN:
-Redes neuronales no son buenas con matrices dispersas ...  ?
+  user  system elapsed 
+768.950   0.619 769.704   <- almost 13 min !!!
+
+          Reference
+Prediction  no yes
+       no   39 954
+       yes  32 105
+                                          
+              Accuracy : 0.1274       <- !!!!!!    
+
+
 
 
 ### Resultados con la librería RSNNS:
@@ -687,7 +703,7 @@ Cancelado. Llevaba más de 90 min.
 
 
 (9) Con una cuarta capa, mejora ligeramente el resultado de 3 capas (**mejor resultado de todos**)
-model <- mlp(bank_processed_train[1:40], bank_processed_train[41:42], size = c(40,10,4,2), learnFuncParams = c(0.05), maxit = 2000)
+model <- mlp(X_train_bank, y_train_bank, size = c(40,10,4,2), learnFuncParams = c(0.05), maxit = 2000)
    user  system elapsed 
  65.524   0.460  57.800 
  
@@ -702,9 +718,8 @@ Prediction  no yes
 
 
 
+
 ### Resultados con la librería Keras&TensorFlow:
-
-
 
 
 keras_complex:
