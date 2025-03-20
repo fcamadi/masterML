@@ -75,8 +75,8 @@ library(kernlab)
 if (!require(caret)) install.packages('caret', dependencies = T)
 library(caret)   
 
-if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
-library(ggplot2)
+#if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+#library(ggplot2)
 
 ```
 
