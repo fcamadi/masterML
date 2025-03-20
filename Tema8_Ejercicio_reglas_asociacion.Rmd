@@ -3,8 +3,8 @@ title: "Tema8_Ejercicio_reglas_asociacion"
 author: "Fran Camacho"
 date: "2025-03-13"
 output:
-  pdf_document: default
   word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -102,6 +102,7 @@ language in home:
 
 ```{r}
 income_raw <- IncomeESL
+#write.csv(income_raw, file = "Chapter08/income_raw.csv", sep = ",") <- export data to be used lately with Python & scikit-learn
 ```
 
 
@@ -295,8 +296,10 @@ system.time({                                                 # supp = 0.33, con
                                                               # upp = 0.1, conf = 0.5 -> 3676
   income3L_rules <- apriori(income3L_transac, parameter = list(supp = 0.2, conf = 0.8, minlen = 2)) 
 })
+```
 
-#inspect(sort(income3L_rules, by = "lift"))
+```{r}
+inspect(sort(income3L_rules, by = "lift"))
 ```
 
 Probamos con los niveles de ingreso en el lado derecho, y ajustamos los valores de soporte y confianza:
