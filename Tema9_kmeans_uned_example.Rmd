@@ -1,0 +1,161 @@
+---
+title: "Tema9_kmeans_uned_example"
+author: "Fran Camacho"
+date: "2025-03-15"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 9 - Ejemplo K-Means
+
+
+Clustering de estados de EEUU por delitos.
+
+
+## Paso 1 – Recolección de datos
+
+Para este ejemplo, vamos a usar el dataset USArrests que viene instalado de serie en R.
+Dicho dataset contiene información sobre el número de delitos (asaltos, asesinatos y
+secuestros) junto con el porcentaje de población urbana para cada uno de los 50
+Estados de EEUU.
+
+
+```{r}
+# import the dataset
+datos <- as.data.frame(USArrests)
+```
+
+
+## Paso 2 – Exploración y preparación de los datos
+
+Carga de librerías necesarias.
+
+```{r}
+if (!require(cluster)) install.packages('cluster', dependencies = T)
+library(cluster)
+
+if (!require(factoextra)) install.packages('factoextra', dependencies = T)
+library(factoextra)
+
+if (!require(hms)) install.packages('hms', dependencies = T)
+library(hms)
+```
+
+
+```{r}
+# str the dataset
+str(datos)
+```
+
+```{r}
+# summary
+summary(datos)
+```
+
+Como la magnitud de los valores difiere notablemente entre variables, lo primero que
+debemos hacer antes de realizar el clustering es normalizar los datos con la función
+scale():
+
+```{r}
+# scale the dataset
+datos_norm <- as.data.frame(scale(datos))
+
+summary(datos_norm)
+```
+
+
+## Paso 3 - Ejecución del algoritmo k-means
+
+Previamente al inicio del clustering, podemos tratar de determinar el número óptimo
+de clústeres. Para ello, podemos utilizar una métrica denominada **coeficiente de
+silueta** que nos permite evaluar la calidad del agrupamiento obtenido.
+
+El valor de este coeficiente es un valor comprendido entre -1 y +1. Cuanto más
+cercano sea su valor a +1, mejor será la calidad de los agrupamientos.
+
+Creamos un pequeño bucle variando los valores de k y obtenemos los coeficientes de
+silueta correspondientes:
+
+
+```{r}
+# coeficientes de silueta
+set.seed(911)
+
+d <- dist(datos_norm) # This function computes and returns the distance matrix computed 
+#by using the specified distance measure to compute the distances between the rows of a data matrix.
+d
+```
+
+```{r}
+set.seed(911)
+
+avgS <- c()
+
+for(k in 2:9) {
+  cl <- kmeans(datos_norm, centers = k, iter.max = 200)
+  s <- silhouette(cl$cluster, d)
+  avgS <- c(avgS, mean(s[,3]))
+}
+
+data.frame(nClus = 2:9, Silh = avgS)
+
+```
+
+El resultado obtenido muestra que la mejor opción es fijar k=2 por ser esta opción la
+que presenta un coeficiente de silueta más elevado
+
+Habiendo determinado el número óptimo de clústeres, pasamos a ejecutar el
+algoritmo K-Means, especificando centers=2 para especificar el valor de k:
+
+```{r}
+# 
+k=2
+clusters <- kmeans(datos_norm, centers = k, nstart = 50)
+
+clusters
+```
+
+Los resultados obtenidos muestran que, en el grupo 1 se encuentran los Estados con
+MÁS cantidad de asesinatos, asaltos, secuestros y porcentaje de población, mientras
+que, en el grupo 2 se encuentran los Estados con MENOR número de asesinatos, asaltos,
+secuestros y porcentaje de población.
+
+
+Pasamos a representar gráficamente los clústeres obtenidos. Para ello, usaremos la
+función fviz_cluster() incluida en la librería factoextra,
+
+
+
+```{r}
+# 
+fviz_cluster(object = clusters, data = datos_norm, show.clust.cent = TRUE, ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
+  labs(title = "Resultados K-Means – US Arrests") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+
+Si decimos que 3 clusters ...
+
+
+```{r}
+# 
+k=3
+clusters3 <- kmeans(datos_norm, centers = k, nstart = 50)
+
+clusters3
+```
+
+```{r}
+# 
+fviz_cluster(object = clusters3, data = datos, show.clust.cent = TRUE, ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
+  labs(title = "Resultados K-Means – US Arrests") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+
+
