@@ -1,0 +1,412 @@
+---
+title: "Tema9_kmeans_book_example"
+author: "Fran Camacho"
+date: "2025-03-20"
+output:
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Chapter 9 - K-Means
+
+Example from the book "Machine Learning with R", by Brett Lantz:
+
+Finding teen market segments using k-means clustering.
+
+## Step 1 – collecting data
+
+For this analysis, we will be using a dataset representing a random sample of 30,000 US high
+school students who had profiles on a well-known SNS in 2006.
+
+
+## Step 2 – exploring and preparing the data
+
+```{r}
+#extra part
+if (!require(cluster)) install.packages('cluster', dependencies = T)
+library(cluster)
+
+if (!require(factoextra)) install.packages('factoextra', dependencies = T)
+library(factoextra)
+
+if (!require(hms)) install.packages('hms', dependencies = T)
+library(hms)
+```
+
+
+```{r}
+# import the CSV file
+teens <- read.csv("./Chapter09/snsdata.csv", stringsAsFactors = TRUE)
+```
+
+
+Let’s also take a quick look at the specifics of the data.
+
+```{r}
+str(teens)
+```
+
+As we had expected, the data includes 30,000 teenagers with four variables indicating personal
+characteristics and 36 words indicating interests.
+
+Do you notice anything strange around the gender row? If you looked carefully, you may have
+noticed the NA value, which is out of place compared to the 1 and 2 values. The NA is R’s way of
+telling us that the record has a missing value.
+
+```{r}
+table(teens$gender)
+```
+
+To include the NA values (if there are any), we simply need to add an additional parameter:
+
+```{r}
+table(teens$gender, useNA = "ifany")
+```
+
+Here, we see that 2,724 records (nine percent) have missing gender data. Interestingly, there
+are over four times as many females as males in the SNS data, suggesting that males are not as
+inclined to use this social media website as females.
+
+If you examine the other variables in the data frame, you will find that besides gender, only age
+has missing values. For numeric features, the default output for the summary() function includes
+the count of NA values:
+
+```{r}
+summary(teens$age)
+```
+
+
+A total of 5,086 records (17 percent) have missing ages. Also concerning is the fact that the min-
+imum and maximum values seem to be unreasonable; it is unlikely that a three-year-old or a
+106-year-old is attending high school. To ensure that these extreme values don’t cause problems
+for the analysis, we’ll need to clean them up before moving on.
+
+A more plausible range of ages for high school students includes those who are at least 13 years
+old and not yet 20 years old. Any age value falling outside this range should be treated the same
+as missing data—we cannot trust the age provided. To recode the age variable, we can use the
+ifelse() function, assigning teen$age the original value of teen$age if the age is at least 13 and
+less than 20 years; otherwise, it will receive the value NA:
+
+```{r}
+teens$age <- ifelse(teens$age >= 13 & teens$age < 20, teens$age, NA)
+```
+
+By rechecking the summary() output, we see that the range now follows a distribution that looks
+much more like an actual high school:
+
+```{r}
+summary(teens$age)
+```
+
+
+Unfortunately, now we’ve created an even larger missing data problem. We’ll need to find a way
+to deal with these values before continuing with our analysis.
+
+**Data preparation – dummy coding missing values**
+
+An easy solution for handling missing values is to exclude any record with a missing value.
+
+An alternative solution for categorical data like gender is to treat a missing value as a separate
+category. For instance, rather than limiting to female and male, we can add an additional category
+for unknown gender. 
+
+```{r}
+teens$female <- ifelse(teens$gender == "F" & !is.na(teens$gender), 1, 0)
+
+teens$no_gender <- ifelse(is.na(teens$gender), 1, 0)
+```
+
+
+To confirm that we did the work correctly, let’s compare our constructed dummy variables to
+the original gender variable:
+
+```{r}
+table(teens$gender, useNA = "ifany")
+```
+
+```{r}
+table(teens$female, useNA = "ifany")
+```
+
+```{r}
+table(teens$no_gender, useNA = "ifany")
+```
+
+The number of 1 values for teens$female and teens$no_gender matches the number of F and
+NA values respectively, so the coding has been performed correctly.
+
+
+**Data preparation – imputing the missing values**
+
+Next, let’s eliminate the 5,523 missing ages. As age is a numeric feature, it doesn’t make sense to
+create an additional category for unknown values—where would you rank “unknown” relative
+to the other ages? Instead, we’ll use a different strategy known as **imputation**, which involves
+filling in the missing data with a guess as to the true value.
+
+
+Can you think of a way we might be able to use the SNS data to make an informed guess about a
+teenager’s age? If you are thinking of using the graduation year, you’ve got the right idea. Most
+people in a graduation cohort were born within a single calendar year. If we can identify the
+typical age for each cohort, then we will have a reasonable approximation of the age of a student
+in that graduation year.
+One way to find a typical value is by calculating the average, or mean, value. If we try to apply the
+mean() function as we have done for previous analyses, there’s a problem:
+
+```{r}
+mean(teens$age)
+```
+
+The issue is that the mean value is undefined for a vector containing missing data. As our age
+data contains missing values, mean(teens$age) returns a missing value. We can correct this by
+adding an additional na.rm parameter to remove the missing values before calculating the mean:
+
+
+```{r}
+mean(teens$age, na.rm = TRUE)
+```
+
+This reveals that the average student in our data is about 17 years old. This only gets us part of the
+way there; we actually need the average age for each graduation year. You might first attempt to
+calculate the mean four times, but one of the benefits of R is that there’s usually a way to avoid
+repeating oneself. In this case, the **aggregate()** function is the tool for the job. It computes 
+statistics for subgroups of data.
+
+```{r}
+aggregate(data = teens, age ~ gradyear, mean, na.rm = TRUE)
+```
+
+The aggregate() output is in a data frame. This would require extra work to merge back into our
+original data. As an alternative, we can use the ave() function, which returns a vector with the
+means of each group repeated such that the resulting vector is the same length as the original
+vector.
+
+When using the ave() function, the first parameter is the numeric vector for which the group
+averages are to be computed, the second parameter is the categorical vector supplying the group
+assignments, and the FUN parameter is the function to be applied to the numeric vector.
+
+```{r}
+ave_age <- ave(teens$age, teens$gradyear, FUN = function(x) mean(x, na.rm = TRUE))
+```
+
+To impute these means onto the missing values, we need one more ifelse() call to use the
+ave_age value only if the original age value was NA:
+
+
+```{r}
+teens$age <- ifelse(is.na(teens$age), ave_age, teens$age)
+```
+
+The summary() results show that the missing values have now been eliminated:
+
+```{r}
+summary(teens$age)
+```
+
+
+## Step 3 – training a model on the data
+
+To cluster the teenagers into marketing segments, we’ll use an implementation of k-means in the
+stats package, which should be included in your R installation by default.
+
+We’ll start our cluster analysis by considering only the 36 features that measure the number of
+times various interest-based keywords appeared in the text of the teenagers’ social media profiles.
+In other words, we will not cluster based on age, graduation year, gender, or number of friends. Of
+course, we could use these four features if desired, but choose not to, since any clusters built upon
+them would be less insightful than those built upon interests.
+
+This is primarily because **age and gender are already de facto clusters** whereas the interest-based 
+clusters are yet to be discovered in our data. Secondarily, what will be more interesting later is
+to see whether the interest clusters are associated with the gender and popularity features held out 
+from the clustering process. If the interest-based clusters are predictive of these individual 
+characteristics, this provides evidence that the clusters may be useful.
+
+To avoid the chance of accidentally including the other features, let’s make a data frame called
+interests, by subsetting the data frame to include only the 36 keyword columns:
+
+```{r}
+interests <- teens[5:40]
+```
+
+The process of z-score standardization rescales features such that they have a mean of zero and
+a standard deviation of one.
+
+(Since lapply() returns a list object, it must be coerced back to data frame form
+using the as.data.frame())
+
+
+```{r}
+interests_z <- as.data.frame(lapply(interests, scale))
+```
+
+
+To confirm that the transformation worked correctly, we can compare the summary statistics of
+the basketball column in the old and new interests data:
+
+```{r}
+summary(interests$basketball)
+
+summary(interests_z$basketball)
+```
+
+As expected, the interests_z dataset transformed the basketball feature to have a mean of zero
+and a range that spans above and below zero. Now, a value less than zero can be interpreted as a
+person having fewer-than-average mentions of basketball in their profile. A value greater than
+zero implies that the person mentioned basketball more frequently than the average.
+
+Our last decision involves deciding how many clusters to use for segmenting the data.
+
+[
+
+Choosing the number of clusters is easier if you are familiar with the analysis pop-
+ulation. Having a hunch about the true number of natural groupings can save some
+trial and error.
+
+]
+
+To use the k-means algorithm to divide the teenagers’ interest data into five clusters, we use the
+kmeans() function on the interests data frame. Note that because k-means utilizes random
+starting points, the set.seed() function is used to ensure that the results match the output in
+the examples that follow.
+
+```{r}
+set.seed(2345)
+
+teen_clusters <- kmeans(interests_z, 5)
+```
+
+## Step 4 – evaluating model performance
+
+
+```{r}
+teen_clusters$size
+```
+
+We see the five clusters we requested. The smallest cluster has 601 teenagers (2 percent)
+while the largest has 21,599 (72 percent).
+
+
+## Step 5 – improving model performance
+
+We’ll begin by applying the clusters back to the full dataset. The teen_clusters object created
+by the kmeans() function includes a component named cluster, which contains the cluster
+assignments for all 30,000 individuals in the sample. We can add this as a column to the teens
+data frame with the following command:
+
+```{r}
+teens$cluster <- teen_clusters$cluster
+```
+
+Given this new data, we can start to examine how the cluster assignment relates to individual
+characteristics. For example, here’s the personal information for the first five teenagers in the
+SNS data:
+
+```{r}
+teens[1:5, c("cluster", "gender", "age", "friends")]
+```
+
+Using the aggregate() function, we can also look at the demographic characteristics of the clus-
+ters. The mean age does not vary much by cluster, which is not too surprising, as teen identities
+are often set well before high school. This is depicted as follows:
+
+```{r}
+aggregate(data = teens, age ~ cluster, mean)
+```
+
+On the other hand, there are some substantial differences in the proportion of females by clus-
+ter. This is a very interesting finding, as we didn’t use gender data to create the clusters, yet the
+clusters are still predictive of gender:
+
+```{r}
+aggregate(data = teens, female ~ cluster, mean)
+```
+
+Recall that overall, about 74 percent of the SNS users are female. Cluster three, the so-called
+princesses, is nearly 89 percent female, while clusters four and five are only about 70 percent
+female. These disparities imply that there are differences in the interests that teenage boys and
+girls discuss on their social networking pages.
+
+Given our success in predicting gender, you might suspect that the clusters are also predictive of
+the number of friends the users have. This hypothesis seems to be supported by the data, which
+is as follows:
+
+
+```{r}
+aggregate(data = teens, friends ~ cluster, mean)
+```
+On average, princesses have the most friends (38.5), followed by athletes (35.9) and brains (32.8). On
+the low end are criminals (30.7) and basket cases (27.8).
+
+
+---------------------------------------------------------------------------------------------------------
+
+Extra part:
+
+
+```{r}
+teens_z <- teens[,-c(2,43)]
+```
+
+```{r}
+teens_z <- as.data.frame(lapply(teens_z, scale))
+```
+
+
+Silhouette score:
+
+```{r}
+set.seed(911)
+
+d <- dist(teens_z) # This function computes and returns the distance matrix computed by using the
+                   # specified distance measure to compute the distances between the rows of a data matrix.
+```
+
+
+```{r}
+avgS <- c()
+
+system.time({
+
+  for(k in 2:10) {
+    cl <- kmeans(teens_z, centers = k, iter.max = 200)
+    s <- silhouette(cl$cluster, d)
+    avgS <- c(avgS, mean(s[,3]))
+  }
+
+})
+
+data.frame(nClus = 2:10, Silh = avgS)
+
+```
+
+According with silhouette score, the number of clusters should be 2 ...
+
+
+```{r}
+teens_2_clusters <- kmeans(teens_z, 2)
+teens_2_clusters
+```
+
+
+
+```{r, fig.height=10}
+# 
+fviz_cluster(object = teens_2_clusters, data = teens_z, show.clust.cent = TRUE, ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
+  labs(title = "K-Means clusters for teeny teens") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+Let's try with the previous k=5 ...
+
+
+```{r, fig.height=8}
+# 
+fviz_cluster(object = teen_clusters, data = teens_z, show.clust.cent = TRUE, ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
+  labs(title = "K-Means clusters for teeny teens") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
