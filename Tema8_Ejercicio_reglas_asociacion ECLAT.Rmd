@@ -142,10 +142,13 @@ Resumen estadístico
 summary(income_transac)
 ```
 
-Hay 6876 filas, y hay 84 valores que pueden aparecer en ellas (en las 14 columnas como máximo), siendo la densidad el 16.67%.
+La matriz dispersa tiene 6876 filas y 84 columnas. 
+Al no tratarse de un problema como el de la cesta de la compra, y al tener las filas originales todas 14 valores por 
+haber eliminado las filas que tenían valores nulos, todas las transacciones tienen 14 valores.
+La densidad es el 16.67%.
 (No soy sociólogo, pero los items más frecuentes, dan una idea bastante clara de la población de la muestra).
 
-Examinamos un par de transacciones con inspect:
+Examinamos un par de transacciones con "inspect":
 
 ```{r}
 inspect(income_transac[1:2])
@@ -166,25 +169,21 @@ Vamos a probar primero con los valores por defecto:
 
 
 ```{r}
-system.time({
   income_items_eclat <- eclat(income_transac)
-})
 ```
 Con los parámetros por defecto (soporte 0.1), se obtienen 1204 itemsets.
 
 Vamos a aumentar tanto el soporte como la confianza requeridas:
 
 ```{r}
-system.time({
 #income_items_eclat <- eclat(income_transac, parameter = list(support = 0.25, minlen = 2))  # confidence = 0.5
-income_items_eclat_020 <- eclat(income_transac, parameter = list(support = 0.2, minlen = 2))  # confidence = 0.5
-})
+income_items_eclat_02 <- eclat(income_transac, parameter = list(support = 0.2, minlen = 2))  # confidence = 0.5
 ```
 
 Ahora obtenemos 189 itemsets:
 
 ```{r}
-inspect(income_items_eclat_020)
+inspect(income_items_eclat_02)
 ```
 
 Obtenemos las reglas de esos 2 itemsets:
@@ -197,24 +196,60 @@ income_rules_eclat
 
 
 ```{r}
-income_rules_eclat_020 <- ruleInduction(income_items_eclat_020, confidence = 0.5)
+income_rules_eclat_02 <- ruleInduction(x=income_items_eclat_02, transactions=income_transac, confidence = 0.8)
 
-income_rules_eclat_020
+income_rules_eclat_02
 ```
 
 
-No entiendo la razón de que dé este error.
 
-Los dos objetos creados son iguales, solo difieren en el tamaño:
+```{r}
+inspect(sort(income_rules_eclat_02, by = "lift"))
+```
+
+De todas maneras, mejor hacemos el mismo tratamiento de los ingresos que con Apriori:
 
 
-```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
-knitr::include_graphics("./Chapter08/income_rules_eclat.png")
+```{r}
+income_complete["income3levels"] <- income_complete["income"]
+levels(income_complete[["income3levels"]]) <- c("0-20k$","0-20k$","0-20k$","20k-50k$","20k-50k$","20k-50k$","20k-50k$","50k+","50k+")
+#test
+income_complete[0:5,c("income","income3levels")]
+```
+```{r}
+# remove income variable with 9 levels
+income3L_complete <- income_complete[,-1]
 ```
 
 
-```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
-knitr::include_graphics("./Chapter08/income_rules_eclat_020.png")
+Y obtenemos las transacciones con este dataframe
+
+```{r}
+# get transactions
+income3L_transac <- transactions(income3L_complete)
+```
+
+
+
+```{r}
+income3L_items_eclat_02 <- eclat(income3L_transac, parameter = list(support = 0.2, minlen = 2))
+#income3L_items_eclat <- eclat(income3L_transac)
+```
+```{r}
+#inspect(income_items3L_eclat)
+inspect(sort(income3L_items_eclat, by = "count")[1:100])
+```
+
+
+```{r}
+#income3L_rules_eclat_02 <- ruleInduction(x=income3L_items_eclat_02, transactions=income3L_transac, confidence = 0.9)
+income3L_rules_eclat_02 <- ruleInduction(income3L_items_eclat_02)
+income3L_rules_eclat_02
+```
+
+
+```{r}
+inspect(sort(income3L_rules_eclat_02, by = "lift")[1:100])
 ```
 
 
