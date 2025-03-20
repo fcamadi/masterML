@@ -70,8 +70,8 @@ summary(datos_norm)
 ## Paso 3 - Ejecución del algoritmo k-means
 
 Previamente al inicio del clustering, podemos tratar de determinar el número óptimo
-de clústeres. Para ello, podemos utilizar una métrica denominada **coeficiente de
-silueta** que nos permite evaluar la calidad del agrupamiento obtenido.
+de clústeres. Para ello, podemos utilizar una métrica denominada **coeficiente de silueta** 
+que nos permite evaluar la calidad del agrupamiento obtenido.
 
 El valor de este coeficiente es un valor comprendido entre -1 y +1. Cuanto más
 cercano sea su valor a +1, mejor será la calidad de los agrupamientos.
