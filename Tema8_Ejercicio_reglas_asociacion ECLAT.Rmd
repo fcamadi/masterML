@@ -230,26 +230,121 @@ income3L_transac <- transactions(income3L_complete)
 ```
 
 
+Aplicamos ECLAT:
 
 ```{r}
-income3L_items_eclat_02 <- eclat(income3L_transac, parameter = list(support = 0.2, minlen = 2))
-#income3L_items_eclat <- eclat(income3L_transac)
+#default params
+income3L_items_eclat <- eclat(income3L_transac)
 ```
-```{r}
-#inspect(income_items3L_eclat)
-inspect(sort(income3L_items_eclat, by = "count")[1:100])
-```
-
 
 ```{r}
-#income3L_rules_eclat_02 <- ruleInduction(x=income3L_items_eclat_02, transactions=income3L_transac, confidence = 0.9)
-income3L_rules_eclat_02 <- ruleInduction(income3L_items_eclat_02)
-income3L_rules_eclat_02
+# support=0.1 (confidence=0.55 later)
+income3L_items_eclat_01 <- eclat(income3L_transac, parameter = list(support = 0.1, minlen = 2))
+```
+
+Obtención de reglas de los itemsets:
+
+```{r}
+#default parameters
+income3L_rules_eclat <- ruleInduction(income3L_items_eclat)
+income3L_rules_eclat
 ```
 
 
 ```{r}
-inspect(sort(income3L_rules_eclat_02, by = "lift")[1:100])
+income3L_rules_eclat_01 <- ruleInduction(x=income3L_items_eclat_01, transactions=income3L_transac, confidence = 0.55)
+#income3L_rules_eclat_01 <- ruleInduction(income3L_items_eclat_01)
+income3L_rules_eclat_01
 ```
+
+[
+
+Comparación con Apriori:
+
+```{r}
+# support = 0.5, confidence = 0.5 -> same rules as with Apriori
+income3L_items_eclat_05 <- eclat(income3L_transac, parameter = list(support = 0.5, minlen = 2))
+income3L_rules_eclat_05_05 <- ruleInduction(x=income3L_items_eclat_05, transactions=income3L_transac, confidence = 0.5)
+
+income3L_rules_eclat_05_05
+```
+```{r}
+inspect(sort(income3L_rules_eclat_05_05, by = "lift"))
+```
+Se obtienen las mismas reglas que con Apriori :)
+
+]
+
+
+
+Vamos a intentar encontrar ahora las reglas redundantes (con la función **is.subset()**), eliminarlas y simplicar así el conjunto de reglas:
+
+```{r}
+income3L_rules_eclat_01_sortedByLift <- sort(income3L_rules_eclat_01, by = "lift")
+#inspect(income3L_rules_RHS_sortedByLift)
+```
+
+```{r}
+subset_matrix <- is.subset(income3L_rules_eclat_01_sortedByLift,income3L_rules_eclat_01_sortedByLift)
+#subset_matrix
+```
+
+[
+
+3326 x 3326 sparse Matrix of class "ngCMatrix"
+  [[ suppressing 88 column names ‘{marital status=single,dual incomes=not married,householder status=live with parents/family,type of home=house,income3levels=0-20k$}’, ‘{marital status=single,householder status=live with parents/family,type of home=house,income3levels=0-20k$}’, ‘{marital status=single,occupation=student,dual incomes=not married,householder status=live with parents/family}’ ... ]]
+  [[ suppressing 88 column names ‘{marital status=single,dual incomes=not married,householder status=live with parents/family,type of home=house,income3levels=0-20k$}’, ‘{marital status=single,householder status=live with parents/family,type of home=house,income3levels=0-20k$}’, ‘{marital status=single,occupation=student,dual incomes=not married,householder status=live with parents/family}’ ... ]]
+                                                                                                                                                                                                            
+{marital status=single,dual incomes=not married,householder status=live with parents/family,type of home=house,income3levels=0-20k$} | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,householder status=live with parents/family,type of home=house,income3levels=0-20k$}                          | | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,occupation=student,dual incomes=not married,householder status=live with parents/family}                      . . | . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,occupation=student,householder status=live with parents/family}                                               . . | | | | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,occupation=student,dual incomes=not married,householder status=live with parents/family}                      . . | . | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+{marital status=single,occupation=student,householder status=live with parents/family}                                               . . | | | | . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+]
+
+Eliminamos las ocurrencias que se producen en la diagonal principal y por debajo de ella:
+
+```{r}
+subset_matrix[lower.tri(subset_matrix, diag = T)] <- F
+#subset_matrix
+```
+
+
+Ahora podemos extraer las reglas de asociación redundantes, que serán aquellas que tengan una columna cuya suma sea igual o superior a 1:
+
+```{r}
+redundant <- colSums(subset_matrix, na.rm = T) >= 1
+#redundant
+```
+
+
+Las reglas marcadas como TRUE son consideradas redundantes por lo que podemos eliminarlas:
+
+```{r}
+rules_pruned <- income3L_rules_eclat_01_sortedByLift[!redundant]
+rules_pruned
+inspect(rules_pruned[1:20])
+```
+
+Pasamos a tener 818 reglas en total (mostramos solo 20 por brevedad).
+
+
+Filtramos las que tengan en el consequente/RHS los niveles de ingresos.
+
+Exactamente un nivel:
+
+```{r}
+inspect(subset(rules_pruned, subset = rhs %in% "income3levels=0-20k$"))
+```
+Todos los niveles:
+
+```{r}
+rules_income3L <- subset(rules_pruned, subset = rhs %pin% "income3levels")
+inspect(rules_income3L)
+```
+
+
 
 
