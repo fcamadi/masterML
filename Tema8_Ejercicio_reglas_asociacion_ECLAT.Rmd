@@ -346,5 +346,23 @@ inspect(rules_income3L)
 ```
 
 
+### Visualización de las reglas
 
+Con la ayuda de la librería arulesViz, vamos a visualizar las reglas obtenidas, para ver si podemos deducir algo más:
+
+```{r, fig.height=8}
+plot(rules_income3L)
+```
+
+Gráfico de grupos de reglas:
+
+```{r, fig.height=8}
+plot(rules_income3L, method="grouped")
+```
+
+Gráfico de conexiones entre reglas:
+
+```{r, fig.height=8}
+plot(rules_income3L, method="graph")
+```
 
