@@ -1,0 +1,174 @@
+---
+title: "Tema9_Ejercicio_kmeans"
+author: "Fran Camacho"
+date: "2025-03-16"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tema 9 - Ejercicio de K-Means
+
+La base de datos Acidosis.txt contiene datos de 40 pacientes de un hospital con
+6 medidas relativas a la acidez de diferentes fluidos corporales. En particular:
+
+-La columna 1 es el pH del líquido cefalorraquídeo (nanomoles/litro).
+-La columna 2 es el pH de la sangre (nanomoles/litro).
+-La columna 3 es la cantidad de HCO3 en el líquido cefalorraquídeo
+(milimoles/litro).
+-La columna 4 contiene los valores de HCO3 en sangre (milimoles/litro).
+-La columna 5 es la presión del CO2 en el líquido cefalorraquídeo (mmHg).
+-La columna 4 es la presión del CO2 en sangre (mmHg).
+
+Considerando este dataset, obtenga los coeficientes de silueta y obtenga el
+valor de k previamente a la ejecución del algoritmo K-Means.
+
+Con los clústeres estimados, realice una representación gráfica de los mismos
+usando fviz_cluster() e interprete los resultados.
+
+
+## Paso 1: Carga de los datos
+
+```{r}
+# import the CSV file
+acidosis_raw <- read.csv(file.path("Chapter09", "Acidosis.txt"), sep = "")
+```
+
+
+## Paso 2 – Exploración y preparación de los datos
+
+Carga de librerías necesarias.
+
+```{r}
+if (!require(cluster)) install.packages('cluster', dependencies = T)
+library(cluster)
+
+if (!require(factoextra)) install.packages('factoextra', dependencies = T)
+library(factoextra)
+
+if (!require(hms)) install.packages('hms', dependencies = T)
+library(hms)
+```
+
+Estructura y resumen estadístico de los datos:
+
+```{r}
+# structure
+str(acidosis_raw)
+```
+
+```{r}
+# summary
+summary(acidosis_raw)
+```
+
+Creo que las variables no difieren demasiado en sus valores (todos están entre 0 y 100).
+De todas maneras vamos a cambiar los nombres de las variables por unos más descriptivos:
+
+```{r}
+# rename column names
+colnames(acidosis_raw) <- c("ph_cefalo", "ph_sangre", "hco3_cefalo", "hco3_sangre", "pres_co2_cefalo", "pres_co2_sangre")
+```
+
+Comprobamos las distribuciones de las variables:
+
+```{r}
+hist(acidosis_raw$ph_cefalo)
+hist(acidosis_raw$ph_sangre)
+hist(acidosis_raw$hco3_cefalo)
+hist(acidosis_raw$hco3_sangre)
+hist(acidosis_raw$pres_co2_cefalo)
+hist(acidosis_raw$pres_co2_sangre)
+```
+
+y también vamos a aplicar la función scale():
+
+```{r}
+
+
+# scale the dataset
+datos_norm <- as.data.frame(scale(acidosis_raw))
+
+summary(datos_norm)
+```
+
+
+## Paso 3 - Ejecución del algoritmo k-means
+
+Vamos a de determinar el número óptimo de clústeres, utilizando como se explica en el material complementario
+la métrica denominada **coeficiente de silueta**, la cual permite evaluar la calidad del agrupamiento obtenido.
+
+El valor de este coeficiente es un valor comprendido entre -1 y +1. Cuanto más cercano sea su valor a +1, 
+mejor será la calidad del agrupamiento.
+
+Creamos un pequeño bucle variando el parámetro k y obtenemos los coeficientes de silueta:
+
+
+```{r}
+# coeficientes de silueta
+set.seed(1234)
+
+d <- dist(datos_norm) # This function computes and returns the distance matrix computed 
+#by using the specified distance measure to compute the distances between the rows of a data matrix.
+d
+```
+
+```{r}
+set.seed(911)
+
+avgS <- c()
+
+for(k in 2:9) {
+  cl <- kmeans(datos_norm, centers = k, iter.max = 200)
+  s <- silhouette(cl$cluster, d)
+  avgS <- c(avgS, mean(s[,3]))
+}
+
+data.frame(nClus = 2:9, Silh = avgS)
+
+```
+
+
+El resultado obtenido muestra que la mejor opción es fijar k=2 por ser esta opción la
+que presenta un coeficiente de silueta más elevado
+
+Habiendo determinado el número óptimo de clústeres, pasamos a ejecutar el
+algoritmo K-Means, especificando centers=2 para especificar el valor de k:
+
+
+```{r}
+# 
+k=2
+clusters <- kmeans(datos_norm, centers = k, nstart = 50)
+
+clusters
+```
+
+
+Pasamos a representar gráficamente los clústeres obtenidos. Para ello, usaremos la
+función fviz_cluster() incluida en la librería factoextra:
+
+```{r}
+# 
+fviz_cluster(object = clusters, data = datos_norm, show.clust.cent = TRUE, ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
+  labs(title = "Resultados Acidosis") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+[Voy a suponer que los pacientes del grupo grande no sufren de acidosis, y el grupo pequeño sí]
+Se ve que hay dos grupos de pacientes, uno pequeño con solo 6 miembros, para el que todas las variables a excepción del ph, 
+tienen valores inferiores a los del otro grupo más numeroso.
+
+Dado que no es un grupo numeroso, podemos seleccionarlos para examinarlos con más detalle:
+
+```{r}
+# group 1
+acidosis_raw[c(10,11,13,14,15,16), ]
+```
+
+Ahora ya sólo quedaría preguntarle a un médico qué hacer con estos pacientes :)
+
+
