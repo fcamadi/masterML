@@ -16,8 +16,7 @@ La base de datos Acidosis.txt contiene datos de 40 pacientes de un hospital con
 
 -La columna 1 es el pH del líquido cefalorraquídeo (nanomoles/litro).
 -La columna 2 es el pH de la sangre (nanomoles/litro).
--La columna 3 es la cantidad de HCO3 en el líquido cefalorraquídeo
-(milimoles/litro).
+-La columna 3 es la cantidad de HCO3 en el líquido cefalorraquídeo (milimoles/litro).
 -La columna 4 contiene los valores de HCO3 en sangre (milimoles/litro).
 -La columna 5 es la presión del CO2 en el líquido cefalorraquídeo (mmHg).
 -La columna 4 es la presión del CO2 en sangre (mmHg).
@@ -65,12 +64,14 @@ summary(acidosis_raw)
 ```
 
 Creo que las variables no difieren demasiado en sus valores (todos están entre 0 y 100).
-De todas maneras vamos a cambiar los nombres de las variables por unos más descriptivos:
+De todas maneras vamos a cambiar los nombres de las variables por unos que sean descriptivos:
 
 ```{r}
 # rename column names
 colnames(acidosis_raw) <- c("ph_cefalo", "ph_sangre", "hco3_cefalo", "hco3_sangre", "pres_co2_cefalo", "pres_co2_sangre")
 ```
+
+[
 
 Comprobamos las distribuciones de las variables:
 
@@ -82,16 +83,15 @@ hist(acidosis_raw$hco3_sangre)
 hist(acidosis_raw$pres_co2_cefalo)
 hist(acidosis_raw$pres_co2_sangre)
 ```
+]
 
-y también vamos a aplicar la función scale():
+Y también aplicamos la función scale():
 
 ```{r}
-
-
 # scale the dataset
-datos_norm <- as.data.frame(scale(acidosis_raw))
+datos_scaled <- as.data.frame(scale(acidosis_raw))
 
-summary(datos_norm)
+summary(datos_scaled)
 ```
 
 
@@ -110,10 +110,28 @@ Creamos un pequeño bucle variando el parámetro k y obtenemos los coeficientes 
 # coeficientes de silueta
 set.seed(1234)
 
-d <- dist(datos_norm) # This function computes and returns the distance matrix computed 
-#by using the specified distance measure to compute the distances between the rows of a data matrix.
-d
+d <- dist(datos_scaled) # This function computes and returns the distance matrix computed 
+                        # by using the specified distance measure to compute the distances between the rows of a data matrix.
+#d
 ```
+
+[
+
+Output:
+
+            1          2          3          4          5          6          7          8          9         10         11         12         13         14         15         16         17         18
+2   3.9453991                                                                                                                                                                                           
+3   2.1877121  2.1923064                                                                                                                                                                                
+4   0.6165141  3.4165874  1.6321668                                                                                                                                                                     
+5   1.6703134  3.0143345  0.8651709  1.1915932                                                                                                                                                          
+6   2.2713136  2.0720159  0.4407694  1.7710169  1.0748526                                                                                                                                               
+7   2.4056835  1.5929585  0.8288452  1.8600744  1.5092490  0.7673272                                                                                                                                    
+8   2.5655752  2.0991379  0.7242077  1.9987717  1.1514652  0.8567462  0.9305192                                                                                                                         
+9   2.8968229  1.8575578  1.8842250  2.4833464  2.5469819  1.8558759  1.5511897  2.3504904                                                                                                              
+...
+
+]
+
 
 ```{r}
 set.seed(911)
@@ -121,7 +139,7 @@ set.seed(911)
 avgS <- c()
 
 for(k in 2:9) {
-  cl <- kmeans(datos_norm, centers = k, iter.max = 200)
+  cl <- kmeans(datos_scaled, centers = k, iter.max = 200)
   s <- silhouette(cl$cluster, d)
   avgS <- c(avgS, mean(s[,3]))
 }
@@ -131,17 +149,17 @@ data.frame(nClus = 2:9, Silh = avgS)
 ```
 
 
-El resultado obtenido muestra que la mejor opción es fijar k=2 por ser esta opción la
-que presenta un coeficiente de silueta más elevado
+El resultado obtenido muestra que la mejor opción se da para k=2, por ser esta opción la
+que presenta un coeficiente de silueta más elevado.
+(Es positivo, y está a medio camino entre el 0 y el 1 ...)
 
 Habiendo determinado el número óptimo de clústeres, pasamos a ejecutar el
-algoritmo K-Means, especificando centers=2 para especificar el valor de k:
+algoritmo K-Means, especificando centers=2 para establecer el valor del número de clústeres:
 
 
 ```{r}
 # 
-k=2
-clusters <- kmeans(datos_norm, centers = k, nstart = 50)
+clusters <- kmeans(datos_scaled, centers = 2, nstart = 50)
 
 clusters
 ```
@@ -150,16 +168,17 @@ clusters
 Pasamos a representar gráficamente los clústeres obtenidos. Para ello, usaremos la
 función fviz_cluster() incluida en la librería factoextra:
 
+
 ```{r}
 # 
-fviz_cluster(object = clusters, data = datos_norm, show.clust.cent = TRUE, ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
+fviz_cluster(object = clusters, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
   labs(title = "Resultados Acidosis") +
   theme_bw() +
   theme(legend.position = "none")
 ```
 
-[Voy a suponer que los pacientes del grupo grande no sufren de acidosis, y el grupo pequeño sí]
-Se ve que hay dos grupos de pacientes, uno pequeño con solo 6 miembros, para el que todas las variables a excepción del ph, 
+
+Se ve que hay dos grupos de pacientes, uno pequeño con solo 6 miembros, para el que todas las variables a excepción del ph en sangre 
 tienen valores inferiores a los del otro grupo más numeroso.
 
 Dado que no es un grupo numeroso, podemos seleccionarlos para examinarlos con más detalle:
@@ -169,6 +188,46 @@ Dado que no es un grupo numeroso, podemos seleccionarlos para examinarlos con m�
 acidosis_raw[c(10,11,13,14,15,16), ]
 ```
 
+También podemos comparar los valores estadísticos para ambos grupos:
+
+```{r}
+# group 1 summary
+summary(acidosis_raw[c(10,11,13,14,15,16), ])
+```
+
+```{r}
+# group 2 summary
+summary(acidosis_raw[-c(10,11,13,14,15,16), ])
+```
+
+
 Ahora ya sólo quedaría preguntarle a un médico qué hacer con estos pacientes :)
+
+
+
+NOTA:
+
+He investigado un poco sobre el ph en sangre. Quería convertir los valores de esa columna en valores de 0 a 14.
+He visto que los valores entre 20 y 80 nanomoles/l se corresponden con un ph entre 7.1 y 7.7, que es un nivel normal.
+
+https://acid-base.com/ph-playground
+
+```{r}
+ph <- -log10( (acidosis_raw$ph_sangre)*1e-9)
+ph
+```
+
+Entiendo por tanto que todos estos pacientes tienen un ph en sangre correcto.
+
+
+```{r}
+#ph<7.1
+acidosis_raw[ph<7.1, ]
+```
+
+El paciente número 10 es precisamente el que sale en el gráfico en la esquina inferior izquierda, muy separado de todos los demás. 
+Incluso de los otros miembros de su clúster.
+
+Serán los otros indicadores los que indiquen algún tipo de problema ...  (sobre todo para este paciente número 10).
 
 
