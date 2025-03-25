@@ -284,7 +284,7 @@ El paciente número 10 es precisamente el que sale en el primer gráfico en la e
 Incluso de los otros miembros de su clúster.
 
 
-Si elegimos 5 clústeres, es el primero que efectivamente es "separado" de los demás:
+Si elegimos 5 clústeres, ese paciente es el primero que efectivamente es separado de los demás:
 
 ```{r}
 # 
