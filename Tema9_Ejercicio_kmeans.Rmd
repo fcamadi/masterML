@@ -132,6 +132,18 @@ Output:
 
 ]
 
+Otra manera
+(Encontrada aquí:  https://warin.ca/posts/rcourse-clustering-with-r/)
+
+
+```{r, fig.height=6}
+res.dist <- get_dist(datos_scaled, stand = TRUE, method = "pearson")  # Compared to the standard dist() function, it supports correlation-based 
+                                                                      # distance measures including “pearson”, “kendall” and “spearman” methods.
+
+fviz_dist(res.dist, gradient = list(low = "#E0FFFF", mid = "white", high = "#FF4500"))
+```
+
+
 
 ```{r}
 set.seed(911)
@@ -157,6 +169,22 @@ Habiendo determinado el número óptimo de clústeres, pasamos a ejecutar el
 algoritmo K-Means, especificando centers=2 para establecer el valor del número de clústeres:
 
 
+Otra manera:
+
+```{r, fig.height=5}
+fviz_nbclust(datos_scaled, kmeans, method = "silhouette")
+```
+
+-gap_stat,wss:
+
+```{r, fig.height=5}
+fviz_nbclust(datos_scaled, kmeans, method = "gap_stat")
+fviz_nbclust(datos_scaled, kmeans, method = "wss")
+```
+Estas 2 gráficas no me parece que ayuden demasiado a decidir el número de clusters.
+
+Probamos con 2 clústeres:
+
 ```{r}
 # 
 clusters <- kmeans(datos_scaled, centers = 2, nstart = 50)
@@ -181,27 +209,54 @@ fviz_cluster(object = clusters, data = datos_scaled, show.clust.cent = TRUE, ell
 Se ve que hay dos grupos de pacientes, uno pequeño con solo 6 miembros, para el que todas las variables a excepción del ph en sangre 
 tienen valores inferiores a los del otro grupo más numeroso.
 
-Dado que no es un grupo numeroso, podemos seleccionarlos para examinarlos con más detalle:
+
+Vamos a examinar también el resultado con 3 clústeres:
 
 ```{r}
-# group 1
-acidosis_raw[c(10,11,13,14,15,16), ]
+# 
+clusters3 <- kmeans(datos_scaled, centers = 3, nstart = 25)
+
+clusters3
 ```
 
-También podemos comparar los valores estadísticos para ambos grupos:
+(Seguramente sea solo una impresión mía, pero los resultados de las variables me hacen pensar que están mejor separadas con 3 clústeres que con 2).
 
 ```{r}
-# group 1 summary
-summary(acidosis_raw[c(10,11,13,14,15,16), ])
+# 
+palette <- c("#255293", "#db0a16", "#f8c72d")
+
+fviz_cluster(clusters3, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "convex", palette = palette, ggtheme = theme_minimal(), main = "Resultados Acidosis")
+```
+
+Con 3 clústeres, me parece que los datos están repartidos de manera más compacta, más homogénea.
+Los elementos no están tan alejados del centroide del clúster al que pertenecen como pasa con 2 clústeres.
+El grupo más pequeño que había con dos clústeres ha perdido solo un elemento (el paciente 11), mientras que el anterior grupo grande se ha dividido en 2 grupos más parecidos.
+
+
+Podemos añadir la variable cluster al dataset original:
+
+```{r}
+acidosis_raw_cluster <- acidosis_raw
+acidosis_raw_cluster['cluster'] <- clusters3$cluster
+```
+
+Y examinarlos por separado
+
+```{r}
+# list elements of a group 
+x=1
+groupX <- acidosis_raw_cluster[acidosis_raw_cluster$cluster==x, ]
+
+groupX
 ```
 
 ```{r}
-# group 2 summary
-summary(acidosis_raw[-c(10,11,13,14,15,16), ])
+# summary of a group 
+summary(groupX)
 ```
 
 
-Ahora ya sólo quedaría preguntarle a un médico qué hacer con estos pacientes :)
+Ahora ya sólo quedaría preguntarle a un médico qué hacer con estos pacientes.
 
 
 
@@ -213,7 +268,7 @@ He visto que los valores entre 20 y 80 nanomoles/l se corresponden con un ph ent
 https://acid-base.com/ph-playground
 
 ```{r}
-ph <- -log10( (acidosis_raw$ph_sangre)*1e-9)
+ph <- -log10((acidosis_raw$ph_sangre)*1e-9)
 ph
 ```
 
@@ -225,9 +280,27 @@ Entiendo por tanto que todos estos pacientes tienen un ph en sangre correcto.
 acidosis_raw[ph<7.1, ]
 ```
 
-El paciente número 10 es precisamente el que sale en el gráfico en la esquina inferior izquierda, muy separado de todos los demás. 
+El paciente número 10 es precisamente el que sale en el primer gráfico en la esquina inferior izquierda, muy separado de todos los demás. 
 Incluso de los otros miembros de su clúster.
 
-Serán los otros indicadores los que indiquen algún tipo de problema ...  (sobre todo para este paciente número 10).
+
+Si elegimos 5 clústeres, es el primero que efectivamente es "separado" de los demás:
+
+```{r}
+# 
+set.seed(9)
+
+clusters5 <- kmeans(datos_scaled, centers = 5, nstart = 50)
+
+clusters5
+```
+
+
+```{r}
+# 
+palette <- c("#255293", "#db0a16", "#f8c72d", "#2552FF", "#db0aAA")
+
+fviz_cluster(clusters5, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "convex", palette = palette, ggtheme = theme_minimal(), main = "Resultados Acidosis")
+```
 
 
