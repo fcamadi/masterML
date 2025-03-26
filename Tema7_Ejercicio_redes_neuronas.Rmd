@@ -2,9 +2,11 @@
 title: "Tema7_Ejercicio_redes_neuronas"
 author: "Fran Camacho"
 date: "2025-02-24"
-output: word_document
+output:
+  pdf_document: default
+  word_document: default
 params:
-  library: "keras"  #options: "neuralnet", "RSNNS", "keras"
+  library: keras  #options: keras, neuralnet, RSNNS
 ---
 
 ```{r setup, include=FALSE}
@@ -79,6 +81,9 @@ if (library=="neuralnet") {
   
   if (!require(jsonlite)) install.packages('jsonlite', dependencies = T)
   library(jsonlite)
+  
+  if (!require(fastDummies)) install.packages('fastDummies', dependencies = T)
+  library(fastDummies)
 }
 
 if (!require(caret)) install.packages('caret', dependencies = T)
