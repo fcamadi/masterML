@@ -37,13 +37,13 @@ En lugar de utilizar el algoritmo C5.0, vamos a experimentar con el algoritmo eq
 
 
 ```{r}
-install.packages("RWeka")  # Decision trees RWeka algorithm
+if (!require(RWeka)) install.packages('RWeka', dependencies = T)   # Decision trees RWeka algorithm
 library(RWeka)
 
 #install.packages("MultiBoostAB")  # Installed with WPM
 #library(MultiBoostAB)
 
-install.packages("caret")  # data partitioning, confusion matrix
+if (!require(caret)) install.packages('caret', dependencies = T)   # data partitioning, confusion matrix
 library(caret)         
 ```
 
