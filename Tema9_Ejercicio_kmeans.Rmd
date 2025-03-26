@@ -179,7 +179,7 @@ fviz_nbclust(datos_scaled, diss=res.dist, kmeans, method = "silhouette")  #using
 fviz_nbclust(datos_scaled, diss=res.dist, kmeans, method = "gap_stat")
 fviz_nbclust(datos_scaled, diss=res.dist, kmeans, method = "wss")
 ```
-Estas 2 gráficas indican también que el número óptimo de clústeres es 2.
+Estas 2 gráficas, me parecen indicar que a mayor número de clústeres, mejor será la agrupación.
 
 Probamos con 2 clústeres por tanto:
 
@@ -298,14 +298,21 @@ clusters5 <- kmeans(datos_scaled, centers = 5, nstart = 50)
 clusters5
 ```
 
+El ratio "between_SS/total_SS" (SS=sum of squares) ha pasado de  con 2 clústeres a 68.3% con 3, y a  79.0% con 5.
+Este ratio indica cómo de buena es la agrupación, cómo de cohesionados están los clústeres, y cómo de separados entre ellos.
+Se ha mejorado por tanto la agrupación inicial de 2 clústeres.
 
 ```{r}
 # 
 palette <- c("#255293", "#db0a16", "#f8c72d", "#2552FF", "#db0aAA")
 
-fviz_cluster(clusters5, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "convex", palette = palette, ggtheme = theme_minimal(), main = "Resultados Acidosis")
+fviz_cluster(clusters5, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "convex", palette = palette, ggtheme = theme_minimal(), main = "Resultados Acidosis 5 clústeres")
 ```
 
 No soy médico, pero sería al primer paciente al que le dedicaría mi atención.
+
+
+
+
 
 
