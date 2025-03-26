@@ -36,19 +36,22 @@ movies_raw <- read.csv(file.path("Chapter04", "Movie_pang02.csv"))
 Carga de paquetes que son necesarios para diversas funciones.
 
 ```{r}
-#install.packages("tm")           # text mining
+if (!require(tm)) install.packages('tm', dependencies = T)   # text mining
 library(tm)
-#install.packages("SnowballC")    # stemming
+
+if (!require(SnowballC)) install.packages('SnowballC', dependencies = T)   # stemming
 library(SnowballC)
-#install.packages("wordcloud")    # wordclouds
+
+if (!require(wordcloud)) install.packages('wordcloud', dependencies = T)   # wordclouds
 library(wordcloud)
-#install.packages("RColorBrewer") # color palettes
+
+if (!require(RColorBrewer)) install.packages('RColorBrewer', dependencies = T)   # color palettes
 library(RColorBrewer)
 
-#install.packages("naivebayes")
+if (!require(naivebayes)) install.packages('naivebayes', dependencies = T)
 library(naivebayes)
 
-#install.packages("caret")     # data partitioning, confusion matrix
+if (!require(caret)) install.packages('caret', dependencies = T)   # data partitioning, confusion matrix
 library(caret)         
 ```
 
