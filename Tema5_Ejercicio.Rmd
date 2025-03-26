@@ -65,10 +65,10 @@ US          - A factor with levels No and Yes to indicate whether the store is i
 Carga de paquetes que son necesarios para diversas funciones.
 
 ```{r}
-#install.packages("C50")  # Decision trees C5.0 algorithm
+if (!require(C50)) install.packages('C50', dependencies = T)  # Decision trees C5.0 algorithm
 library(C50)
 
-#install.packages("caret")  # data partitioning, confusion matrix
+if (!require(caret)) install.packages('caret', dependencies = T)  # data partitioning, confusion matrix
 library(caret)         
 ```
 
