@@ -71,7 +71,6 @@ De todas maneras vamos a cambiar los nombres de las variables por unos que sean 
 colnames(acidosis_raw) <- c("ph_cefalo", "ph_sangre", "hco3_cefalo", "hco3_sangre", "pres_co2_cefalo", "pres_co2_sangre")
 ```
 
-[
 
 Comprobamos las distribuciones de las variables:
 
@@ -83,9 +82,8 @@ hist(acidosis_raw$hco3_sangre)
 hist(acidosis_raw$pres_co2_cefalo)
 hist(acidosis_raw$pres_co2_sangre)
 ```
-]
 
-Y también aplicamos la función scale():
+Y aplicamos la función scale():
 
 ```{r}
 # scale the dataset
@@ -119,7 +117,7 @@ d <- dist(datos_scaled) # This function computes and returns the distance matrix
 
 Output:
 
-            1          2          3          4          5          6          7          8          9         10         11         12         13         14         15         16         17         18
+            1          2          3          4          5          6          7          8          9         ...
 2   3.9453991                                                                                                                                                                                           
 3   2.1877121  2.1923064                                                                                                                                                                                
 4   0.6165141  3.4165874  1.6321668                                                                                                                                                                     
@@ -133,7 +131,7 @@ Output:
 ]
 
 Otra manera
-(Encontrada aquí:  https://warin.ca/posts/rcourse-clustering-with-r/)
+(Otra función, encontrada aquí:  https://warin.ca/posts/rcourse-clustering-with-r/)
 
 
 ```{r, fig.height=6}
@@ -163,27 +161,27 @@ data.frame(nClus = 2:9, Silh = avgS)
 
 El resultado obtenido muestra que la mejor opción se da para k=2, por ser esta opción la
 que presenta un coeficiente de silueta más elevado.
-(Es positivo, y está a medio camino entre el 0 y el 1 ...)
+(Es positivo, y está a medio camino entre el 0 y el 1).
 
 Habiendo determinado el número óptimo de clústeres, pasamos a ejecutar el
 algoritmo K-Means, especificando centers=2 para establecer el valor del número de clústeres:
 
 
-Otra manera:
+Segunda manera:
 
 ```{r, fig.height=5}
-fviz_nbclust(datos_scaled, kmeans, method = "silhouette")
+fviz_nbclust(datos_scaled, diss=res.dist, kmeans, method = "silhouette")  #using dist obtained by get_dist -if not, we get 3 clusters-
 ```
 
 -gap_stat,wss:
 
 ```{r, fig.height=5}
-fviz_nbclust(datos_scaled, kmeans, method = "gap_stat")
-fviz_nbclust(datos_scaled, kmeans, method = "wss")
+fviz_nbclust(datos_scaled, diss=res.dist, kmeans, method = "gap_stat")
+fviz_nbclust(datos_scaled, diss=res.dist, kmeans, method = "wss")
 ```
-Estas 2 gráficas no me parece que ayuden demasiado a decidir el número de clusters.
+Estas 2 gráficas indican también que el número óptimo de clústeres es 2.
 
-Probamos con 2 clústeres:
+Probamos con 2 clústeres por tanto:
 
 ```{r}
 # 
@@ -200,7 +198,7 @@ función fviz_cluster() incluida en la librería factoextra:
 ```{r}
 # 
 fviz_cluster(object = clusters, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
-  labs(title = "Resultados Acidosis") +
+  labs(title = "Resultados Acidosis 2 clústeres") +
   theme_bw() +
   theme(legend.position = "none")
 ```
@@ -209,28 +207,29 @@ fviz_cluster(object = clusters, data = datos_scaled, show.clust.cent = TRUE, ell
 Se ve que hay dos grupos de pacientes, uno pequeño con solo 6 miembros, para el que todas las variables a excepción del ph en sangre 
 tienen valores inferiores a los del otro grupo más numeroso.
 
-
-Vamos a examinar también el resultado con 3 clústeres:
+De todas maneras, aunque el coeficiente de silueta es claro (con las dos funciones utilizadas), me parece que en esta agrupación hay muchos elementos 
+muy alejados del centroide de su clúster.
+Vamos a probar también a examinar cómo sería resultado con 3 (y al final con 5) clústeres:
 
 ```{r}
-# 
 clusters3 <- kmeans(datos_scaled, centers = 3, nstart = 25)
 
 clusters3
 ```
 
-(Seguramente sea solo una impresión mía, pero los resultados de las variables me hacen pensar que están mejor separadas con 3 clústeres que con 2).
+Seguramente sea solo una impresión mía, pero los resultados de las variables me hacen pensar que están mejor separadas con 3 clústeres que con 2.
 
 ```{r}
 # 
 palette <- c("#255293", "#db0a16", "#f8c72d")
 
-fviz_cluster(clusters3, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "convex", palette = palette, ggtheme = theme_minimal(), main = "Resultados Acidosis")
+fviz_cluster(clusters3, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "convex", palette = palette, ggtheme = theme_minimal(), main = "Resultados Acidosis 3 clústeres")
 ```
 
 Con 3 clústeres, me parece que los datos están repartidos de manera más compacta, más homogénea.
 Los elementos no están tan alejados del centroide del clúster al que pertenecen como pasa con 2 clústeres.
-El grupo más pequeño que había con dos clústeres ha perdido solo un elemento (el paciente 11), mientras que el anterior grupo grande se ha dividido en 2 grupos más parecidos.
+El grupo más pequeño que había con dos clústeres ha perdido solo un elemento (el paciente 11), 
+mientras que el anterior grupo grande se ha dividido en 2 grupos más parecidos.
 
 
 Podemos añadir la variable cluster al dataset original:
@@ -240,7 +239,7 @@ acidosis_raw_cluster <- acidosis_raw
 acidosis_raw_cluster['cluster'] <- clusters3$cluster
 ```
 
-Y examinarlos por separado
+Y así examinarlos por separado
 
 ```{r}
 # list elements of a group 
@@ -263,7 +262,7 @@ Ahora ya sólo quedaría preguntarle a un médico qué hacer con estos pacientes
 NOTA:
 
 He investigado un poco sobre el ph en sangre. Quería convertir los valores de esa columna en valores de 0 a 14.
-He visto que los valores entre 20 y 80 nanomoles/l se corresponden con un ph entre 7.1 y 7.7, que es un nivel normal.
+He visto que los valores entre 20 y 80 nanomoles/l se corresponden con un ph entre 7.1 y 7.7, que es considerado el nivel normal.
 
 https://acid-base.com/ph-playground
 
@@ -273,21 +272,25 @@ ph
 ```
 
 Entiendo por tanto que todos estos pacientes tienen un ph en sangre correcto.
-
+Todos menos uno, aunque sea por poco:
 
 ```{r}
 #ph<7.1
 acidosis_raw[ph<7.1, ]
 ```
-
+```{r}
+#ph<7.1
+patient_10 <- acidosis_raw[10, ]
+patient_10['ph14'] <- ph[10]
+patient_10
+```
 El paciente número 10 es precisamente el que sale en el primer gráfico en la esquina inferior izquierda, muy separado de todos los demás. 
 Incluso de los otros miembros de su clúster.
 
 
-Si elegimos 5 clústeres, ese paciente es el primero que efectivamente es separado de los demás:
+Si elegimos 5 clústeres, ese paciente es el primero que efectivamente es separado del resto:
 
 ```{r}
-# 
 set.seed(9)
 
 clusters5 <- kmeans(datos_scaled, centers = 5, nstart = 50)
@@ -302,5 +305,7 @@ palette <- c("#255293", "#db0a16", "#f8c72d", "#2552FF", "#db0aAA")
 
 fviz_cluster(clusters5, data = datos_scaled, show.clust.cent = TRUE, ellipse.type = "convex", palette = palette, ggtheme = theme_minimal(), main = "Resultados Acidosis")
 ```
+
+No soy médico, pero sería al primer paciente al que le dedicaría mi atención.
 
 
