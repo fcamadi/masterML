@@ -2,7 +2,9 @@
 title: "Tema6_Ejercicio"
 author: "Fran Camacho"
 date: "2025-02-14"
-output: word_document
+output:
+  pdf_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -108,6 +110,7 @@ boxplot(x = boston$rm, main = "Boxplot of boston$rm")
 boxplot(x = boston$black, main = "Boxplot of boston$black")
 #boxplot(x = boston$lstat, main = "Boxplot of boston$lstat")
 ```
+
 Al hacer los diagramas de caja de todos los predictores (por si acaso), he visto que también hay muchos valores atípicos para black y rm.
 (rm no creo que afecte tanto, porque el rango es muy pequeño -de hecho la mediana y la media de rm no son muy diferentes-).
 Entiendo que estas variables pueden provocar efectos indeseados en el resultado final.
