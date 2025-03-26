@@ -3,8 +3,8 @@ title: "Tema3_Ejercicio"
 author: "Fran Camacho"
 date: "2024-12-28"
 output:
-  word_document: default
   pdf_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -23,13 +23,16 @@ La base de datos Diabetes en "Pima Indian Women", incluida en la librería MASS,
 (Y también otros paquetes para funciones diversas).
 
 ```{r}
-#install.packages("MASS")
+if (!require(MASS)) install.packages('MASS', dependencies = T)
 library(MASS)
-#install.packages("gmodels")   # cross tables
+
+if (!require(gmodels)) install.packages('gmodels', dependencies = T)  # cross tables
 library(gmodels)      
-#install.packages("caret")     # data partitioning, confusion matrix
+
+if (!require(caret)) install.packages('caret', dependencies = T)     # data partitioning, confusion matrix
 library(caret)                  
-#install.packages("class")     # knn algorithm
+
+if (!require(class)) install.packages('class', dependencies = T)   # knn algorithm
 library(class)
 ```
 
