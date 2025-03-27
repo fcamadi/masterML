@@ -214,5 +214,21 @@ fviz_dend(res.hc, k = 4, # Cut in four groups (for coloring?)
 ```
 
 
+## K-medoids/pam clustering
 
+Two problems with K-means clustering are that it does not work with categorical data and it is susceptible to outliers. 
+An alternative is K-medoids. Instead of the center of a cluster being the mean of the cluster, 
+the center is one of the actual observations in the cluster. 
+This is akin to the median, which is likewise robust against outliers.
+The most common K-medoids algorithm is Partitioning Around Medoids (PAM). 
 
+```{r, fig.height=5}
+set.seed(123)
+
+# Compute PAM
+pam.res <- pam(my_data, 3)
+
+# Visualize
+fviz_cluster(pam.res)
+
+```
