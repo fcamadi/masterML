@@ -1,0 +1,100 @@
+---
+title: "Model_Evaluation"
+author: "Fran Camacho"
+date: "2025-03-30"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Evaluación de modelos
+
+
+### Exactitud
+
+
+accuracy = TP + TN / TP + FP + TN + FN =  TP + TN / total = 31 + 94 / 31 + 12 + 94 + 22 = 31 + 94 / 159 = 0.7862 
+    
+
+### Matriz de confusión
+
+
+```{r}
+#Taken from Chapter 3
+#CrossTable/ConfusionMatrix
+#CrossTable(x = pima_norm_test_labels, y = pima_pred, prop.chisq = FALSE)
+```
+
+   Cell Contents
+|-------------------------|
+|                       N |
+|           N / Row Total |
+|           N / Col Total |
+|         N / Table Total |
+|-------------------------|
+
+ 
+Total Observations in Table:  159 
+
+ 
+                      | pima_pred 
+pima_norm_test_labels |  Negative |  Positive | Row Total | 
+----------------------|-----------|-----------|-----------|
+             Negative |        94 |        12 |       106 | 
+                      |     0.887 |     0.113 |  **0.667**| 
+                      |     0.810 |     0.279 |           | 
+                      |  **0.591**|     0.075 |           | 
+----------------------|-----------|-----------|-----------|
+             Positive |        22 |        31 |        53 | 
+                      |     0.415 |     0.585 |  **0.333**| 
+                      |     0.190 |     0.721 |           | 
+                      |     0.138 |  **0.195**|           | 
+----------------------|-----------|-----------|-----------|
+         Column Total |       116 |        43 |       159 | 
+                      |  **0.730**|  **0.270**|           | 
+----------------------|-----------|-----------|-----------|
+
+
+### Coeficiente **kappa** 
+
+https://es.wikipedia.org/wiki/Coeficiente_kappa_de_Cohen
+
+El Coeficiente kappa de Cohen es una medida estadística que ajusta el efecto del azar en la proporción de la concordancia observada.
+En general se cree que es una medida más robusta que el simple cálculo del porcentaje de concordancia, ya que κ tiene en cuenta el acuerdo que ocurre por azar.
+
+La Kappa de Cohen es una medida de la fiabilidad con la que dos 'evaluadores' miden lo mismo. 
+
+k = (Pr(a) - Pr(e)) / (1 - Pr(e))
+
+Donde
+
+**Pr(a)** ess el acuerdo observado relativo entre los observadores
+**Pr(e)** es la probabilidad hipotética de acuerdo por azar, utilizando los datos observados para calcular las probabilidades
+de que cada observador clasifique aleatoriamente cada categoría.
+
+Si los evaluadores están completamente de acuerdo, entonces κ = 1.
+Si no hay acuerdo entre los calificadores distinto al que cabría esperar por azar (según lo definido por Pr(e)), κ = 0. 
+
+
+```{r}
+
+pr_a <- 0.591 + 0.195
+pr_a
+pr_e = 0.667*0.730 + 0.333*0.270  # probability of both positive + probability of both negative
+pr_e
+
+```
+
+
+```{r}
+
+k = (pr_a - pr_e) / (1 - pr_e)
+k
+
+```
+
+
+## Coeficiente de correlación de Matthews
+
