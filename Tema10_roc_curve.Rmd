@@ -1,0 +1,82 @@
+---
+title: "Tema10_roc_curve"
+author: "Fran Camacho"
+date: "2025-03-31"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## ROC curve
+
+
+[From the book "Machine Learning with R", by Brett Lantz].
+
+
+package pROC:
+  
+https://web.expasy.org/pROC/    
+
+
+```{r}
+install.packages("pROC")    
+library(pROC)
+```
+
+
+Import the CSV file with the data already prepared:
+
+```{r}
+sms_results <- read.csv(file.path("Chapter10", "sms_results.csv"), stringsAsFactors=TRUE)
+```
+
+To create visualizations with pROC, two vectors of data are needed. 
+The first must contain the # estimated probability of the positive class and 
+the second must contain the predicted class values.
+
+```{r}
+sms_roc <- roc(sms_results$actual_type, sms_results$prob_spam)
+```
+
+Graphic:
+
+```{r}  
+plot(sms_roc, main = "ROC curve for SMS spam filter",
+     Col = "blue", lwd = 2, grid = TRUE, legacy.axes = TRUE)
+```
+
+
+### Compare this naive bayes model with another (i.e. a knn model)
+
+```{r}
+# import the CSV file for this other model
+sms_results_knn <- read.csv(file.path("Chapter10", "sms_results_knn.csv"), stringsAsFactors=TRUE)
+
+sms_roc_knn <- roc(sms_results$actual_type, sms_results_knn$p_spam)
+```
+
+
+Plot the graphic:
+
+```{r}
+plot(sms_roc, main = "ROC curve for SMS spam filter",
+     Col = "blue", lwd = 2, grid = TRUE, legacy.axes = TRUE)
+
+plot(sms_roc_knn, col = "red", lwd = 2, add = TRUE)
+```
+
+The curve for k-NN is consistently lower, suggesting that it is a consistently worse model than the Naive Bayes approach
+
+### AUC
+
+```{r}
+auc(sms_roc)      # -> Area under the curve: 0.9836
+
+auc(sms_roc_knn)  # -> Area under the curve: 0.8942
+```
+
+
+The AUC for the Naive Bayes SMS classifier is 0.98, which is extremely high and substantially
+better than the k-NN classifier’s AUC of 0.89.
