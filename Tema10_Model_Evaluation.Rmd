@@ -12,11 +12,16 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Evaluación de modelos
 
 
-### Exactitud
+[Tomado del libro "Machine Learning with R", de Brett Lantz].
 
 
-accuracy = TP + TN / TP + FP + TN + FN =  TP + TN / total = 31 + 94 / 31 + 12 + 94 + 22 = 31 + 94 / 159 = 0.7862 
-    
+```{r}
+
+if (!require(mltools)) install.packages('mltools', dependencies = T)   # text mining
+library(mltools)
+
+```
+
 
 ### Matriz de confusión
 
@@ -55,6 +60,26 @@ pima_norm_test_labels |  Negative |  Positive | Row Total |
          Column Total |       116 |        43 |       159 | 
                       |  **0.730**|  **0.270**|           | 
 ----------------------|-----------|-----------|-----------|
+
+```{r}
+TP <- 31
+TN <- 94
+FP <- 12
+FN <- 22
+```
+
+
+
+### Exactitud
+
+
+#accuracy = TP + TN / TP + FP + TN + FN =  TP + TN / total = 31 + 94 / 31 + 12 + 94 + 22 = 31 + 94 / 159 = 0.7862 
+accuracy = TP + TN / TP + FP + TN + FN =  TP + TN / total = 31 + 94 / 31 + 12 + 94 + 22 = 31 + 94 / 159 = 0.7862 
+
+```{r}
+accuracy <- (TP + TN) / (TP + FP + TN + FN)
+accuracy
+```
 
 
 ### Coeficiente **kappa** 
@@ -97,4 +122,51 @@ k
 
 
 ## Coeficiente de correlación de Matthews
+
+
+MCC = [TP × TN − FP × FN]  /  [√(TP + FP)(TP + FN)(TN + FP)(TN + FN)]
+
+```{r}
+
+TPmultTNminusFPmultFN <- (TP * TN) - (FP * FN)
+denom <- sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))
+MCC <- TPmultTNminusFPmultFN / denom
+MCC
+
+```
+
+"The mltools package by Ben Gorman provides an mcc() function which can perform the MCC
+calculation using vectors of predicted and actual values."
+
+```{r}
+#Chapter 3:
+#CrossTable(x = pima_norm_test_labels, y = pima_pred, prop.chisq = FALSE) ->
+mcc(pima_norm_test_labels, pima_pred)
+```
+
+Mismo resultado claro :)
+
+"Alternatively, for a binary classifier where the positive class is coded as 1 and the negative class
+is coded as 0, the MCC is identical to the Pearson correlation between the predicted and actual
+values:"
+
+```{r}
+#Chapter 3:
+#CrossTable(x = pima_norm_test_labels, y = pima_pred, prop.chisq = FALSE) ->
+cor( ifelse(pima_norm_test_labels == 'Positive',1,0), 
+     ifelse(pima_pred == 'Positive',1,0) )
+```
+
+" [...] There may be no single metric that better captures the overall performance of
+a binary classification model. However, as you will soon see, a more in-depth understanding of
+model performance can be obtained using combinations of metrics."
+
+
+
+
+
+
+
+
+
 
