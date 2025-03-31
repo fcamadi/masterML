@@ -17,8 +17,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 
-if (!require(mltools)) install.packages('mltools', dependencies = T)   # text mining
+if (!require(mltools)) install.packages('mltools', dependencies = T)
 library(mltools)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret) 
 
 ```
 
@@ -163,10 +166,51 @@ model performance can be obtained using combinations of metrics."
 
 
 
+## Sensitivity and specificity
+
+
+"Finding a useful classifier often involves a balance between predictions that are overly conserva-
+tive and overly aggressive. For example, an email filter could guarantee to eliminate every spam
+message by aggressively filtering nearly every ham message. On the other hand, to guarantee
+that no ham messages will be inadvertently filtered might require us to allow an unacceptable
+amount of spam to pass through the filter. A pair of performance measures captures this tradeoff:
+sensitivity and specificity."
+
+```{r}
+sensitivity <- TP / (TP+FN)
+sensitivity
+```
+
+```{r}
+specifity <- TN / (TN+FP)
+specifity
+```
 
 
 
+## Precision and recall
 
+"Closely related to sensitivity and specificity are two other performance measures related to com-
+promises made in classification: precision and recall. 
+
+Used primarily in the context of information retrieval, these statistics are intended to indicate 
+how interesting and relevant a model’s results are, or whether the predictions are diluted by meaningless noise."
+
+```{r}
+precision <- TP / (TP+FP)
+precision
+```
+
+```{r}
+recall <- TP / (TP+FN)
+recall
+```
+
+
+
+See:
+
+https://en.wikipedia.org/wiki/Sensitivity_and_specificity
 
 
 
