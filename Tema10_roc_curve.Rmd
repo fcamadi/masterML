@@ -2,7 +2,13 @@
 title: "Tema10_roc_curve"
 author: "Fran Camacho"
 date: "2025-03-31"
-output: word_document
+output:
+  github_document:
+    
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
@@ -29,7 +35,7 @@ library(pROC)
 Import the CSV file with the data already prepared:
 
 ```{r}
-sms_results <- read.csv(file.path("Chapter10", "sms_results.csv"), stringsAsFactors=TRUE)
+sms_results <- read.csv(file.path("CSVs", "sms_results.csv"), stringsAsFactors=TRUE)
 ```
 
 To create visualizations with pROC, two vectors of data are needed. 
@@ -52,7 +58,7 @@ plot(sms_roc, main = "ROC curve for SMS spam filter",
 
 ```{r}
 # import the CSV file for this other model
-sms_results_knn <- read.csv(file.path("Chapter10", "sms_results_knn.csv"), stringsAsFactors=TRUE)
+sms_results_knn <- read.csv(file.path("CSVs", "sms_results_knn.csv"), stringsAsFactors=TRUE)
 
 sms_roc_knn <- roc(sms_results$actual_type, sms_results_knn$p_spam)
 ```
