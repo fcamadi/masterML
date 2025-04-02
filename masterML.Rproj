@@ -1,0 +1,18 @@
+Version: 1.0
+ProjectId: 14cf56d1-84a3-49ec-ab08-beb02a338f80
+
+RestoreWorkspace: Default
+SaveWorkspace: Default
+AlwaysSaveHistory: Default
+
+EnableCodeIndexing: Yes
+UseSpacesForTab: Yes
+NumSpacesForTab: 2
+Encoding: UTF-8
+
+RnwWeave: Sweave
+LaTeX: XeLaTeX
+
+PythonType: virtualenv
+PythonVersion: 3.11.2
+PythonPath: ~/.virtualenvs/r-keras/bin/python
