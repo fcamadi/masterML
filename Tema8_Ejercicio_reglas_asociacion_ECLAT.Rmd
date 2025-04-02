@@ -3,8 +3,8 @@ title: "Tema8_Ejercicio_reglas_asociacion_ECLAT"
 author: "Fran Camacho"
 date: "2025-03-13"
 output:
-  pdf_document: default
   word_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -183,7 +183,7 @@ income_items_eclat_02 <- eclat(income_transac, parameter = list(support = 0.2, m
 Ahora obtenemos 189 itemsets:
 
 ```{r}
-inspect(income_items_eclat_02)
+inspect(income_items_eclat_02[1:10])
 ```
 
 Obtenemos las reglas de esos 2 itemsets:
@@ -202,9 +202,8 @@ income_rules_eclat_02
 ```
 
 
-
 ```{r}
-inspect(sort(income_rules_eclat_02, by = "lift"))
+inspect(sort(income_rules_eclat_02, by = "lift")[1:10])
 ```
 
 De todas maneras, mejor hacemos el mismo tratamiento de los ingresos que con Apriori:
@@ -354,19 +353,11 @@ Con la ayuda de la librería arulesViz, vamos a visualizar las reglas obtenidas,
 plot(rules_income3L)
 ```
 
-```{r pressure, echo=FALSE, fig.cap="ECLAT rules scatterplot", out.width = '100%'}
-knitr::include_graphics("./Chapter08/ECLAT_rules_income3L_scatterplot.png")
-```
-
 
 Gráfico de grupos de reglas:
 
 ```{r, fig.height=8}
 plot(rules_income3L, method="grouped")
-```
-
-```{r pressure, echo=FALSE, fig.cap="ECLAT rules group", out.width = '100%'}
-knitr::include_graphics("./Chapter08/ECLAT_rules_income3L_groups.png")
 ```
 
 
@@ -376,8 +367,5 @@ Gráfico de conexiones entre reglas:
 plot(rules_income3L, method="graph")
 ```
 
-```{r pressure, echo=FALSE, fig.cap="ECLAT rules group", out.width = '100%'}
-knitr::include_graphics("./Chapter08/ECLAT_rules_income3L_graph.png")
-```
 
 
