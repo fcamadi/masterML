@@ -4,6 +4,7 @@ author: "Fran Camacho"
 date: "2025-02-24"
 output:
   pdf_document: default
+  github_document: default
   word_document: default
 params:
   library: keras  #options: keras, neuralnet, RSNNS
@@ -54,7 +55,8 @@ bank_raw <- read.csv(file.path("Chapter07/Bank", "bank.csv"), sep = ";", strings
 
 Carga de paquetes que son necesarios para diversas funciones.
 
-```{r}
+```{r, echo = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
 
 if (library=="neuralnet") {
   print("Choosing neuralnet")
@@ -269,8 +271,9 @@ softplus <- function(x) { log(1 + exp(x)) }
 ```
 
 
-```{r}
+```{r, echo = FALSE, message = FALSE}
 set.seed(9)
+knitr::opts_chunk$set(echo = FALSE)
 
 if (library=="neuralnet") {
   print("Choosing neuralnet")
@@ -315,7 +318,7 @@ if (library=="neuralnet") {
   system.time({
     history <- model %>% fit(
       X_train_bank, y_train_bank, 
-      epochs = 500, 
+      epochs = 200, 
       batch_size = 40,
       validation_split = 0.2
     )
@@ -350,7 +353,7 @@ En el caso de utilizar las librerías Keras&TensorFlow, podemos obtener un Json 
 ```{r}
 if (library=="keras") {
   #WE can print a json with the info of the model:
-  prettify(keras::model_to_json(model))
+  #prettify(keras::model_to_json(model))
 }
 ```
 
