@@ -1,0 +1,386 @@
+---
+title: "Tema10_model_eval_svm"
+author: "Fran Camacho"
+date: "2025-04-03"
+output: word_document
+---
+
+# Tema 10 - Evaluación de modelos de Machine Learning
+
+Utilizando las medidas de rendimiento analizadas en el capítulo 10 del libro, tales como:
+
+- Prediction Accuracy
+- Error Rate
+- Kappa Statistic
+- Sensitivity
+- Specifity
+- Precision
+- Recall
+- F-Measure
+- ROC Curves
+
+Realice un análisis detallado de cualquiera de los modelos obtenidos en las
+pruebas de evaluación de los temas 3, 4, 5 o 7. Comente los resultados obtenidos
+
+
+## Paso 1 – Carga de los datos
+
+Voy a realizar el análisis sobre los resultados del tema 7 (SVM)
+
+```{r}
+# import the CSV file
+bank_raw <- read.csv(file.path("Chapter07/Bank", "bank.csv"), sep = ";", stringsAsFactors = TRUE)
+```
+
+
+## Pasos 2,3 y 4 (Exploración y preparación de los datos, entrenamiento, evaluación) 
+
+Importar librerías necesarias:
+
+```{r}
+#https://www.jstatsoft.org/article/view/v011i09
+if (!require(kernlab)) install.packages('kernlab', dependencies = T)
+library(kernlab) 
+
+if (!require(gmodels)) install.packages('gmodels', dependencies = T)  # cross tables
+library(gmodels)   
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+```
+
+
+Preparamos el dataset:
+
+```{r}
+#scale numeric variables (neither day nor month)
+maxs <- apply(bank_raw[c(1,6,12,13,14,15)], 2, max)
+mins <- apply(bank_raw[c(1,6,12,13,14,15)], 2, min)
+
+bank_norm <- data.frame(scale(bank_raw[c(1,6,12,13,14,15)], center = mins, scale = maxs - mins))
+
+#hot encoding of categorical features         
+dummies <- dummyVars(" ~ job + marital + education + default + housing + loan + contact + poutcome", data = bank_raw)
+bank_hot_encoded_feat <-  data.frame(predict(dummies, newdata = bank_raw))
+
+#encoding month (name to number)
+month_to_number <- function(month_name) {
+  month_and_number <- c("jan"=1,"feb"=2,"mar"=3,"apr"=4,"may"=5,"jun"=6,"jul"=7,"aug"=8,"sep"=9,"oct"=10,"nov"=11,"dec"=12)
+  return(month_and_number[as.character(month_name)])
+}
+bank_raw$month_num <- sapply(bank_raw$month, month_to_number)
+
+
+#put all features in the same dataframe
+bank_processed <- cbind(bank_norm,as.numeric(bank_raw$day),bank_raw$month_num,bank_hot_encoded_feat,bank_raw$y)
+names(bank_processed)[7:8] <- c("day","month")
+names(bank_processed)[41] <- "y"
+#head(bank_processed,5)
+
+```
+
+Finalmente, creamos los conjuntos de entrenamiento y validación:
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(bank_processed$y, times=1, p=.75, list=FALSE)
+
+#create training set
+bank_processed_train <- bank_processed[train_indices, ]
+
+#create testing set
+bank_processed_test  <- bank_processed[-train_indices, ]
+
+
+#view number of rows in each set
+nrow(bank_processed_train)  # 3391
+nrow(bank_processed_test)   # 1130
+
+```
+
+
+Entrenamiento del modelo:
+
+```{r}
+#train rbfdot
+set.seed(123)
+model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
+```
+
+
+Predicción del modelo:
+
+```{r}
+#Confusion matrix rbfdot
+model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
+prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
+
+CrossTable(x = bank_processed_test$y, y = prediction_rbfdot, prop.chisq = FALSE)
+#confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot), positive="yes", mode = "everything")
+```
+
+## Evaluación detallada de los resultados
+
+El propósito en el tema 7 era analizar (predecir) si un cliente, en base a sus características, contratará un determinado producto bancario.
+Por esta razón, a la hora de obtener la matriz de confusión y todas las demás variables estadísticas, consideramos el "sí" como la clase positiva".
+
+Otro factor a tener en cuenta, es que se trataba de un típico caso de dataset no balanceado:
+
+```{r}
+#Summary
+summary(bank_raw$y)
+round(prop.table(table(bank_raw$y))*100, digits = 2)
+```
+
+Hay muchísimas observaciones de una clase (no, 88.48%), y muy pocas de la otra (sí, 11.52%).
+(Esto  influye por ejemplo en los valores de las variables que están emparejadas, como por ejemplo la sensibilidad y la especificidad).
+
+
+[
+  NOTA:
+
+  Prevalencia:
+
+  https://es.wikipedia.org/wiki/Prevalencia
+
+"En epidemiología, se denomina prevalencia a la proporción de individuos de un grupo o una población (en medicina, persona) 
+que presentan una característica o evento determinado (en medicina, enfermedades). 
+Por lo general, se expresa como una fracción, un porcentaje o un número de casos por cada 10.000 o 100.000 personas". 
+
+"La prevalencia no debe confundirse con la incidencia. 
+La incidencia es una medida del número de casos nuevos de una enfermedad en un período determinado".
+
+]
+
+```{r}
+TP <-  20
+TN <- 988
+FP <- 110  # type I error
+FN <-  12  # type II error
+Total <- TP + TN + FP + FN
+```
+
+
+**Exactitud** (**"accuracy"**):
+
+Es la proporción de clasificados correctamente sobre el total (tanto si se considera una clase como la otra).
+
+```{r}
+acccuracy <- (TP + TN) / (TP + FP + TN + FN)
+round(acccuracy,3)
+```
+
+**Error**
+
+```{r}
+error <- 1 - acccuracy
+round(error,3)
+```
+
+
+**Precisión**
+
+La precisión es la proporción de predicciones de una clase que son realmente de esa clase.
+
+```{r}
+precision = TP / (TP + FP)
+round(precision,3)
+```
+
+Se puede ver que al tratarse de un dataset descompensado, y ser la clase positiva mucho menos numerosa, se obtiene una precisión muy baja.
+
+
+**Recall** (Recuperación, o Tasa de verdaderos positivos (TPR))
+
+La recuperación es la proporción de elementos de una clase que fueron clasificados correctamente como de esa clase.
+
+```{r}
+recall = TP / (TP + FN)
+round(recall,3)
+```
+
+
+**F1 score** (Puntuación F1)
+
+La puntuación F1 es la media armónica de la precisión y la recuperación.
+
+```{r}
+#F1 = 2 x (precision x recall) / (precision + recall) = 2TP / (2TP + FP + FN )
+f1_score = 2 * (precision * recall) / (precision + recall)
+round(f1_score,3)
+```
+
+
+**Sensibilidad**  ("Sensitivity", "True positive rate")
+
+También llamada "fracción de verdaderos positivos", pone el foco en los casos positivos.
+Su formulación matemática coincide con la del recall/recuperación.
+
+```{r}
+recall = TP / (TP + FN)
+round(recall,3)
+```
+
+
+**Especificidad**  ("Especifity", "True negative rate")
+
+La especifidad en cambio pone el foco en los casos negativos. Es la "fracción de verdaderos negativos".
+
+(Para mí: es el "negado" del recall).
+
+```{r}
+specifity = TN / (TN + FP)
+round(specifity,3)
+```
+
+Tenemos un dataset no balanceado, con muchos más casos negativos que positivos. 
+El modelo aprende mejor a detectar estos casos negativos que los positivos.
+
+
+**Kappa**
+
+Esta variable sirve para ajustar el verdadero valor de la exactitud, dado que se puede dar el caso de que parte de esa exactitud,
+se deba simplemente al azar. 
+Es considerada una medida más robusta y fiable que el simple valor de la exactitud.
+
+La Kappa de Cohen es una medida de la fiabilidad con la que dos 'evaluadores' miden lo mismo. 
+
+Su fórmula es la siguiente:
+
+k = (Pr(a) - Pr(e)) / (1 - Pr(e))
+
+Donde:
+
+**Pr(a)** es el acuerdo observado relativo entre los observadores.
+**Pr(e)** es la probabilidad hipotética de acuerdo por azar, utilizando los datos observados para calcular las probabilidades
+de que cada observador clasifique aleatoriamente cada categoría.
+
+Si los evaluadores están completamente de acuerdo, entonces será κ = 1.
+Si no hay acuerdo ninguno entre los calificadores distinto al que cabría esperar por azar (según lo definido por Pr(e)), será κ = 0. 
+
+En nuestro caso:
+
+
+                      | prediction_rbfdot 
+bank_processed_test$y |        no |       yes | Row Total | 
+----------------------|-----------|-----------|-----------|
+                   no |       988 |        12 |      1000 | 
+                      |     0.988 |     0.012 |     0.885 | 
+                      |     0.900 |     0.375 |           | 
+                      |     0.874 |     0.011 |           | 
+----------------------|-----------|-----------|-----------|
+                  yes |       110 |        20 |       130 | 
+                      |     0.846 |     0.154 |     0.115 | 
+                      |     0.100 |     0.625 |           | 
+                      |     0.097 |     0.018 |           | 
+----------------------|-----------|-----------|-----------|
+         Column Total |      1098 |        32 |      1130 | 
+                      |     0.972 |     0.028 |           | 
+----------------------|-----------|-----------|-----------|
+
+       
+```{r}
+
+pr_a <- 0.874 + 0.018
+pr_a
+pr_e = 0.115*0.028 + 0.885*0.972   # probability of both positive + probability of both negative
+pr_e
+
+```
+
+
+```{r}
+k = (pr_a - pr_e) / (1 - pr_e)
+k
+```
+
+Un valor de k muy muy pequeño.
+
+Coincide con el valor devuelto por la función confusionMatrix del paquete caret.
+
+
+[
+
+Otra manera:
+
+También coincide por supuesto con el valor devuelto por la función Kappa del paquete **vcd** (Visualizing Categorical Data)
+
+```{r}
+if (!require(vcd)) install.packages('vcd', dependencies = T)
+library(vcd)
+
+Kappa(table(bank_processed_test$y, prediction_rbfdot))
+```
+
+]
+
+
+**Coeficiente de correlación de Matthew**
+
+El coeficiente de correlación de Matthew 
+
+
+MCC = [TP × TN − FP × FN]  /  [√(TP + FP)(TP + FN)(TN + FP)(TN + FN)]
+
+```{r}
+
+TPmultTNminusFPmultFN <- (TP * TN) - (FP * FN)
+denom <- sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))
+MCC <- TPmultTNminusFPmultFN / denom
+MCC
+
+```
+
+
+[ 
+  Nota:
+
+  En el paquete **mltools** podemos encontrar la función mcc que calcula este valor:
+  
+```{r}
+if (!require(mltools)) install.packages('mltools', dependencies = T)
+library(mltools)
+
+mcc(bank_processed_test$y, prediction_rbfdot)
+```
+
+Coincide con el valor calculado.
+
+]
+
+Los valores obtenidos para Kappa y para MCC son muy parecidos.
+Ambos indican la pobreza de los resultados que se obtienen con este modelo.
+
+
+
+
+## Curvas ROC
+
+
+Para mostrar una comparación de las curvas ROC (y la "AUC") entre dos moelos, usaremos el modelo con el parámetro coste=1 y el que tiene coste=3
+
+
+```{r}
+#Confusion matrix rbfdot
+#model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
+#prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
+
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot), positive="yes", mode = "everything")
+```
+
+```{r}
+#model_C3
+
+model_rbfdot_C3 <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot", C = 3)
+prediction_rbfdot_C3 <- predict(model_rbfdot_C3, bank_processed_test)
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot_C3), positive="no", mode = "everything")
+```
+
+
+
+
+
+
