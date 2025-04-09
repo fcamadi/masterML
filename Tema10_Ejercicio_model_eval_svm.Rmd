@@ -47,12 +47,20 @@ library(gmodels)
 
 if (!require(caret)) install.packages('caret', dependencies = T)
 library(caret)   
+
+if (!require(pROC)) install.packages('pROC', dependencies = T)  
+library(pROC)
+
+if (!require(ggplot2)) install.packages('ggplot2', dependencies = T)
+library(ggplot2)
 ```
 
 
 Preparamos el dataset:
 
 ```{r}
+set.seed(12345)
+
 #scale numeric variables (neither day nor month)
 maxs <- apply(bank_raw[c(1,6,12,13,14,15)], 2, max)
 mins <- apply(bank_raw[c(1,6,12,13,14,15)], 2, min)
@@ -83,7 +91,7 @@ Finalmente, creamos los conjuntos de entrenamiento y validación:
 
 ```{r}
 #Set seed to make the process reproducible
-set.seed(9)
+set.seed(12345)
 
 #partitioning data frame into training (75%) and testing (25%) sets
 train_indices <- createDataPartition(bank_processed$y, times=1, p=.75, list=FALSE)
@@ -106,7 +114,7 @@ Entrenamiento del modelo:
 
 ```{r}
 #train rbfdot
-set.seed(123)
+set.seed(12345)
 model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
 ```
 
@@ -114,9 +122,10 @@ model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
 Predicción del modelo:
 
 ```{r}
-#Confusion matrix rbfdot
-model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
+#Prediction for SVM rbfdot
+model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot", prob.model = TRUE)
 prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
+prediction_rbfdot_prob <- predict(model_rbfdot, bank_processed_test, type= "probabilities")
 
 CrossTable(x = bank_processed_test$y, y = prediction_rbfdot, prop.chisq = FALSE)
 #confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot), positive="yes", mode = "everything")
@@ -124,8 +133,7 @@ CrossTable(x = bank_processed_test$y, y = prediction_rbfdot, prop.chisq = FALSE)
 
 ## Evaluación detallada de los resultados
 
-El propósito en el tema 7 era analizar (predecir) si un cliente, en base a sus características, contratará un determinado producto bancario.
-Por esta razón, a la hora de obtener la matriz de confusión y todas las demás variables estadísticas, consideramos el "sí" como la clase positiva".
+El propósito en el tema 7 era analizar (predecir) si un cliente, en base a sus características, contratará un determinado producto bancario. Por esta razón, a la hora de obtener la matriz de confusión y todas las demás variables estadísticas, consideramos el "sí" como la clase positiva".
 
 Otro factor a tener en cuenta, es que se trataba de un típico caso de dataset no balanceado:
 
@@ -175,6 +183,8 @@ round(acccuracy,3)
 
 **Error**
 
+Es el "complementario" de la exactitud. Lógicamente se calcula:
+
 ```{r}
 error <- 1 - acccuracy
 round(error,3)
@@ -183,14 +193,14 @@ round(error,3)
 
 **Precisión**
 
-La precisión es la proporción de predicciones de una clase que son realmente de esa clase.
+La precisión es la proporción de predicciones de una clase que son realmente de esa clase:
 
 ```{r}
 precision = TP / (TP + FP)
 round(precision,3)
 ```
 
-Se puede ver que al tratarse de un dataset descompensado, y ser la clase positiva mucho menos numerosa, se obtiene una precisión muy baja.
+Se puede ver que al tratarse de un dataset descompensado, y ser la clase positiva mucho menos numerosa, se obtiene una precisión terriblemente baja.
 
 
 **Recall** (Recuperación, o Tasa de verdaderos positivos (TPR))
@@ -206,12 +216,15 @@ round(recall,3)
 **F1 score** (Puntuación F1)
 
 La puntuación F1 es la media armónica de la precisión y la recuperación.
+Se calcula de la siguiente manera:
 
 ```{r}
 #F1 = 2 x (precision x recall) / (precision + recall) = 2TP / (2TP + FP + FN )
 f1_score = 2 * (precision * recall) / (precision + recall)
 round(f1_score,3)
 ```
+
+Vemos que tiene un valor también muy bajo.
 
 
 **Sensibilidad**  ("Sensitivity", "True positive rate")
@@ -237,12 +250,12 @@ round(specifity,3)
 ```
 
 Tenemos un dataset no balanceado, con muchos más casos negativos que positivos. 
-El modelo aprende mejor a detectar estos casos negativos que los positivos.
+El modelo aprende mejor por tanto a detectar estos casos negativos que los positivos.
 
 
 **Kappa**
 
-Esta variable sirve para ajustar el verdadero valor de la exactitud, dado que se puede dar el caso de que parte de esa exactitud,
+Esta variable sirve para ajustar el valor de la exactitud, dado que se puede dar el caso de que parte de esa exactitud,
 se deba simplemente al azar. 
 Es considerada una medida más robusta y fiable que el simple valor de la exactitud.
 
@@ -263,7 +276,6 @@ Si no hay acuerdo ninguno entre los calificadores distinto al que cabría espera
 
 En nuestro caso:
 
-
                       | prediction_rbfdot 
 bank_processed_test$y |        no |       yes | Row Total | 
 ----------------------|-----------|-----------|-----------|
@@ -283,12 +295,11 @@ bank_processed_test$y |        no |       yes | Row Total |
 
        
 ```{r}
-
-pr_a <- 0.874 + 0.018
+pr_a <- 0.874 + 0.018   # this is, accuracy = 0.892 
 pr_a
-pr_e = 0.115*0.028 + 0.885*0.972   # probability of both positive + probability of both negative
+pr_e = 0.115*0.028 + 0.885*0.972   # probability of both positive + probability of both negative: 
+# (130/1130)*(32/1130) + (1000/130)*(1098/1130)
 pr_e
-
 ```
 
 
@@ -299,14 +310,14 @@ k
 
 Un valor de k muy muy pequeño.
 
-Coincide con el valor devuelto por la función confusionMatrix del paquete caret.
+Coincide con el valor devuelto por la función confusionMatrix del paquete caret (ver más abajo en el anexo de esta tarea).
 
 
 [
 
 Otra manera:
 
-También coincide por supuesto con el valor devuelto por la función Kappa del paquete **vcd** (Visualizing Categorical Data)
+El valor devuelto por la función Kappa del paquete **vcd** (Visualizing Categorical Data) es muy parecido:
 
 ```{r}
 if (!require(vcd)) install.packages('vcd', dependencies = T)
@@ -318,12 +329,46 @@ Kappa(table(bank_processed_test$y, prediction_rbfdot))
 ]
 
 
-**Coeficiente de correlación de Matthew**
+**Coeficiente de correlación de Matthews**
 
-El coeficiente de correlación de Matthew 
+El coeficiente de correlación de Matthews coincide con el coeficiente phi φ o rφ en Estadística. 
+Es una medida de la asociación entre dos variables binarias.
+En machine learning es considerado una medida de la calidad de una clasificación binaria.
+(También es similar su interpretación a la del coeficiente de correlación de Pearson).
 
+Su fórmula es:
 
 MCC = [TP × TN − FP × FN]  /  [√(TP + FP)(TP + FN)(TN + FP)(TN + FN)]
+
+[
+
+Coger imagen de la fórmula de aquí:
+
+https://koshurai.medium.com/understanding-the-matthews-correlation-coefficient-mcc-in-machine-learning-26e8049f8572
+
+O de aquí:
+
+https://es.wikipedia.org/wiki/Coeficiente_phi
+
+]
+
+El numerador premia un valor alto de verdaderos positivos y verdaderos negativos, y penaliza los falsos positivos y negativos.
+El denominador normaliza el resultado entre -1 y +1.
+
+Valores cercanos a +1 indican una calidad buena de los resultados.
+Valores cercanos a 0 indican que la predicción es tan buena como una predicción hecha al azar (es decir, nada buena).
+Valores cercanos a -1 indican un gran desacuerdo entre la predicción del modelo y los valores reales.
+(Se puede probar entonces a darle la vuelta? Considerar la clase positiva como la negativa?)
+
+Entre las ventajas de este coeficiente están que es adecuado para datasets no balanceados (como es el case de este ejemplo),
+y que considera todos los elementos de la matriz de confusión.
+
+Comparado con otras métricas, también tiene ventajas:
+- la exactitud no aporta tanto valor cuando hay una clase dominante. MCC en cambio tiene en cuenta tanto las predicciones correctas
+como las erróneas, y en las 2 clases.
+- la precisión pone el foco en la clase positiva, el valor de F1 no tiene en cuenta los verdaderos negativos.
+
+
 
 ```{r}
 
@@ -347,7 +392,7 @@ library(mltools)
 mcc(bank_processed_test$y, prediction_rbfdot)
 ```
 
-Coincide con el valor calculado.
+Valor muy parecido al valor calculado.
 
 ]
 
@@ -356,27 +401,95 @@ Ambos indican la pobreza de los resultados que se obtienen con este modelo.
 
 
 
-
 ## Curvas ROC
 
+La curva ROC (del inglés "Receiver Operating Characteristic") en machine learning, sirve para evaluar la calidad de un modelo
+de clasificación binario mediante la representación de la proporción de verdaderos positivos (VPR = Razón de Verdaderos Positivos) frente a proporción de falsos positivos (FPR = Razón de Falsos Positivos), también según se varía el umbral de discriminación (valor a partir del cual se decide que un caso es un positivo). 
 
-Para mostrar una comparación de las curvas ROC (y la "AUC") entre dos moelos, usaremos el modelo con el parámetro coste=1 y el que tiene coste=3
+Para crear una curva ROC se necesitan 2 vectores de datos: uno con los valores reales, 
+y otro con la probabilidad predicha por el modelo.
 
+
+[
+
+Esto está en el libro.
+Es erróneo, no?
+
+To create visualizations with pROC, two vectors of data are needed. 
+The first must contain the # estimated probability of the positive class and 
+the second must contain the predicted class values.
+
+"estimated probability" y "predicted class values"?
+
+]
+
+```{r}
+set.seed(12345)
+bank_roc <- roc(bank_processed_test$y, prediction_rbfdot_prob[,"yes"])
+auc <- round(auc(bank_processed_test$y, prediction_rbfdot_prob[,"yes"]),4)
+auc
+```
+
+Graphic:
+
+```{r, fig.height=6}
+ggroc(bank_roc, colour = 'blue', size = 0.5)  +
+  ggtitle(paste0('ROC Curve model C=1. AUC = ', auc))
+```
+
+
+Para mostrar una comparación de las curvas ROC (y la "AUC") entre dos modelos, usaremos el modelo con el parámetro coste=1 y el que tiene coste=3:
+
+
+```{r}
+#Prediction for SVM rbfdot with cost 3
+set.seed(12345)
+
+model_rbfdot_C3 <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot", C = 5, prob.model = TRUE)
+prediction_rbfdot_C3 <- predict(model_rbfdot_C3, bank_processed_test)
+prediction_rbfdot_C3_prob <- predict(model_rbfdot_C3, bank_processed_test, type= "probabilities")
+
+bank_roc_C3 <- roc(bank_processed_test$y, prediction_rbfdot_C3_prob[,"yes"])
+auc_C3 <- round(auc(bank_processed_test$y, prediction_rbfdot_C3_prob[,"yes"]),4)
+auc_C3
+```
+
+
+```{r, fig.height=6}
+
+ggroc(list(bank_roc,bank_roc_C3), size = 0.25)  +
+  ggtitle(paste0('ROC Curve models 1 and 2')) +
+  theme_bw() +
+  scale_colour_manual(values = c("red", "blue"), labels = c("Model 1 - C=1","Model 2 - C=3")) 
+
+```
+
+
+De igual manera que los valores Kappa, F1, MCC indican que la calidad de la predición no es muy buena, lo mismo indican estas gráficas: se ve que las líneas de ambos modelos están bastante alejadas de la esquina superior izquierda.
+
+
+
+
+ANEXO:
+
+Matrices de confusión con caret de los 2 modelos:
 
 ```{r}
 #Confusion matrix rbfdot
 #model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
 #prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
-
+set.seed(12345)
 confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot), positive="yes", mode = "everything")
 ```
 
 ```{r}
 #model_C3
-
+set.seed(12345)
 model_rbfdot_C3 <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot", C = 3)
+
 prediction_rbfdot_C3 <- predict(model_rbfdot_C3, bank_processed_test)
-confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot_C3), positive="no", mode = "everything")
+
+confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot_C3), positive="yes", mode = "everything")
 ```
 
 
