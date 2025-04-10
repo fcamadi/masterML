@@ -102,11 +102,9 @@ bank_processed_train <- bank_processed[train_indices, ]
 #create testing set
 bank_processed_test  <- bank_processed[-train_indices, ]
 
-
 #view number of rows in each set
-nrow(bank_processed_train)  # 3391
-nrow(bank_processed_test)   # 1130
-
+#nrow(bank_processed_train)  # 3391
+#nrow(bank_processed_test)   # 1130
 ```
 
 
@@ -122,6 +120,8 @@ model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
 Predicción del modelo:
 
 ```{r}
+set.seed(12345)
+
 #Prediction for SVM rbfdot
 model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot", prob.model = TRUE)
 prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
@@ -164,10 +164,10 @@ La incidencia es una medida del número de casos nuevos de una enfermedad en un 
 ]
 
 ```{r}
-TP <-  20
-TN <- 988
-FP <- 110  # type I error
-FN <-  12  # type II error
+TP <-  23
+TN <- 987
+FP <-  13  # type I error
+FN <- 107  # type II error
 Total <- TP + TN + FP + FN
 ```
 
@@ -200,7 +200,7 @@ precision = TP / (TP + FP)
 round(precision,3)
 ```
 
-Se puede ver que al tratarse de un dataset descompensado, y ser la clase positiva mucho menos numerosa, se obtiene una precisión terriblemente baja.
+Se puede ver que al tratarse de un dataset descompensado, y ser la clase positiva mucho menos numerosa, se obtiene una precisión bastante baja.
 
 
 **Recall** (Recuperación, o Tasa de verdaderos positivos (TPR))
@@ -242,7 +242,7 @@ round(recall,3)
 
 La especifidad en cambio pone el foco en los casos negativos. Es la "fracción de verdaderos negativos".
 
-(Para mí: es el "negado" del recall).
+(Para mí es el "negado" del recall).
 
 ```{r}
 specifity = TN / (TN + FP)
@@ -279,26 +279,26 @@ En nuestro caso:
                       | prediction_rbfdot 
 bank_processed_test$y |        no |       yes | Row Total | 
 ----------------------|-----------|-----------|-----------|
-                   no |       988 |        12 |      1000 | 
-                      |     0.988 |     0.012 |     0.885 | 
-                      |     0.900 |     0.375 |           | 
-                      |     0.874 |     0.011 |           | 
+                   no |       987 |        13 |      1000 | 
+                      |     0.987 |     0.013 |     0.885 | 
+                      |     0.902 |     0.361 |           | 
+                      |     0.873 |     0.012 |           | 
 ----------------------|-----------|-----------|-----------|
-                  yes |       110 |        20 |       130 | 
-                      |     0.846 |     0.154 |     0.115 | 
-                      |     0.100 |     0.625 |           | 
-                      |     0.097 |     0.018 |           | 
+                  yes |       107 |        23 |       130 | 
+                      |     0.823 |     0.177 |     0.115 | 
+                      |     0.098 |     0.639 |           | 
+                      |     0.095 |     0.020 |           | 
 ----------------------|-----------|-----------|-----------|
-         Column Total |      1098 |        32 |      1130 | 
-                      |     0.972 |     0.028 |           | 
+         Column Total |      1094 |        36 |      1130 | 
+                      |     0.968 |     0.032 |           | 
 ----------------------|-----------|-----------|-----------|
 
        
 ```{r}
-pr_a <- 0.874 + 0.018   # this is, accuracy = 0.892 
+pr_a <- 0.873 + 0.020   # this is, accuracy = 0.892 
 pr_a
-pr_e = 0.115*0.028 + 0.885*0.972   # probability of both positive + probability of both negative: 
-# (130/1130)*(32/1130) + (1000/130)*(1098/1130)
+pr_e = 0.115*0.032 + 0.885*0.968# probability of both positive + probability of both negative: 
+# (130/1130)*(36/1130) + (1000/130)*(1094/1130)
 pr_e
 ```
 
@@ -317,7 +317,7 @@ Coincide con el valor devuelto por la función confusionMatrix del paquete caret
 
 Otra manera:
 
-El valor devuelto por la función Kappa del paquete **vcd** (Visualizing Categorical Data) es muy parecido:
+El valor devuelto por la función Kappa del paquete **vcd** (Visualizing Categorical Data) es prácticamente igual:
 
 ```{r}
 if (!require(vcd)) install.packages('vcd', dependencies = T)
@@ -338,7 +338,7 @@ En machine learning es considerado una medida de la calidad de una clasificació
 
 Su fórmula es:
 
-MCC = [TP × TN − FP × FN]  /  [√(TP + FP)(TP + FN)(TN + FP)(TN + FN)]
+MCC = [TP × TN − FP × FN]  /  √[(TP + FP)(TP + FN)(TN + FP)(TN + FN)]
 
 [
 
@@ -392,7 +392,7 @@ library(mltools)
 mcc(bank_processed_test$y, prediction_rbfdot)
 ```
 
-Valor muy parecido al valor calculado.
+Valor idéntico al calculado.
 
 ]
 
@@ -465,7 +465,8 @@ ggroc(list(bank_roc,bank_roc_C3), size = 0.25)  +
 ```
 
 
-De igual manera que los valores Kappa, F1, MCC indican que la calidad de la predición no es muy buena, lo mismo indican estas gráficas: se ve que las líneas de ambos modelos están bastante alejadas de la esquina superior izquierda.
+De igual manera que los valores Kappa, F1, MCC indican que la calidad de la predición no es muy buena, lo mismo indican estas gráficas: se ve que las líneas de ambos modelos están bastante alejadas de la esquina superior izquierda. 
+(Y la diferencia entre ellos es prácticamente inexistente. La diferencia de las AUCs es una diezmilésima).
 
 
 
@@ -479,7 +480,7 @@ Matrices de confusión con caret de los 2 modelos:
 #model_rbfdot <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot")
 #prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
 set.seed(12345)
-confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot), positive="yes", mode = "everything")
+confusionMatrix(as.factor(prediction_rbfdot), as.factor(bank_processed_test$y), positive="yes", mode = "everything")
 ```
 
 ```{r}
@@ -489,7 +490,7 @@ model_rbfdot_C3 <- ksvm(y ~ ., data=bank_processed_train, kernel="rbfdot", C = 3
 
 prediction_rbfdot_C3 <- predict(model_rbfdot_C3, bank_processed_test)
 
-confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot_C3), positive="yes", mode = "everything")
+confusionMatrix(as.factor(prediction_rbfdot_C3), as.factor(bank_processed_test$y), positive="yes", mode = "everything")
 ```
 
 
