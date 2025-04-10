@@ -196,7 +196,7 @@ round(error,3)
 La precisión es la proporción de predicciones de una clase que son realmente de esa clase:
 
 ```{r}
-precision = TP / (TP + FP)
+precision <- TP / (TP + FP)
 round(precision,3)
 ```
 
@@ -208,19 +208,20 @@ Se puede ver que al tratarse de un dataset descompensado, y ser la clase positiv
 La recuperación es la proporción de elementos de una clase que fueron clasificados correctamente como de esa clase.
 
 ```{r}
-recall = TP / (TP + FN)
+recall <- TP / (TP + FN)
 round(recall,3)
 ```
 
 
 **F1 score** (Puntuación F1)
 
-La puntuación F1 es la media armónica de la precisión y la recuperación.
-Se calcula de la siguiente manera:
+La puntuación F1 da una medida de la precisión de un modelo de clasificación binaria combinando la precisión y la recuperación:
+es la media armónica de la precisión y la recuperación.
+Por tanto se calcula de la siguiente manera:
 
 ```{r}
 #F1 = 2 x (precision x recall) / (precision + recall) = 2TP / (2TP + FP + FN )
-f1_score = 2 * (precision * recall) / (precision + recall)
+f1_score <- 2 * (precision * recall) / (precision + recall)
 round(f1_score,3)
 ```
 
@@ -233,8 +234,8 @@ También llamada "fracción de verdaderos positivos", pone el foco en los casos 
 Su formulación matemática coincide con la del recall/recuperación.
 
 ```{r}
-recall = TP / (TP + FN)
-round(recall,3)
+sensitivity <- TP / (TP + FN)
+round(sensitivity,3)
 ```
 
 
@@ -245,7 +246,7 @@ La especifidad en cambio pone el foco en los casos negativos. Es la "fracción d
 (Para mí es el "negado" del recall).
 
 ```{r}
-specifity = TN / (TN + FP)
+specifity <- TN / (TN + FP)
 round(specifity,3)
 ```
 
