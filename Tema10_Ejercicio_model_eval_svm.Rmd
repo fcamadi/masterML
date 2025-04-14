@@ -128,7 +128,7 @@ prediction_rbfdot <- predict(model_rbfdot, bank_processed_test)
 prediction_rbfdot_prob <- predict(model_rbfdot, bank_processed_test, type= "probabilities")
 
 CrossTable(x = bank_processed_test$y, y = prediction_rbfdot, prop.chisq = FALSE)
-#confusionMatrix(as.factor(bank_processed_test$y), as.factor(prediction_rbfdot), positive="yes", mode = "everything")
+#confusionMatrix(as.factor(prediction_rbfdot), as.factor(bank_processed_test$y), positive="yes", mode = "everything")
 ```
 
 ## Evaluación detallada de los resultados
@@ -215,7 +215,7 @@ round(recall,3)
 
 **F1 score** (Puntuación F1)
 
-La puntuación F1 da una medida de la precisión de un modelo de clasificación binaria combinando la precisión y la recuperación:
+La puntuación F1 da una medida de la exactitud de un modelo de clasificación binaria combinando la precisión y la recuperación:
 es la media armónica de la precisión y la recuperación.
 Por tanto se calcula de la siguiente manera:
 
@@ -470,6 +470,13 @@ De igual manera que los valores Kappa, F1, MCC indican que la calidad de la pred
 (Y la diferencia entre ellos es prácticamente inexistente. La diferencia de las AUCs es una diezmilésima).
 
 
+## Conclusión final
+
+En esta tarea, al examinar con más detalle la exactitud y compararla con otros parámetros como Kappa, MCC y las curvas ROC, se puede ver claramente las limitaciones de esta variable cuando se trata de evaluar un dataset no balanceado (el valor F1 me parece también más "realista" que la exactitud). Al incluir estas otras variables en su cálculo no solo los resultados correctamente clasificados, sus valoraciones de los resultados del modelo sobre el dataset no balanceado son más fiables.
+También son capaces de reflejar las mejoras del modelo. En el anexo a continuación se puede ver cómo la exactitud del modelo con el parámetro coste = 3, solo mejora unas milésimas la del modelo inicial, mientras que Kappa pasa de 0.2391 a 0.3267, y MCC de 0.298 a 0.366.
+
+Pregunta:
+Quizá lo más apropiado sería considerar la "exactitud balanceada"?
 
 
 ANEXO:
@@ -494,7 +501,14 @@ prediction_rbfdot_C3 <- predict(model_rbfdot_C3, bank_processed_test)
 confusionMatrix(as.factor(prediction_rbfdot_C3), as.factor(bank_processed_test$y), positive="yes", mode = "everything")
 ```
 
+```{r}
+#MCC of model 2
 
+#if (!require(mltools)) install.packages('mltools', dependencies = T)
+#library(mltools)
+
+mcc(bank_processed_test$y, prediction_rbfdot_C3)
+```
 
 
 
