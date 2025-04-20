@@ -33,8 +33,6 @@ tidyverse_conflicts() ──
 vignette("tibble")  ->  "Tibbles are a modern take on data frames. They keep the features that have stood the test of time, 
 and drop the features that used to be convenient but are now frustrating."
 
-
-
 ```{r}
 titanic_csv <- read.csv("./CSVs/titanic_train.csv")
 titanic_tbl <- as_tibble(titanic_csv)
@@ -45,4 +43,108 @@ To show the "tibble":
 ```{r}
 titanic_tbl
 ```
+One simple distinction between tibbles and data frames is that a tibble never assumes
+stringsAsFactors = TRUE, which was the default behavior in base R until relatively recently
+with the release of R version 4.0.
+
+Another distinction between tibbles and data frames is that, as long as the name is surrounded by the backtick (`) character, 
+a tibble can use non-standard column names like `my var` that violate base R’s object naming rules.
+
+
+### Reading rectangular files faster with readr and readxl
+
+Nearly every chapter so far has used the read.csv() function to load data into R data frames.
+Although we could convert these data frames in to tibbles, there is a faster and more direct path
+to get data into the tibble format.
+
+```{r}
+#library(readr) # not necessary if tidyverse is already loaded
+titanic_train_tbl <- read_csv("./CSVs/titanic_train.csv")       # read_csv, with "_"
+titanic_train_tbl
+```
+
+For more information on the syntax, view the documentation using the vignette("readr") command.
+
+The readxl package (https://readxl.tidyverse.org) provides a method to read data directly
+from the Microsoft Excel spreadsheet format.
+
+```{r}
+library(readxl)
+titanic_train_xls <- read_excel("./CSVs/titanic_train.xlsx")
+titanic_train_xls
+```
+
+### Preparing and piping data with dplyr
+
+The dplyr grammar of working with data becomes second nature after the initial learning curve
+has been passed. There are five key verbs in the grammar, which perform many of the most com-
+mon transformations to data tables. Beginning with a tibble, one may choose to:
+
+•**filter()** rows of data by values of the columns
+•**select()** columns of data by name
+•**arrange()** rows of data by sorting the values
+•**mutate()** columns into new columns by transforming the values
+•**summarize()** rows of data by aggregating values into a summary
+
+
+```{r}
+titanic_csv |> filter(Sex == "female")
+```
+
+```{r}
+titanic_tbl |> select(Name, Sex, Age)
+```
+```{r}
+titanic_csv_women <- titanic_csv |> 
+                      filter(Sex == "female") |> 
+                      select(Name, Sex, Age) |> 
+                      arrange(Age)
+titanic_csv_women
+```
+When combined with the mutate() verb, we can perform complex data transformations with simpler, 
+more readable code than in the base R language.
+
+
+```{r}
+titanic_train_tbl |>
+              mutate(elderly = if_else(Age >= 65, 1, 0))
+```
+
+```{r}
+titanic_train_tbl |>
+            filter(Sex == "female") |>    # 314 rows
+            mutate(
+                  elderly = if_else(Age >= 65, 1, 0),
+                  child = if_else(Age < 18, 1, 0)
+            )
+```
+
+The remaining dplyr verb, **summarize()**, allows us to create aggregated or summarized metrics
+by grouping rows in the tibbl.
+
+```{r}
+
+titanic_train_tbl |>
+                group_by(Sex) |>
+                summarize(survival_rate = mean(Survived))
+```
+
+Other more complicated example to compare children (less than 18 years old) to adults:
+
+```{r}
+titanic_train_tbl |>
+            filter(!is.na(Age)) |>
+            mutate(child = if_else(Age < 18, 1, 0)) |>
+            group_by(child) |>
+            summarize(survival_rate = mean(Survived))
+```
+
+
+To put together what we’ve learned so far and provide one more example using pipes, let’s build
+a decision tree model of the Titanic dataset.
+
+
+
+
+
 
