@@ -1,0 +1,48 @@
+---
+title: "Exploring_tidyverse"
+author: "Fran Camacho"
+date: "2025-04-20"
+output: html_document
+---
+
+
+## Exploring tidyverse
+
+[Chapter 12 from the book "Machine Learning with R", by Brett Lantz].
+
+
+```{r}
+
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+
+```
+
+output:
+
+[...]
+
+tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package to force all conflicts to become errors
+
+
+### Tidy table structures with tibbles
+
+vignette("tibble")  ->  "Tibbles are a modern take on data frames. They keep the features that have stood the test of time, 
+and drop the features that used to be convenient but are now frustrating."
+
+
+
+```{r}
+titanic_csv <- read.csv("titanic_train.csv")
+titanic_tbl <- as_tibble(titanic_csv)
+```
+
+
+
+```{r}
+
+```
+
