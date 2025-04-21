@@ -1,0 +1,147 @@
+---
+title: "Feature_selection_stepwise"
+author: "Fran Camacho"
+date: "2025-04-21"
+output: word_document
+---
+
+# Applying feature selection
+
+[Chapter 13 from the book "Machine Learning with R", by Brett Lantz].
+
+In the context of supervised machine learning, the goal of feature selection is to alleviate the
+curse of dimensionality by choosing only the most important predictors. 
+(Feature selection may also be beneficial even in the case of unsupervised learning due to its ability 
+to simplify datasets by eliminating redundant or useless information).
+
+
+## Filter methods
+
+Perhaps the most accessible form of feature selection is the category of filter methods, which use
+a relatively simple scoring function to measure each feature’s importance. The resulting scores
+can then be used to rank the features and limit the number used in the predictive model. Due to
+the simplicity of this approach, filter methods are often used as a first step in an iterative process
+of data exploration, feature engineering, and model building.
+
+## Wrapper methods and embedded methods
+
+In contrast to filter methods, which use a proxy measure of variable importance, wrapper meth-
+ods use the machine learning algorithm itself to identify the importance of variables or subsets
+of variables. Wrapper methods are based on the simple idea that as more important features are
+provided to the algorithm, its ability to perform the learning task should improve.
+
+.. by iteratively building models composed of different combinations of features and exam-
+ining how the model’s performance changes, it is possible to identify the important predictors
+and sets of predictors.
+
+
+## Example – Using stepwise regression for feature selection
+
+```{r}
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+```
+
+One widely known implementation of wrapper methods is stepwise regression, which uses forward 
+or backward selection to identify a set of features for a regression model.
+
+```{r}
+titanic_train <- read_csv("./CSVs/titanic_train.csv") |>
+  mutate(
+    Age_MVI = if_else(is.na(Age), 1, 0),
+    Age = if_else(is.na(Age), mean(Age, na.rm = TRUE), Age),
+    Cabin = if_else(is.na(Cabin), "X", Cabin),
+    Embarked = factor(if_else(is.na(Embarked), "X", Embarked)),
+    Sex = factor(Sex)
+)
+```
+
+```{r}
+head(titanic_train)
+```
+
+```{r}
+summary(titanic_train)
+```
+
+
+The stepwise process needs to know the starting and ending conditions for feature selection, or
+the minimum and maximum set of variables that can be included. In our case, we’ll define the
+simplest possible model as one containing no variables at all—a model with only a constant intercept term.
+
+To define this model in R, we’ll use the glm() function to model survival as a function of a constant
+intercept using the Survived ~ 1 formula. Setting the family parameter to binomial defines a
+logistic regression model:
+
+```{r}
+simple_model <- glm(Survived ~ 1, family = binomial, data = titanic_train)
+```
+
+The full model still uses logistic regression, but includes many more predictors:
+
+```{r}
+full_model <- glm(Survived ~ Age + Age_MVI + Embarked +
+                              Sex + Pclass + SibSp + Fare,
+                  family = binomial, data = titanic_train)
+```
+
+
+**Forward selection** will begin with the simple model and determine which of the features in the full
+model are worth including in the final model. The step() function in the base R stats package
+provides this functionality;
+
+```{r}
+sw_forward <- stats::step(simple_model,
+                          scope = formula(full_model),
+                          direction = "forward")
+# When selecting from a large number of variables, set trace = 0 in the step() function to turn off the output for each iteration.
+```
+
+The quality measure used, AIC, is a measure of a model’s relative quality compared to other
+models. In particular, it refers to the **Akaike information criterion**. While a formal definition of
+AIC is outside the scope of this chapter, the measure is intended to balance model complexity
+and model fit.
+Lower AIC values are better.
+Therefore, the model that includes Sex is the best out of the six other candidate models as well as the original model.
+
+In the final iteration, the base
+model uses Sex, Pclass, Age, and SibSp, and no additional features reduce the AIC further —the
+<none> row is ranked above the candidate models adding Embarked, Fare, and Age_MVI features:
+
+
+Step:  AIC=800.84
+Survived ~ Sex + Pclass + Age + SibSp
+
+           Df Deviance    AIC
+<none>          790.84 800.84
++ Embarked  3   785.27 801.27
++ Fare      1   789.65 801.65
++ Age_MVI   1   790.59 802.59
+
+At this point, the forward selection process stops. We can obtain the formula for the final model:
+
+```{r}
+formula(sw_forward)
+```
+
+We can also obtain the final model’s estimated regression coefficients:
+
+```{r}
+round(sw_forward$coefficients,4)
+```
+
+**Backward elimination** is even simpler to execute. By providing a model with the complete set of
+features to test and setting direction = "backward", the model will iterate and systematically
+eliminate any features that will result in a better AIC.
+
+```{r}
+sw_backward <- stats::step(full_model, direction = "backward")
+```
+
+At each iteration, the worst feature is eliminated, but by the final step, eliminating any of the
+remaining features leads to a higher AIC, and therefore leads to a lower-quality model than the
+baseline. Thus, the process stops there.
+
+In this case, forward selection and backward elimination resulted in the same set of predictors,
+but this is not necessarily always the case.
+
