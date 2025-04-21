@@ -5,9 +5,6 @@ date: "2025-04-21"
 output: word_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 # Applying feature selection using Boruta package
 
@@ -17,3 +14,85 @@ For a more robust yet much more computationally intensive feature selection meth
 package implements a **wrapper around the random forest algorithm**, which will be introduced in
 Chapter 14, Building Better Learners. For now, it suffices to know that random forests are a variant of
 decision trees, which provide a measure of variable importance.
+
+The Boruta technique employs a clever trick using so-called “shadow features” to determine
+whether a variable is important. These shadow features are copies of the dataset’s original features,
+but with the values shuffled randomly so that any association between the feature and the target
+outcome is broken. Thus, these shadow features are, by definition, nonsense and unimportant,
+and should provide zero predictive benefits to the model except by random chance. They serve
+as a baseline by which the other features are judged.
+
+Let’s apply the Boruta algorithm to the same Titanic training dataset constructed 
+in the previous section. 
+
+```{r}
+titanic_train <- read_csv("./CSVs/titanic_train.csv") |>
+  mutate(
+    Age_MVI = if_else(is.na(Age), 1, 0),
+    Age = if_else(is.na(Age), mean(Age, na.rm = TRUE), Age),
+    Cabin = if_else(is.na(Cabin), "X", Cabin),
+    Embarked = factor(if_else(is.na(Embarked), "X", Embarked)),
+    Sex = factor(Sex)
+)
+```
+
+Just to prove that the algorithm can detect truly useless features,
+for demonstration purposes we can add one to the dataset:
+
+```{r}
+set.seed(12345)
+titanic_train$rand_vals <- runif(n = 891, min = 1, max = 100)
+```
+
+Next, we’ll load the Boruta package and apply it to the Titanic dataset.
+
+```{r}
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+
+if (!require(Boruta)) install.packages('Boruta', dependencies = T)
+library(Boruta)
+```
+
+```{r}
+titanic_boruta <- Boruta(Survived ~ PassengerId + Age +
+                                    Sex + Pclass + SibSp + rand_vals,
+                          data = titanic_train, doTrace = 1)
+```
+
+Once the algorithm has completed, type the name of the object to see the results:
+
+```{r}
+titanic_boruta
+```
+
+->  4 attributes confirmed important: Age, Pclass, Sex, SibSp;
+
+Setting the maxRuns parameter to a higher value than 100 can help come to a conclusion.
+In this case, setting maxRuns = 500 will confirm PassengerId to be unimportant after 486 iterations:
+
+```{r}
+titanic_boruta <- Boruta(Survived ~ PassengerId + Age +
+                                    Sex + Pclass + SibSp + rand_vals,
+                          data = titanic_train, doTrace = 1, maxRuns = 500)
+```
+
+```{r}
+titanic_boruta
+```
+
+Now PassengerId is also completely discarded.
+
+
+It is also possible to plot the importance of the features relative to one another:
+
+```{r, fig.width=12}
+plot(titanic_boruta)
+```
+
+Based on the exploration of the Titanic dataset we performed in Chapter 11, Being Successful with
+Machine Learning, the high importance of the Sex and Pclass features is unsurprising.
+
+
+
+
