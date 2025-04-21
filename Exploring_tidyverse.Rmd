@@ -143,8 +143,263 @@ titanic_train_tbl |>
 To put together what we’ve learned so far and provide one more example using pipes, let’s build
 a decision tree model of the Titanic dataset.
 
+```{r}
+if (!require(rpart)) install.packages('rpart', dependencies = T)
+library(rpart)  # "recursive partitioning" package offers the most faithful implementation of regression trees
+```
+
+```{r}
+m_titanic <- titanic_train_tbl |>
+              filter(!is.na(Age)) |>
+              mutate(AgeGroup = if_else(Age < 18, "Child", "Adult")) |>
+              select(Survived, Pclass, Sex, AgeGroup) |>  
+              rpart(formula = Survived ~ ., data = _)   
+```
+
+The **data = _** argument uses the underscore (_) as a placeholder to represent the data being fed to rpart() by the pipe.
+
+[
+It is important to note that the underscore placeholder character is new as of R version 4.2 and will not work in prior versions! 
+In older code that uses the magrittr package, the dot character (.) was used as the placeholder.
+]
+
+```{r}
+# more "standard/fran" way:
+titanic_train_tbl_processed <- titanic_train_tbl |>
+              filter(!is.na(Age)) |>
+              mutate(AgeGroup = if_else(Age < 18, "Child", "Adult")) |>
+              select(Survived, Pclass, Sex, AgeGroup)  
+              
+m_titanic2 <- rpart(formula = Survived ~ ., data = titanic_train_tbl_processed)     
+```
+
+
+For fun, we can visualize the resulting decision tree, which shows that women and children are
+more likely to survive than adults, men, and those in third passenger class:
+
+```{r}
+if (!require(rpart.plot)) install.packages('rpart.plot', dependencies = T)
+library(rpart.plot)  # "recursive partitioning" package offers the most faithful implementation of regression trees
+```
+
+```{r}
+rpart.plot(m_titanic)
+rpart.plot(m_titanic2)
+```
 
 
 
+### Transforming text with stringr
+
+The free resource R for Data Science has a tutorial that introduces the package’s complete set of capabilities, at 
+
+https://r4ds.hadley.nz/strings.html ,
+
+but here, we’ll examine some of the aspects most relevant to feature engineering.
+
+All stringr functions begin with the prefix str_, and a few relevant
+examples are as follows:
+
+•**str_detect()** determines whether a search term is found in a string
+•**str_sub()** slices a string by position and returns a substring
+•**str_extract()** searches for a string and returns the matching pattern
+•**str_replace()** replaces characters in a string with something else
+
+we’ll begin by examining the Cabin feature to determine whether certain
+rooms on the Titanic are linked to greater survival:
+
+```{r}
+titanic_train_tbl_with_CabinCode <- titanic_train_tbl |>
+                                mutate(CabinCode = str_sub(Cabin, start = 1, end = 1)) # |> 
+                                # filter(!is.na(CabinCode))
+```
+
+Show records:
+
+```{r}
+head(titanic_train_tbl_with_CabinCode)
+```
+To confirm that the cabin code is meaningful, we can use the table() function to see a clear 
+relationship between it and the passenger class. The useNA parameter is set to "ifany" to display
+the NA values caused by missing cabin codes for some passengers:
+
+```{r}
+table(titanic_train_tbl_with_CabinCode$Pclass, titanic_train_tbl_with_CabinCode$CabinCode, useNA = "ifany")
+```
+
+The NA values appear to be more common in the lower ticket classes, so it seems plausible that
+cheaper fares may have not received a cabin code.
+
+We can also plot the survival probability by cabin code by piping the file into a ggplot() function:
+
+```{r}
+library(ggplot2)
+
+titanic_train_tbl_with_CabinCode |> ggplot() +
+  geom_bar(aes(x = CabinCode, y = Survived),
+  stat = "summary", fun = "mean") +
+  ggtitle("Titanic Survival Rate by Cabin Code")
+```
+The resulting figure shows that even within the first-class cabin types (codes A, B, and C) there
+are differences in survival rate.
+Additionally, the passengers without a cabin code are the least likely to survive.
+
+Without processing the Cabin text data first, a learning algorithm would be unable to use the
+feature as the codes are unique to each cabin. Yet by applying a simple text transformation, we’ve
+decoded the cabin codes into something that can be used to improve the model’s survival predictions.
+
+
+
+```{r}
+titanic_train_tbl_with_CabinCode_and_Title <- titanic_train_tbl |>
+                                              mutate(Title = str_extract(Name, ", [A-z]+\\.")) |> 
+                                              mutate(Title = str_replace_all(Title, "[, \\.]", ""))
+
+head(titanic_train_tbl_with_CabinCode_and_Title$Title)
+```
+
+```{r}
+table(titanic_train_tbl_with_CabinCode_and_Title$Title)
+```
+
+Given the small counts for some of these titles and salutations, it may make sense to group them
+together. To this end, we can use dplyr’s recode() function to change the categories.
+
+```{r}
+titanic_train_tbl_with_CabinCode_Title_and_TitleGroup <- 
+  titanic_train_tbl_with_CabinCode_and_Title |>
+    mutate(TitleGroup = recode(Title,
+                                "Mr" = "Mr", "Mrs" = "Mrs", "Master" = "Master",
+                                "Miss" = "Miss", "Ms" = "Miss", "Mlle" = "Miss", "Mme" = "Miss",
+                                .missing = "Other",
+                                .default = "Other"
+                              )
+          )
+```
+
+```{r}
+table(titanic_train_tbl_with_CabinCode_Title_and_TitleGroup$TitleGroup)
+```
+
+We can also see that the title is meaningful by examining a plot of survival rates by title:
+
+```{r}
+titanic_train_tbl_with_CabinCode_Title_and_TitleGroup |> ggplot() +
+  geom_bar(aes(x = TitleGroup, y = Survived), stat = "summary", fun = "mean") +
+  ggtitle("Titanic Survival Rate by Salutation")
+```
+
+The creation of CabinCode and TitleGroup features exemplifies the feature engineering technique
+of finding hidden information in text data.
+
+
+
+### Cleaning dates with lubridate
+
+The lubridate package (https://lubridate.tidyverse.org) is an important tool for working
+with date and time data. 
+
+```{r}
+d1 <- mdy(c("October 25, 2013", "9/20/2013"))
+d1
+```
+
+```{r}
+d2 <- dmy(c("25 October 2013", "22.11.19"))
+d2
+```
+
+
+```{r}
+ymd("2013-10-25")
+```
+
+Let’s create a similar object for each of the three previous editions of this book:
+
+```{r}
+MLwR_1stEd <- mdy("October 25, 2013")
+MLwR_2ndEd <- mdy("July 31, 2015")
+MLwR_3rdEd <- mdy("April 15, 2019")
+```
+
+We can do simple math to compute the difference between two dates:
+
+```{r}
+MLwR_2ndEd - MLwR_1stEd
+```
+
+```{r}
+MLwR_3rdEd - MLwR_2ndEd
+```
+
+!!!
+
+In years?
+
+```{r}
+as.duration(MLwR_2ndEd - MLwR_1stEd)
+
+as.duration(MLwR_3rdEd - MLwR_2ndEd)
+```
+
+To obtain only years:
+
+```{r}
+dyears()  # it gives seconds in a year
+```
+
+So now:
+
+```{r}
+as.duration(MLwR_2ndEd - MLwR_1stEd) / dyears()
+
+as.duration(MLwR_3rdEd - MLwR_2ndEd) / dyears()
+```
+
+Other way, using **"time_length()"** function:
+
+```{r}
+time_length(MLwR_2ndEd - MLwR_1stEd, unit = "years")
+
+time_length(MLwR_3rdEd - MLwR_2ndEd, unit = "months")
+```
+
+
+```{r}
+A_LA_BASTILLA <- mdy("July 14, 1789") 
+time_length(mdy("April 21 2025") - A_LA_BASTILLA, unit = "years")
+```
+
+```{r}
+time_length(mdy("July 13 2025") - A_LA_BASTILLA, unit = "years")
+```
+
+```{r}
+interval(A_LA_BASTILLA, mdy("July 20 2023")) / years()  # ACHTUNG! interval() uses start, end syntax !!!
+```
+
+To return only the integer component of the age use int. div. **%/%**:
+
+```{r}
+interval(A_LA_BASTILLA, mdy("July 20 2023")) %/% years()  
+```
+
+
+Generalizing this work, we can create a function to compute the calendar-based age for a given
+date of birth as of today:
+
+```{r}
+age <- function(birthdate) {
+  birthdate %--% today() %/% years()    # %--% shorthand for interval construction operator
+}
+```
+
+
+Tests:
+
+```{r}
+  age(mdy("January 20, 1952")) 
+  age(mdy("April 20, 1950")) 
+```
 
 
