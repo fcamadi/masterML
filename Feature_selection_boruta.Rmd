@@ -1,0 +1,19 @@
+---
+title: "Feature_selection_boruta"
+author: "Fran Camacho"
+date: "2025-04-21"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Applying feature selection using Boruta package
+
+[Chapter 13 from the book "Machine Learning with R", by Brett Lantz].
+
+For a more robust yet much more computationally intensive feature selection method, the Boruta
+package implements a **wrapper around the random forest algorithm**, which will be introduced in
+Chapter 14, Building Better Learners. For now, it suffices to know that random forests are a variant of
+decision trees, which provide a measure of variable importance.
