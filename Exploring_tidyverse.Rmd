@@ -35,7 +35,7 @@ and drop the features that used to be convenient but are now frustrating."
 
 ```{r}
 titanic_csv <- read.csv("./CSVs/titanic_train.csv")
-titanic_tbl <- as_tibble(titanic_csv)
+titanic_tbl <- as_tibble(titanic_csv)       # in one step with read_csv
 ```
 
 To show the "tibble":
