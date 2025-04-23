@@ -1,0 +1,96 @@
+---
+title: "Imbalanced_data"
+author: "Fran Camacho"
+date: "2025-04-23"
+output: word_document
+---
+
+# Dealing with sparse data
+
+[Chapter 12 from the book "Machine Learning with R", by Brett Lantz].
+
+
+If a dataset has a severe imbalance, with some class levels having too many or too few examples,
+a simple solution to this problem is to subtract examples from the majority classes <- **undersampling**
+
+or add examples of the minority classes  <- **oversampling**
+
+```{r}
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)
+```
+
+
+```{r}
+snsdata_raw <- read_csv("./CSVs/snsdata.csv")
+```
+
+In this dataset, males and people of unknown gender are underrepresented:
+
+```{r}
+table(snsdata_raw$gender)
+```
+
+Some preparation:
+
+- gender feature is recoded as a factor with Male and Female labels and the NA values are 
+recoded to Unknown
+- outlier ages below 13 years or greater than 20 years are replaced by NA values. 
+- Next, using group_by() in combination with mutate() allows us to impute the missing 
+ages with the median age by graduation year.
+- Lastly, we ungroup() the data and reorder the columns with select() such that our 
+features of interest appear first in the dataset
+
+```{r}
+snsdata <- snsdata_raw |>
+  mutate(
+    gender = fct_recode(gender, Female = "F", Male = "M"),
+    gender = fct_na_value_to_level(gender, level = "Unknown"),
+    age = ifelse(age < 13 | age > 20, NA, age)
+  ) |>
+  group_by(gradyear) |>
+  mutate(age_imp = if_else(is.na(age), median(age, na.rm = TRUE), age)) |>
+  ungroup() |>
+  select(gender, friends, gradyear, age_imp, basketball:drugs)
+```
+
+We check again, this time using **fct_count**:
+
+```{r}
+fct_count(snsdata$gender, prop = TRUE)
+```
+
+- Let's try undersampling
+
+```{r}
+sns_undersample <- downSample(x = snsdata[2:40], y = snsdata$gender,
+                              yname = "gender")
+```
+
+Now
+
+```{r}
+fct_count(sns_undersample$gender, prop = TRUE)
+```
+
+We have exactly the same of rows of each category.
+
+
+oversampling:
+
+```{r}
+sns_oversample <- upSample(x = snsdata[2:40], y = snsdata$gender,
+                          yname = "gender")
+```
+
+```{r}
+fct_count(sns_oversample$gender, prop = TRUE)
+```
+
+
+
+
+
