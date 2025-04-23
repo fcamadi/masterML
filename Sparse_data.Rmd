@@ -1,0 +1,190 @@
+---
+title: "Sparse_data"
+author: "Fran Camacho"
+date: "2025-04-23"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Dealing with sparse data
+
+[Chapter 12 from the book "Machine Learning with R", by Brett Lantz].
+
+
+```{r}
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+```
+
+
+## Example – Remapping sparse categorical data
+
+```{r}
+titanic_train <- read_csv("./CSVs/titanic_train.csv") |>
+                  mutate(Title = str_extract(Name, ", [A-z]+\\.")) |>
+                  mutate(Title = str_replace_all(Title, "[, \\.]", ""))
+
+table(titanic_train$Title, useNA = "ifany")
+```
+
+
+```{r}
+titanic_train <- titanic_train |>
+  mutate(TitleGroup = fct_collapse(Title,
+          Mr = "Mr",
+          Mrs = "Mrs",
+          Master = "Master",
+          Miss = c("Miss", "Mlle", "Mme", "Ms"),
+          Noble = c("Don", "Sir", "Jonkheer", "Lady"),
+          Military = c("Capt", "Col", "Major"),
+          Doctor = "Dr",
+          Clergy = "Rev",
+          other_level = "Other")
+        ) |>
+        mutate(TitleGroup = fct_na_value_to_level(TitleGroup, level = "Unknown"))
+```
+
+Examining the new categorization, we see that the 17 original categories have been reduced to 9:
+
+```{r}
+table(titanic_train$TitleGroup)
+```
+
+The **fct_count()** function provides a sorted list of the feature levels and their proportions of the overall total:
+
+```{r}
+fct_count(titanic_train$Title, sort = TRUE, prop = TRUE)
+```
+With **fct_lump()_X** set of functions we can take the top three levels and treat everything else as other:
+
+```{r}
+table(fct_lump_n(titanic_train$Title, n = 3))
+```
+
+Alternatively, we can lump together all levels with less than one percent of the observations:
+
+```{r}
+table(fct_lump_prop(titanic_train$Title, prop = 0.01))
+```
+
+Lastly, we might choose to lump together all levels with less than five observations:
+
+```{r}
+table(fct_lump_min(titanic_train$Title, min = 5))
+```
+
+
+
+## Example – Binning sparse numeric data
+
+```{r}
+titanic_train <- read_csv("./CSVs/titanic_train.csv")
+```
+
+Let's apply discretization techniques to the fare values
+
+```{r}
+head(titanic_train$Fare, 10)
+```
+
+```{r}
+summary(titanic_train$Fare)
+```
+
+```{r}
+titanic_train <- titanic_train |> 
+  mutate(fare_firstclass = if_else(Fare >= 31, 1, 0, missing = 0)
+)
+```
+
+This reduces a feature with nearly 250 distinct values into a new feature with only two:
+
+```{r}
+table(titanic_train$fare_firstclass)
+```
+
+**if_else** is not appropiated when there are more than 2 options.
+tidyverse function called **case_when()** allows the construction of a more complex series of checks to determine the result:
+
+```{r}
+titanic_train <- titanic_train |>
+  mutate(
+    fare_class = case_when(
+                          Fare >= 31 ~ "1st Class",
+                          Fare >= 15 ~ "2nd Class",
+                          TRUE ~ "3rd Class"
+                )
+        )
+```
+
+Now we have
+
+```{r}
+table(titanic_train$fare_class)
+```
+
+
+The **cut()** function.
+It'is included in base R and provides a simple method for creating a factor from
+a numeric vector. 
+
+The breaks parameter specifies the cut points for the numeric range, shown as follows for a three-level factor 
+that matches the previous discretization. 
+
+The right = FALSE parameter indicates that the levels should not include the rightmost, or highest, value and the
+Inf break point indicates that the final category can span the range of values from 31 to infinity.
+
+```{r}
+table(cut(titanic_train$Fare, breaks = c(0, 15, 31, Inf), right = FALSE))
+```
+
+By default, cut() sets labels for factors that indicate the range of values.
+
+cut combined with seq:
+
+```{r}
+table(cut(titanic_train$Fare, right = FALSE, breaks = seq(from = 0, to = 550, by = 50)))
+```
+
+As an alternative to having equally sized intervals, we can construct bins with an equal number of
+examples (using **quantile()**:
+
+```{r}
+table(cut(titanic_train$Fare, right = FALSE,
+              breaks = quantile(titanic_train$Fare, probs = seq(0, 1, 0.20))))
+```
+
+Note that the bins do not contain exactly the same number of examples due to the presence of ties.
+
+The tidyverse also includes a function for creating quantile-based groups, which may be easier to
+use in some cases. This ntile() function divides the data into n groups of equal size. For example,
+it can create five groups as follows:
+
+```{r}
+table(ntile(titanic_train$Fare, n = 5))
+```
+
+Because the function assigns the groups numeric labels, it is important to convert the resulting
+vector to a factor. This can be done directly in a mutate() statement:
+
+```{r}
+titanic_train <- titanic_train |>
+            mutate(fare_level = factor(ntile(Fare, n = 11)))
+```
+
+The resulting feature is
+
+```{r}
+table(titanic_train$fare_level)
+```
+
+Although the level still has numeric labels, because the feature has been coded as a factor, it will
+still be treated as categorical by most R functions.
+
+
+
+
+
