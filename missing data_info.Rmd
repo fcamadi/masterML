@@ -1,0 +1,90 @@
+---
+title: "Missing_data"
+author: "Fran Camacho"
+date: "2025-04-23"
+output: word_document
+---
+
+# Dealing with missing data
+
+[Chapter 12 from the book "Machine Learning with R", by Brett Lantz].
+
+## Understanding types of missing data
+
+1. Data **missing completely at random (MCAR)** is independent of the other features and
+its own value; in other words, it would not be possible to predict whether any particular
+value is missing.
+
+2. Data **missing at random (MAR)** may depend on other features but not on the underlying
+value, which means that certain, predictable rows are more likely than others to contain
+missing values.
+
+3. Data **missing not at random (MNAR)** is missing due to a reason related to the missing
+value itself. This data is in essence censored from the dataset for some reason impossible
+to discern from the other features in the dataset.
+
+
+## Performing missing value imputation
+
+
+
+```{r}
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+```
+
+
+```{r}
+titanic_train <- titanic_train |>
+    mutate(
+      Cabin = if_else(is.na(Cabin), "X", Cabin),
+      Embarked = if_else(is.na(Embarked), "Unknown", Embarked)
+    )
+```
+
+
+
+### 1) Simple imputation with missing value indicators
+
+In addition to imputing a value in place of the NA, it is especially important to create a 
+**missing value indicator (MVI)**, which is a binary variable that indicates whether the 
+feature value was imputed.
+
+```{r}
+titanic_train <- titanic_train |>
+            mutate(
+                  Age_MVI = if_else(is.na(Age), 1, 0),
+                  Age = if_else(is.na(Age), mean(Age, na.rm = TRUE), Age)
+            )
+```
+
+
+**Both the feature that has been imputed and the MVI should be included as predictors in the**
+**machine learning model.**
+
+[..] if a value is missing, there is probably an explanation for it. 
+For example, in the Titanic dataset, perhaps the missing age implies something 
+about the passenger’s social status or family background.
+
+
+### 2) Missing value patterns
+
+A missing value pattern is essentially a character string composed of a series of MVIs, 
+with each character in the string representing a feature with missing values.
+
+[..] . For example, the first row would be represented by the string '11100000', 
+which indicates that the first three features for this loan applicant were missing. 
+The second applicant, who had no missing data, would be represented by '00000000', 
+hile the second and third would be represented by '00000111' and '01011101', respectively.
+
+Although missing value patterns can be extremely powerful predictors, they are not without some
+challenges. First and foremost, in a dataset containing k features, there are 2 exp k potential values of
+a missing value pattern. A dataset with just 10 features may have as many as 1,024 levels of the
+MVP predictor, while a dataset with 25 features would have over 33 million potential levels
+
+
+
+
+
+
+
