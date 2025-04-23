@@ -5,10 +5,6 @@ date: "2025-04-23"
 output: word_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 # Dealing with sparse data
 
 [Chapter 12 from the book "Machine Learning with R", by Brett Lantz].
