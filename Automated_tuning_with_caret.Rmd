@@ -2,8 +2,13 @@
 title: "Automated_tuning_with_caret"
 author: "Fran Camacho"
 date: "2025-04-24"
-output: html_document
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
 ---
+
+
 
 # Example – using caret for automated tuning
 
@@ -22,9 +27,17 @@ set of tuning values?
 
 
 ```{r}
+if (!require(C50)) install.packages('C50', dependencies = T)  # Decision trees C5.0 algorithm
+library(C50)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)
+```
+
+
+```{r}
 algor_list <- read.csv("./CSVs/algorithm_list.csv", sep = ";")
-algor_list[1:7,]
-algor_list[8:14,]
+algor_list
 ```
 [
 For a complete list of the models and corresponding tuning options covered by caret,
@@ -48,14 +61,6 @@ up to 27 different candidate models, comprising the grid of 3 exp 3 = 27 combina
 
 
 ### Creating a simple tuned model
-
-```{r}
-if (!require(C50)) install.packages('C50', dependencies = T)  # Decision trees C5.0 algorithm
-library(C50)
-
-if (!require(caret)) install.packages('caret', dependencies = T)
-library(caret)
-```
 
 Import data:
 
@@ -163,3 +168,127 @@ head(predict(m, credit, type = "prob"))
 Even in cases where the underlying model refers to the prediction probabilities using a different
 string (for example, "raw" for a naiveBayes model), the predict() function will translate 
 **type = "prob"** to the appropriate parameter setting automatically.
+
+
+### Customizing the tuning process
+
+The **trainControl()** function is used to create a set of configuration options known as a control
+object. This object guides the **train()** function and allows for the selection of model evaluation
+criteria such as the resampling strategy and the measure used for choosing the best model. Although
+this function can be used to modify nearly every aspect of a caret tuning experiment, we’ll focus 
+on two important parameters: **method** and **selectionFunction**.
+
+When using the trainControl() function, the method parameter sets the resampling method,
+such as holdout sampling or k-fold CV. The following table lists the possible method values, as
+well as any additional parameters for adjusting the sample size and the number of iteration:
+
+
+```{r table2, echo=FALSE, message=FALSE, warnings=FALSE, results='asis'}
+train_control <- "
+|+++++++++++++++++++++|++++++++++++++++|+++++++++++++++++++++++++++++++++++++++|
+| Resampling method   | Method name     | Additional options and default values|
+|+++++++++++++++++++++|+++++++++++++++++|++++++++++++++++++++++++++++++++++++++|
+| Holdout sampling    | LGOCV           | p = 0.75 (training data proportion)  |
+|---------------------|-----------------|--------------------------------------|
+| k-fold CV           | cv              |   number = 10 (number of folds)      |
+|---------------------|-----------------|--------------------------------------|
+| Repeated k-fold CV  | repeatedcv      |   number = 10 (number of folds)      |
+|                     |                 |   repeats = 10 (number of iterations)|
+|---------------------|-----------------|--------------------------------------|
+| Bootstrap sampling  |  boot           | number = 25 (resampling iterations)  |
+|---------------------|-----------------|--------------------------------------|
+| 0.632 bootstrap     |  boot63         | number = 25 (resampling iterations)  |
+|---------------------|-----------------|--------------------------------------|
+| Leave-one-out CV    |  LOOCV          | None                                 |
+|---------------------|-----------------|--------------------------------------|
+"
+cat(train_control) # output the table in a format good for HTML/PDF/docx conversion
+```
+
+The **selectionFunction** parameter is used to specify the function that will choose the optimal
+model among the candidates. Three such functions are included. 
+
+The best function simply chooses the candidate with the best value on the specified performance measure. 
+This is used by default. 
+
+The other two functions are used to choose the most parsimonious, or simplest, model
+that is within a certain threshold of the best model’s performance. 
+
+The **oneSE** function chooses the simplest candidate within one standard error of the best performance, 
+and **tolerance** uses the simplest candidate within a user-specified percentage.
+
+To create a **control object** named ctrl that uses 10-fold CV and the oneSE selection function:
+
+```{r}
+ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "oneSE")
+```
+
+We’ll use the result of this function shortly.
+
+The next step in setting up our experiment is to create the search grid for hyperparameter tuning. 
+The grid must include a column named for each hyperparameter in the desired model, 
+regardless of whether it will be tuned. 
+It must also include a row for each desired combination of values to test. 
+We are using a C5.0 decision tree, so we’ll need columns named model, trials, and winnow.
+
+Rather than filling the grid data frame cell by cell—a tedious task if there are many possible 
+combinations of values—we can use the **expand.grid()** function:
+
+```{r}
+grid <- expand.grid(model = "tree",
+                    trials = c(1, 5, 10, 15, 20, 25, 30, 35),
+                    winnow = FALSE)
+```
+
+The resulting grid data frame contains 1*8*1 = 8 rows:
+
+```{r}
+grid
+```
+
+The train() function will build a candidate model for evaluation using each grid row’s 
+combination of model parameters.
+
+
+Given the search grid and the control object created previously, we are ready to run 
+a thoroughly customized train() experiment.
+
+```{r}
+set.seed(300)
+
+m <- train(default ~ ., data = credit, method = "C5.0",
+            metric = "Kappa",
+            trControl = ctrl,
+            tuneGrid = grid)
+```
+
+This results in an object that we can view by typing its name:
+
+```{r}
+m
+```
+
+Although the output is similar to the automatically tuned model, there are a few notable differ-
+ences. Because 10-fold CV was used, the sample size to build each candidate model was reduced
+to 900 rather than the 1,000 used in the bootstrap. Furthermore, eight candidate models were
+tested rather than the 12 in the prior experiment.
+
+The best model here differs quite significantly from the prior experiment. Before, the best model
+used trials = 20, whereas here, it used **trials = 5**. This change is because we used the oneSE
+function rather than the best function to select the optimal model. Even though the model with
+trials = 35 obtained the best kappa, the single-trial model offers reasonably close performance
+with a much simpler algorithm.
+
+[
+
+Due to the large number of configuration parameters, caret can seem overwhelming at first. 
+Don’t let this deter you: there is no easier way to test the performance of models using 10-fold CV. 
+
+Instead, think of the experiment as defined by two parts:
+
+- a **trainControl()** object that dictates the testing criteria, 
+- and a tuning **grid** that determines what model parameters to evaluate. 
+
+Supply these to the train() function and with a bit of computing time, the experiment will be complete.
+
+]
