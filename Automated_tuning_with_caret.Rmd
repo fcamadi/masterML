@@ -1,0 +1,165 @@
+---
+title: "Automated_tuning_with_caret"
+author: "Fran Camacho"
+date: "2025-04-24"
+output: html_document
+---
+
+# Example – using caret for automated tuning
+
+[Chapter 14 from the book "Machine Learning with R", by Brett Lantz].
+
+Automated parameter tuning with caret will require you to consider three questions:
+
+• What type of machine learning algorithm (and specific R implementation of this algorithm) 
+should be trained on the data?
+
+• Which hyperparameters can be adjusted for this algorithm, and how extensively should
+they be tuned to find the optimal settings?
+
+• What criterion should be used to evaluate the candidate models to identify the best overall
+set of tuning values?
+
+
+```{r}
+algor_list <- read.csv("./CSVs/algorithm_list.csv", sep = ";")
+algor_list[1:7,]
+algor_list[8:14,]
+```
+[
+For a complete list of the models and corresponding tuning options covered by caret,
+refer to the table provided by package author Max Kuhn at 
+
+  http://topepo.github.io/caret/available-models.html.
+]
+
+If you ever forget the tuning parameters for a particular model, the modelLookup() function can
+be used to find them. Simply supply the method name as illustrated for the C5.0 model:
+
+```{r}
+modelLookup("C5.0")
+```
+
+By default, caret searches, at most, three values for each of the model’s p hyperparameters, 
+which means that, at most, 3 p candidate models will be tested. For example, by default, 
+the automatic tuning of k-nearest neighbors will compare 3 exp 1 = 3 candidate models 
+with k=5, k=7, and k=9. Similarly, tuning a decision tree will result in a comparison of 
+up to 27 different candidate models, comprising the grid of 3 exp 3 = 27 combinations of model, trials, and winnow settings.
+
+
+### Creating a simple tuned model
+
+```{r}
+if (!require(C50)) install.packages('C50', dependencies = T)  # Decision trees C5.0 algorithm
+library(C50)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)
+```
+
+Import data:
+
+```{r}
+credit <- read.csv("./CSVs/credit.csv", sep = ",")
+```
+
+Create simple model
+
+To illustrate the process of tuning a model, let’s begin by observing what happens when we
+attempt to tune the credit scoring model using the caret package’s default settings. The simplest
+way to tune a learner requires only that you specify a model type via the method parameter.
+
+Since we used C5.0 decision trees previously with the credit model, we’ll continue our work by
+optimizing this learner. 
+
+[
+
+To create a model:
+
+```{r}
+# target must be a factor
+credit$default <- factor(ifelse(credit$default=="yes","yes","no"))
+```
+
+```{r}
+system.time({
+simple_model <- C5.0(default ~ ., data = credit)
+})
+```
+]
+
+The basic train() command for tuning a C5.0 decision tree using the
+default settings is as follows:
+
+```{r}
+set.seed(300)
+
+system.time({
+  m <- train(default ~ ., data = credit, method = "C5.0")
+})
+```
+
+R must repeatedly generate random bootstrap
+samples of data, build decision trees, compute performance statistics, and evaluate the result.
+Because there are 12 candidate models with varying hyperparameter values to be evaluated, and
+25 bootstrap samples per candidate model to compute an average performance measure, there
+are 25*12 = 300 decision tree models being built using C5.0—and this doesn’t even count the
+additional decision trees being built when the boosting trials are set!
+
+To display the models calculated by caret train function:
+
+```{r}
+m
+```
+The final values used for the model were **trials = 20, model = tree and winnow = FALSE**.
+
+```{r}
+#str(m)
+```
+
+After identifying the best model, the train() function uses the tuned hyperparameters to build
+a model on the full input dataset, which is stored in m as m$finalModel. In most cases, you will
+not need to work directly with the finalModel sub-object. Instead, simply use the predict()
+function with the m object as follows:
+
+```{r}
+p <- predict(m, credit)
+```
+
+The resulting vector of predictions works as expected, allowing us to create a confusion matrix
+that compares the predicted and actual values:
+
+```{r}
+table(p, credit$default)
+```
+
+Of the 1,000 examples used for training the final model, only two were misclassified, for an accu-
+racy of 99.8 percent. However, it is very important to note that since the model was built on both
+the training and test data, this accuracy is optimistic and thus should not be viewed as indicative
+of performance on unseen data.
+
+In addition to automatic hyperparameter tuning, using the caret package’s train() and predict()
+functions also offers a pair of benefits beyond the functions found in the stock packages.
+
+i) First, any data preparation steps applied by the train() function will be similarly applied to the
+data used for generating predictions. This includes transformations like centering and scaling,
+as well as the imputation of missing values.
+
+ii) Second, the predict() function provides a standardized interface for obtaining predicted class
+values and predicted class probabilities, even for model types that ordinarily would require ad-
+ditional steps to obtain this information. For a classification model, the predicted classes are
+provided by default:
+
+```{r}
+head(predict(m, credit))
+```
+
+To obtain the estimated probabilities for each class, use the type = "prob" parameter:
+
+```{r}
+head(predict(m, credit, type = "prob"))
+```
+
+Even in cases where the underlying model refers to the prediction probabilities using a different
+string (for example, "raw" for a naiveBayes model), the predict() function will translate 
+**type = "prob"** to the appropriate parameter setting automatically.
