@@ -9,7 +9,6 @@ output: word_document
 
 [Chapter 12 from the book "Machine Learning with R", by Brett Lantz].
 
-
 If a dataset has a severe imbalance, with some class levels having too many or too few examples,
 a simple solution to this problem is to subtract examples from the majority classes <- **undersampling**
 
@@ -21,6 +20,10 @@ library(tidyverse)
 
 if (!require(caret)) install.packages('caret', dependencies = T)
 library(caret)
+
+# themis contains extra steps for the recipes package for dealing with unbalanced data. 
+if (!require(themis)) install.packages('themis', dependencies = T)
+library(themis)
 ```
 
 
@@ -79,7 +82,7 @@ fct_count(sns_undersample$gender, prop = TRUE)
 We have exactly the same of rows of each category.
 
 
-oversampling:
+- oversampling:
 
 ```{r}
 sns_oversample <- upSample(x = snsdata[2:40], y = snsdata$gender,
@@ -90,7 +93,140 @@ sns_oversample <- upSample(x = snsdata[2:40], y = snsdata$gender,
 fct_count(sns_oversample$gender, prop = TRUE)
 ```
 
+Compare some features:
+
+```{r}
+summary(snsdata[2:11])
+```
+
+```{r}
+summary(sns_undersample[1:10])
+```
+
+```{r}
+summary(sns_oversample[1:10])
+```
+
+## Generating a synthetic balanced dataset with SMOTE
+
+In addition to undersampling and oversampling, a third rebalancing approach, called synthetic
+generation, **creates brand-new examples of the minority class** with the goal of reducing 
+oversampling’s tendency to overfit the minority class examples.
+
+There are many synthetic generation rebalancing methods, but one of the first to gain widespread 
+prominence was the **SMOTE** algorithm  ->  **S**ynthetic **M**inority **O**versampling **TE**chnique.
+
+How exactly are the synthetic records constructed? This is where the **k-Nearest Neighbors**
+technique comes in. The algorithm finds the k nearest neighbors of each of the original
+observations of the minority class.
+
+For example, to double the minority class, it would randomly select one nearest neighbor out of five 
+for each of the original observations.
+To triple the original data, two out of the five nearest neighbors would be selected for each observation, 
+and so on.
+
+Because randomly selecting the nearest neighbors merely copies the original data, one more
+step is needed to generate synthetic observations: 
+
+In this step, the algorithm identifies the vector between each of the original observations and 
+its randomly chosen nearest neighbors. A random number between 0 and 1 is chosen to reflect the 
+proportion of distance along this line to place the synthetic data point. 
+This point’s feature values will be somewhere between 100 percent identical to the original observation’s 
+feature values and 100 percent identical to the neighbor’s feature values—or anywhere in between.
+
+Of course, the SMOTE algorithm’s reliance on nearest neighbors and the use of distance functions
+means that the same data preparation caveats apply as would with k-NN. 
+- First, the dataset needs to be completely numeric. 
+- Second, although it is not strictly necessary, it may be a good idea to transform the numeric feature
+values to fall on the same scale so that large ranges do not dominate the selection of nearest neighbors.
 
 
+### Example – Applying the SMOTE algorithm in R
 
 
+```{r}
+library(themis)
+sns_balanced <- snsdata |> smote("gender")  # using gender as the feature to balance
+```
+
+Now:
+
+```{r}
+table(sns_balanced$gender)
+```
+
+
+Although this created a gender balance, because the SMOTE algorithm relies on nearest neighbors
+that are determined by distance calculations, it may be better to normalize the data prior to gen-
+erating the synthetic data. For instance, because the friends feature ranges from 0 to 830 while
+the football feature ranges only from 0 to 15, it is likely that the nearest neighbors will gravitate
+toward those with similar friend counts rather than similar interests.
+
+```{r}
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+```
+
+To return the data back to its original scale, we’ll also need an unnormalize() function:
+
+
+```{r}
+unnormalize <- function(norm_vals, col_name) {
+  old_vals <- snsdata[col_name]
+  unnormalized_vals <- norm_vals * (max(old_vals) - min(old_vals)) + min(old_vals)
+  rounded_vals <- if(col_name != "age_imp") {
+                    round(unnormalized_vals) 
+                  } else {
+                    unnormalized_vals
+                  }
+  return (rounded_vals)
+}
+```
+
+With a sequence of pipes, we can apply normalization before using the smote() function, followed
+by unnormalization afterward. 
+This uses the dplyr **across()** function to normalize and unnormalize the columns where the data type is numeric.
+(The normalize() function did not require the use of a lambda because it uses only one parameter,
+whereas unnormalize() uses two. The .x refers to the vector of data in the column and is passed
+as the first parameter, while the cur_column() function is used to pass the name of the current
+column as the second parameter)
+
+```{r}
+snsdata_balanced <- snsdata |>
+  mutate(across(where(is.numeric), normalize)) |>
+  smote("gender") |>
+  mutate(across(where(is.numeric), ~unnormalize(.x, cur_column())))
+```
+
+```{r}
+table(snsdata$gender)
+
+table(snsdata_balanced$gender)
+```
+
+
+This balanced dataset can now be used with machine learning algorithms, keeping in mind that 
+the model will be based mostly on synthetic cases rather than “real” examples of the minority classes. 
+Whether or not this resultsin improved performance may vary from project to project, for reasons that 
+are discussed in the following section.
+
+### Considering whether balanced is always better
+
+The issue is whether artificially balancing the dataset can improve the overall performance 
+of a learning algorithm, or if it is just
+
+  **trading a reduction in specificity for an improvement in sensitivity.**
+  
+Because a learning algorithm that has been trained on an artificially balanced dataset will 
+someday be deployed on the original, imbalanced dataset ...
+
+[...] both perspectives are in opposition to a body of empirical and anecdotal evidence
+suggesting that artificially balancing a dataset, in fact, does improve the performance of a model.
+  
+It may have something to do with the choice of tool.
+Statistical learning algorithms, such as **regression, may be well calibrated**, meaning that they do
+a good job estimating the true underlying probabilities of an outcome.
+Many ML algorithms, such as **decision trees and naive Bayes**, are **not well calibrated**, 
+and thus may need a bit of help via artificial balancing in order to produce reasonable
+probabilities.
