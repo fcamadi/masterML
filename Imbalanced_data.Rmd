@@ -7,7 +7,7 @@ output: word_document
 
 # Dealing with sparse data
 
-[Chapter 12 from the book "Machine Learning with R", by Brett Lantz].
+[Chapter 13 from the book "Machine Learning with R", by Brett Lantz].
 
 If a dataset has a severe imbalance, with some class levels having too many or too few examples,
 a simple solution to this problem is to subtract examples from the majority classes <- **undersampling**
