@@ -1,0 +1,295 @@
+---
+title: "Ensemble_algorithms"
+author: "Fran Camacho"
+date: "2025-04-25"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+
+
+# Popular ensemble-based algorithms
+
+[Chapter 14 from the book "Machine Learning with R", by Brett Lantz].
+
+
+## Bagging
+
+[...] generating several new training datasets using bootstrap sampling on the original
+training data. These datasets are then used to generate a set of models using a single learning
+algorithm. The models’ predictions are combined using voting for classification and averaging
+for numeric prediction.
+
+It can perform quite well if it is used with relatively unstable learners.
+
+For this reason, bagging is most often used with decision trees, which have the tendency to vary
+dramatically given minor changes in input data.
+
+ipred:
+
+```{r}
+# ipred package offers a classic implementation of bagged decision trees
+if (!require(ipred)) install.packages('ipred', dependencies = T) 
+library(ipred)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)
+
+if (!require(adabag)) install.packages('adabag', dependencies = T)
+library(adabag)
+
+if (!require(vcd)) install.packages('vcd', dependencies = T)
+library(vcd)
+
+## random forests libraries:  randomForest and ranger
+if (!require(randomForest)) install.packages('randomForest', dependencies = T)
+library(randomForest)
+
+if (!require(ranger)) install.packages('ranger', dependencies = T)
+library(ranger)
+```
+
+
+```{r}
+credit <- read.csv("./CSVs/credit.csv", stringsAsFactors = TRUE)
+```
+
+Create ensemble:
+
+```{r}
+set.seed(123)
+
+mybag <- bagging(default ~ ., data = credit, nbagg = 25)  # default value of 25 decision trees
+```
+
+The resulting mybag model works as expected in concert with the predict() function:
+
+```{r}
+credit_pred <- predict(mybag, credit)
+
+table(credit_pred, credit$default)
+```
+
+Given the preceding results, the model seems to have fit the data extremely well—too well, proba-
+bly, as the results are based only on the training data and thus may reflect overfitting rather than
+true performance on future unseen data. 
+To obtain a better estimate of future performance, we can use the bagged decision tree method 
+in the caret package to obtain a 10-fold CV estimate of accuracy and kappa. 
+
+Note that the method name for the ipred bagging function is **treebag**:
+
+```{r}
+set.seed(300)
+
+ctrl <- trainControl(method = "cv", number = 10)
+train(default ~ ., data = credit, method = "treebag", trControl = ctrl)
+```
+
+The kappa statistic of 0.33 for this model suggests that the bagged tree model performs roughly
+as well as the C5.0 decision tree we tuned earlier in this chapter, which had a kappa statistic
+ranging from 0.32 to 0.34, depending on the tuning parameters.
+
+
+## Boosting
+
+Like bagging, boosting uses ensembles of models trained on resampled data and a vote to deter-
+mine the final prediction. There are two key distinctions:
+
+- First, the resampled datasets in boosting are constructed specifically to generate complementary 
+learners. This means that the work cannot occur in parallel, as the ensemble’s models are no longer 
+independent from one another.
+
+- Second, rather than giving each learner an equal vote, boosting gives each learner a vote that is
+weighted based on its past performance. Models that perform better have greater influence over
+the ensemble’s final prediction.
+
+
+A boosting algorithm called **AdaBoost**, short for adaptive boosting, was proposed by Freund and
+Schapire in 1997. The algorithm is based on the idea of generating weak learners that iteratively
+learn a larger portion of the difficult-to-classify examples in the training data by paying more
+attention (that is, giving more weight) to often misclassified examples.
+
+Though boosting principles can be applied to nearly any type of model, the principles are most
+often used with decision trees.
+
+
+```{r}
+set.seed(300)
+
+m_adaboost <- boosting(default ~ ., data = credit)
+```
+
+
+As usual, the predict() function is applied to the resulting object to make predictions:
+
+```{r}
+p_adaboost <- predict(m_adaboost, credit)
+```
+
+Departing from convention, rather than returning a vector of predictions, this returns an object
+with information about the model. The predictions are stored in a sub-object called class:
+
+```{r}
+head(p_adaboost$class)
+```
+
+
+And a confusion matrix can be found in the confusion sub-object:
+
+```{r}
+p_adaboost$confusion
+```
+
+Before you get your hopes up about the perfect accuracy, note that the preceding confusion matrix
+is based on the model’s performance on the training data. Since boosting allows the error rate to
+be reduced to an arbitrarily low level, the learner simply continued until it made no more errors.
+This likely resulted in overfitting on the training dataset.
+
+For a more accurate assessment of performance on unseen data, we need to use another evaluation
+method. The adabag package provides a simple function to use 10-fold CV:
+
+
+```{r}
+set.seed(300)
+
+system.time({
+  adaboost_cv <- boosting.cv(default ~ ., data = credit)
+})
+
+```
+
+
+```{r}
+adaboost_cv$confusion
+```
+
+We can find the kappa statistic using the vcd package:
+
+```{r}
+Kappa(adaboost_cv$confusion)
+```
+
+With a kappa of 0.3397, the boosted model is slightly outperforming the bagged decision trees,
+which had a kappa of around 0.3319. Let’s see how boosting compares to another ensemble
+method.
+
+
+## Random forests
+
+random forests, are built upon the principles of bagging but adds additional diversity 
+to the decision trees by only allowing the algorithm to choose from a randomly selected 
+subset of features each time it attempts to split. 
+
+Beginning at the root node, the random forest algorithm might only be allowed to choose 
+from a small number of features selected at random from the full set of predictors; 
+at each subsequent split, a different random subset is provided. 
+
+As is the case for bagging, once the ensemble of trees (the forest) is generated, 
+the algorithm performs a simple vote to make the final prediction.
+
+The fact that each tree is built on different and randomly selected sets of features helps ensure
+that each tree in the ensemble is unique. It is even possible that two trees in the forest may have
+been built from completely different sets of features.
+
+
+Given these strengths, it is no surprise that the random forest algorithm quickly grew to become
+one of the most popular learning algorithms—only recently has its hype been surpassed by a
+newer ensemble method, which you will learn about shortly.  <- XGBoost, I supppose ...
+
+Strengths:
+
+• An all-purpose model that performs well on most problems, including both
+classification and numeric prediction
+• Can handle noisy or missing data as well as categorical or continuous features
+• Select only the most important features
+• Can be used on data with an extremely large number of features or examples
+
+Weaknesses:
+
+• Unlike a decision tree, the model is not easily interpretable
+• May struggle with categorical features with very large numbers of levels
+• Cannot be extensively tuned if greater performance is desired
+
+
+For a hands-on demonstration of random forests, we’ll apply the technique to the credit-scoring
+data we’ve been using in this chapter.
+
+Although there are several packages with random forest implementations in R, 
+the aptly named **randomForest package** is perhaps the simplest, while
+the **ranger package** offers much better performance on large datasets. 
+Both are supported by the **caret package** for experimentation and automated parameter tuning.
+
+```{r}
+set.seed(300)
+
+rf <- randomForest(default ~ ., data = credit)
+```
+
+
+For a summary of model performance:
+
+```{r}
+rf
+```
+ 
+At first glance, you might be alarmed at the seemingly poor performance according to the 
+confusion matrix—the error rate of 23.3 percent is far worse than the **resubstitution** error
+of any of the other ensemble methods so far. 
+
+However, this confusion matrix does not show a resubstitution error. Instead, it reflects 
+the **out-of-bag error rate** (listed in the output as **OOB estimate of error rate**), 
+which, unlike a resubstitution error, is an unbiased estimate of the test set error. 
+This means that it should be a fair estimate of future performance.
+
+
+
+To calculate the kappa statistic on the out-of-bag predictions, we can [..] apply the Kappa() 
+function to the first two rows and columns of the confusion object, which stores 
+the confusion matrix of the out-of-bag predictions:
+
+```{r}
+rf$confusion[1:2,1:2]
+```
+
+
+```{r}
+Kappa(rf$confusion[1:2,1:2])
+```
+
+With a kappa statistic of 0.381, the random forest is our best-performing model yet. 
+Its performance was better than the bagged decision tree ensemble, which had a kappa 
+of about 0.332, as well as the AdaBoost.M1 model, which had a kappa of about 0.340.
+
+Packet **ranger**:
+
+To recreate the previous model using ranger, we simply change the function name:
+
+```{r}
+set.seed(300)
+
+m_ranger <- ranger(default ~ ., data = credit)
+```
+
+
+The resulting model has quite a similar out-of-bag prediction error:
+
+```{r}
+m_ranger
+```
+
+We can compute kappa much as before while noting the slight difference in how the model’s
+confusion matrix sub-object was named:
+
+```{r}
+Kappa(m_ranger$confusion.matrix)
+```
+
+The kappa value is 0.381, which is the same as the result from the earlier random forest model.
+This is coincidental, as the two algorithms are not guaranteed to produce identical results.
+
+
+
+
+
