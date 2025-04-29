@@ -1,0 +1,246 @@
+---
+title: "Ensemble_alg_XGBoost"
+author: "Fran Camacho"
+date: "2025-04-29"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Extreme gradient boosting with XGBoost
+
+A cutting-edge implementation of the gradient boosting technique can be found in the XGBoost
+algorithm , which takes boosting to the “extreme” by improving the al-
+gorithm’s efficiency and performance.
+
+https://xgboost.ai
+
+
+Strengths
+
+• An all-purpose classifier that can perform extremely well on both classification
+and numeric prediction
+
+• Perhaps undisputedly, the current champion of performance on traditional learning problems;
+wins virtually every machine learning competition on structured data
+
+• Highly scalable, performs well on large datasets, and can be run in parallel on 
+distributed computing platforms
+
+Weaknesses
+
+• More challenging to use than other functions, as it relies on external
+frameworks that do not use native R data structures
+
+• Requires extensive tuning of a large set of hyperparameters that can be difficult
+to understand without a strong math background
+
+• Because there are many tuning parameters, finding the best combination requires many
+iterations and more computing power
+
+• Results in a “black box” model that is nearly impossible to interpret without
+explainability tools
+
+
+
+Example:
+
+```{r}
+# https://xgboost.readthedocs.io/en/release_3.0.0/install.html#r
+if (!require(xgboost)) install.packages('xgboost', repos = c('https://dmlc.r-universe.dev', 'https://cloud.r-project.org'))
+library(xgboost)
+
+if (!require(vcd)) install.packages('vcd', dependencies = T) # Kappa
+library(vcd)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)
+
+if (!require(Matrix)) install.packages('Matrix', dependencies = T)
+library(Matrix)
+```
+
+
+One of the challenges with using XGBoost in R is its need to use data in matrix format rather than
+R’s preferred formats of tibbles or data frames. Because XGBoost is designed for extremely large
+datasets, it can also use sparse matrices.
+
+Let’s begin by reading the credit.csv file and creating a sparse matrix of data from the credit
+data frame. The Matrix package provides a function to perform this task, which uses the R formula
+interface to determine the columns to include in the matrix.
+
+```{r}
+credit <- read.csv("./CSVs/credit.csv", stringsAsFactors = TRUE)
+```
+
+Matrix:
+
+```{r}
+credit_matrix <- sparse.model.matrix(~ . -default, data = credit)
+
+# check
+dim(credit)
+dim(credit_matrix)
+```
+
+
+```{r}
+print(credit_matrix[1:5, ])
+```
+
+The matrix is depicted with the dot (.) character indicating cells with zero values. 
+The first column (1, 2, 3, 4, 5) is the row number and the second column (1, 1, 1, 1, 1) 
+is a column for the intercept term, which was added automatically by the R formula interface. 
+
+Two columns have numbers (6, 48, ...) and (1169, 5951, ...) that correspond to the 
+numeric values of the months_loan_duration and amount features, respectively. 
+All other columns are dummy-coded versions of factor variables.
+
+Since we are not building a regression model, the intercept column full of 1 values is useless for
+this analysis and can be removed from the matrix:
+
+```{r}
+credit_matrix <- credit_matrix[, -1]
+```
+
+
+Next, we’ll split the matrix at random into training and test sets using a 90-10 split
+
+```{r}
+set.seed(12345)
+
+train_ids <- sample(1000, 900)
+credit_train <- credit_matrix[train_ids, ]
+credit_test <- credit_matrix[-train_ids, ]
+```
+
+
+Check:
+
+```{r}
+dim(credit_train)
+
+dim(credit_test)
+```
+
+Lastly, we’ll create training and test vectors of labels for default, the target to be predicted:
+
+```{r}
+credit_train_labels <- ifelse(credit[train_ids, c("default")] == "yes", 1, 0)
+
+credit_test_labels <- ifelse(credit[-train_ids, c("default")] == "yes", 1, 0)
+```
+
+We’re now ready to start building the model:
+
+```{r}
+
+params.xgb <- list(objective= "binary:logistic",
+                    max_depth= 6,
+                    eta= 0.3,
+                    gamma= 0,
+                    colsample_bytree = 1,
+                    min_child_weight = 1,
+                    subsample = 1)
+
+```
+
+
+Next, after setting the random seed, we’ll train the model, supplying our parameters object as
+well as the matrix of training data and the target labels:
+
+```{r}
+set.seed(555)
+
+xgb_credit <- xgboost(params = params.xgb,
+                      data = credit_train,
+                      label = credit_train_labels,
+                      nrounds = 100,
+                      verbose = 1,
+                      print_every_n = 10)
+```
+
+Knowing whether additional iterations would help the model performance or result in overfitting
+is something we can determine via tuning later. Before doing so, let’s look at the performance of
+this trained model on the test set:
+
+```{r}
+prob_default <- predict(xgb_credit, credit_test)
+
+pred_default <- ifelse(prob_default > 0.50, 1, 0)
+
+table(pred_default, credit_test_labels)
+```
+
+On the other hand, the kappa statistic suggests there is still room to improve:
+
+```{r}
+Kappa(table(pred_default, credit_test_labels))
+```
+
+The value of 0.3766 is a bit lower than the 0.394 we obtained with the GBM model, so perhaps
+a bit of hyperparameter tuning can help. For this, we’ll use caret, starting with a tuning grid
+comprising a variety of options for each of the hyperparameters:
+
+```{r}
+# The resulting grid contains 2 * 3 * 2 * 3 * 3 * 2 * 1 = 216 different combinations
+# of xgboost hyperparameter values
+
+# grid
+system.time({
+  grid_xgb <- expand.grid(eta = c(0.3, 0.4),
+                        max_depth = c(1, 2, 3),
+                        colsample_bytree = c(0.6, 0.8),
+                        subsample = c(0.50, 0.75, 1.00),
+                        nrounds = c(50, 100, 150),
+                        gamma = c(0, 1),
+                        min_child_weight = 1
+  )
+})
+
+# control
+ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "best")
+```
+
+
+```{r}
+set.seed(300)
+
+system.time({
+  m_xgb <- train(default ~ ., data = credit, method = "xgbTree",
+                trControl = ctrl, tuneGrid = grid_xgb,
+                metric = "Kappa", verbosity = 0)
+})
+```
+
+To obtain the best model:
+
+```{r}
+m_xgb
+```
+
+To obtain the best model:
+
+```{r}
+m_xgb$bestTune
+```
+
+With kappa:
+
+```{r}
+max(m_xgb$results["Kappa"])
+```
+
+Better than the first try of GBM (in the book, 0.394) and almost so good as the best 
+result of GBM (0.4230 vs 0.4346).
+
+The fact that XGBoost required so little effort to train —with a bit of fine-tuning—
+yet still surpassed other powerful techniques provides examples of why it always seems 
+to win machine learning competitions. Yet, with even more tuning, it may be possible 
+to get better.
+
+
+
+
