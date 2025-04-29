@@ -1,0 +1,272 @@
+---
+title: "Ensemble_alg_grad_boosting_xgboost"
+author: "Fran Camacho"
+date: "2025-04-28"
+output: word_document
+---
+
+
+
+# Popular ensemble-based algorithms:  Gradient Boosting and Extreme Gradient Boosting
+
+[Chapter 14 from the book "Machine Learning with R", by Brett Lantz].
+
+
+
+## Gradient boosting
+
+Gradient boosting is an evolution of the boosting algorithm based on the finding that 
+it is possible to treat the boosting process as an optimization problem to be solved 
+using the gradient descent technique.
+
+[..] a cost function—essentially, the prediction error—relates the input values to the target. 
+Then, by systematically analyzing how changes to the weights affect the cost, it is possible 
+to find the set of weights that minimizes the cost. Gradient boosting treats the process of 
+boosting in much the same way, with the weak learners in the ensemble being treated as 
+the parameters to optimize. Models using this technique are termed **gradient boosting** 
+**machines** or **generalized boosting models** —both of which can be abbreviated as **GBMs**.
+
+
+Strengths
+
+• An all-purpose classifier that can perform extremely well on
+both classification and numeric prediction
+• Can achieve even better performance than random forests
+• Performs well on large datasets
+
+Weaknesses
+
+• May require tuning to match the performance of the random forest
+algorithm and more extensive tuning to exceed its performance
+
+• Because there are several hyperparameters to tune, finding the best combination 
+requires many iterations and more computing power
+
+
+Example:
+
+```{r}
+if (!require(gbm)) install.packages('gbm', dependencies = T)
+library(gbm)
+
+if (!require(vcd)) install.packages('vcd', dependencies = T) # Kappa
+library(vcd)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)
+```
+
+We can train a simple GBM to predict loan defaults on the credit dataset as follows. For sim-
+plicity, we set stringsAsFactors = TRUE to avoid recoding the predictors, but then the target
+default feature must be converted back to a binary outcome, as the gbm() function requires this
+for binary classification. 
+
+```{r}
+credit <- read.csv("./CSVs/credit.csv", stringsAsFactors = TRUE)
+credit$default <- ifelse(credit$default == "yes", 1, 0)
+```
+
+
+We’ll create a random sample for training and testing, then apply the
+gbm() function to the training data, leaving the parameters set to their defaults:
+
+```{r}
+set.seed(123)
+
+train_sample <- sample(1000, 900)
+credit_train <- credit[train_sample, ]
+credit_test <- credit[-train_sample, ]
+```
+
+
+
+```{r}
+set.seed(300)
+
+m_gbm <- gbm(default ~ ., data = credit_train)
+
+m_gbm
+```
+
+More importantly, we can evaluate the model on the test set. Note that we need to convert the
+predictions to binary, as they are given as probabilities. If the probability of loan default is greater
+than 50 percent, we will predict default:
+
+```{r}
+p_gbm <- predict(m_gbm, credit_test, type = "response")
+
+p_gbm_c <- ifelse(p_gbm > 0.50, 1, 0)
+
+table(credit_test$default, p_gbm_c)
+```
+
+
+```{r}
+Kappa(table(credit_test$default, p_gbm_c))
+```
+
+The resulting kappa value of about 0.361 is better than what was obtained with the boosted
+decision tree, but worse than the random forest model. 
+Perhaps with a bit of tuning, we can get this higher.
+
+We’ll use the caret package to tune the GBM model.
+Recall that tuning needs a search grid, which we can define for GBM as follows.
+This will test three values for three of the gbm() function parameters and one value 
+for the remaining parameter, which results in 3 * 3 * 3 *  = 27 models to evaluate:
+
+```{r}
+grid_gbm <- expand.grid(
+  n.trees = c(100, 150, 200, 500),
+  interaction.depth = c(1, 2, 3, 5),
+  shrinkage = c(0.01, 0.1, 0.3, 0.5),
+  n.minobsinnode = c(10, 20,50)     
+)
+```
+
+
+Next, we set the trainControl object to select the best model from a 10-fold CV experiment:
+
+```{r}
+ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "best")
+```
+
+
+```{r}
+credit <- read.csv("./CSVs/credit.csv", stringsAsFactors = TRUE)
+
+set.seed(300)
+
+system.time({
+  m_gbm_c <- train(default ~ ., data = credit, method = "gbm",
+                  trControl = ctrl, tuneGrid = grid_gbm,
+                  metric = "Kappa",
+                  verbose = FALSE)
+})
+```
+
+```{r}
+m_gbm_c
+```
+
+- *1st try*:
+
+The final values used for the model were n.trees = 150, interaction.depth = 2, shrinkage = 0.3 and n.minobsinnode = 20.
+
+  shrinkage  interaction.depth  n.minobsinnode  n.trees  Accuracy  Kappa 
+  0.30       2                  20              150      0.759     0.391683874
+
+- *2nd try*:
+
+The final values used for the model were n.trees = 150, interaction.depth = 5, shrinkage = 0.1 and n.minobsinnode = 10:
+  shrinkage  interaction.depth  n.minobsinnode  n.trees  Accuracy  Kappa 
+  0.10       5                  10              100      0.756     0.369336705
+**0.10       5                  10              150      0.774     0.421692811**
+  0.10       5                  10              200      0.770     0.414526521
+  0.10       5                  10              500      0.760     0.393986579
+
+
+
+Trying with other parameters around those:
+
+```{r}
+#
+grid_gbm_2 <- expand.grid(
+  n.trees = c(140, 150, 160),
+  interaction.depth = c(4, 5, 6),
+  shrinkage = c(0.8, 0.10, 0.12),
+  n.minobsinnode = c(8, 10, 12)     
+)
+```
+
+```{r}
+set.seed(300)
+
+system.time({
+  m_gbm_c_2 <- train(default ~ ., data = credit, method = "gbm",
+                  trControl = ctrl, tuneGrid = grid_gbm_2,
+                  metric = "Kappa",
+                  verbose = FALSE)
+})
+```
+
+
+```{r}
+m_gbm_c_2
+```
+
+- *3rd try*:
+
+The final values used for the model were n.trees = 140, interaction.depth = 5, shrinkage = 0.15 and n.minobsinnode = 10.
+
+  shrinkage  interaction.depth  n.minobsinnode  n.trees  Accuracy  Kappa
+**0.15       5                  10              140      0.770     0.4156085**
+  0.15       5                  10              150      0.771     0.4155120
+  0.15       5                  10              160      0.767     0.4066331
+
+
+- *4th try*:
+
+The final values used for the model were n.trees = 160, interaction.depth = 5, shrinkage = 0.1 and n.minobsinnode = 12.
+
+  shrinkage  interaction.depth  n.minobsinnode  n.trees  Accuracy  Kappa
+  0.10       5                  12              140      0.764     0.3980536
+  0.10       5                  12              150      0.772     0.4185781
+**0.10       5                  12              160      0.779     0.4346548**
+
+
+```{r}
+#
+grid_gbm_3 <- expand.grid(
+  n.trees = c(155, 160, 165),
+  interaction.depth = c(4, 5, 8),
+  shrinkage = c(0.075, 0.10, 0.12),
+  n.minobsinnode = c(11, 12, 13)     
+)
+```
+
+```{r}
+set.seed(300)
+
+system.time({
+  m_gbm_c_3 <- train(default ~ ., data = credit, method = "gbm",
+                  trControl = ctrl, tuneGrid = grid_gbm_3,
+                  metric = "Kappa",
+                  verbose = FALSE)
+})
+```
+
+Last try:
+
+```{r}
+m_gbm_c_3
+```
+
+- *5th try*:
+
+The final values used for the model were n.trees = 158, interaction.depth = 4, shrinkage = 0.11 and n.minobsinnode = 11.
+
+  shrinkage  interaction.depth  n.minobsinnode  n.trees  Accuracy  Kappa
+  0.11       4                  11              158      0.772     0.4105858
+  0.11       4                  11              160      0.768     0.4016882
+  0.11       4                  11              162      0.767     0.3980915
+
+
+- *6h try*:
+
+The final values used for the model were n.trees = 155, interaction.depth = 5, shrinkage = 0.075 and n.minobsinnode = 12.
+
+  shrinkage  interaction.depth  n.minobsinnode  n.trees  Accuracy  Kappa
+  0.075      5                  12              155      0.774     0.4184930
+  0.075      5                  12              160      0.773     0.4173690
+  0.075      5                  12              165      0.771     0.4126159
+  
+  
+  
+  
+- **Best result (4th try)**:
+
+The final values used for the model were n.trees = 160, interaction.depth = 5, shrinkage = 0.1 and n.minobsinnode = 12.
+
+**0.10       5                  12              160      0.779     0.4346548**
+
+
