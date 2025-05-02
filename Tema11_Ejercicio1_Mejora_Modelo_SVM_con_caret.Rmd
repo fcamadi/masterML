@@ -1,0 +1,364 @@
+---
+title: "Tema11_Improve_SVM_Model"
+author: "Fran Camacho"
+date: "2025-05-02"
+output: word_document
+---
+
+
+# Tema 11 - Mejora de un modelo de ML usando la libreria caret
+
+1. Utilizando el procedimiento descrito en el capítulo 11 del libro con la
+librería caret, realice una búsqueda de los parámetros óptimos para
+cualquiera de los modelos de las pruebas de evaluación de los temas 3, 4,
+5, 6 o 7. Comente los resultados obtenidos.
+
+Utilizaremos el tema 7 (SVM). 
+
+http://topepo.github.io/caret/available-models.html
+
+
+Candidatos:
+
+Model        method Vale       Type            Libraries   Tuning Paremeters   
+--------------------------------------------------------------------------------
+SVM with                       Classification,
+RBF kernel	 svmRadial	       Regression       kernlab	     sigma, C
+                        	
+SVM with                       Classification,
+RBF kernel	 svmRadialSigma	   Regression       kernlab	     sigma, C
+
+SVM with 
+Class        svmLinearWeights	Classification	e1071	       cost, weight
+Weights	
+
+
+svmRadial vs svmRadialSigma ???
+
+
+
+## Paso 1: Carga de los datos
+
+```{r}
+# import the CSV file
+bank_raw <- read.csv("CSVs/Bank/bank.csv", sep = ";", stringsAsFactors = TRUE)
+```
+
+
+## Paso 2: Preparación de los datos
+
+Importar librerías necesarias:
+
+```{r}
+#https://www.jstatsoft.org/article/view/v011i09
+if (!require(kernlab)) install.packages('kernlab', dependencies = T)
+library(kernlab) 
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)   
+
+# LIBSVM   https://www.csie.ntu.edu.tw/~cjlin/libsvm/
+if (!require(e1071)) install.packages('e1071', dependencies = T)
+library(e1071)
+```
+
+
+Preparamos el dataset de igual manera a como lo hicimos en el ejercicio 7:
+
+```{r}
+#scale numeric variables (neither day nor month)
+maxs <- apply(bank_raw[c(1,6,12,13,14,15)], 2, max)
+mins <- apply(bank_raw[c(1,6,12,13,14,15)], 2, min)
+
+bank_norm <- data.frame(scale(bank_raw[c(1,6,12,13,14,15)], center = mins, scale = maxs - mins))
+
+#hot encoding of categorical features         
+dummies <- dummyVars(" ~ job + marital + education + default + housing + loan + contact + poutcome", data = bank_raw)
+bank_hot_encoded_feat <-  data.frame(predict(dummies, newdata = bank_raw))
+
+#encoding month (name to number)
+month_to_number <- function(month_name) {
+  month_and_number <- c("jan"=1,"feb"=2,"mar"=3,"apr"=4,"may"=5,"jun"=6,"jul"=7,"aug"=8,"sep"=9,"oct"=10,"nov"=11,"dec"=12)
+  return(month_and_number[as.character(month_name)])
+}
+bank_raw$month_num <- sapply(bank_raw$month, month_to_number)
+
+
+#put all features in the same dataframe
+bank_processed <- cbind(bank_norm,as.numeric(bank_raw$day),bank_raw$month_num,bank_hot_encoded_feat,bank_raw$y)
+names(bank_processed)[7:8] <- c("day","month")
+names(bank_processed)[41] <- "y"
+#head(bank_processed,5)
+```
+
+
+Conjuntos de entrenamiento y validación también de igual manera a como se hizo en el tema 7:
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(bank_processed$y, times=1, p=.75, list=FALSE)
+
+#create training set
+bank_processed_train <- bank_processed[train_indices, ]
+
+#create testing set
+bank_processed_test  <- bank_processed[-train_indices, ]
+
+
+#view number of rows in each set
+nrow(bank_processed_train)  # 3391
+nrow(bank_processed_test)   # 1130
+```
+
+
+## Uso de caret para mejorar el modelo
+
+Para comprobar qué parámetros pueden ser ajustados:
+
+```{r}
+modelLookup("svmRadial")
+#modelLookup("svmRadialSigma") # the same
+```
+
+
+Control:
+
+```{r}
+ctrl_accu <- trainControl(method = "cv", number = 10, selectionFunction = "best", 
+                     classProbs=TRUE)
+
+ctrl_roc <- trainControl(method = "cv", number = 10, selectionFunction = "best", 
+                     summaryFunction=twoClassSummary,    # Use AUC to pick the best model
+                     classProbs=TRUE)
+#ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 5, selectionFunction = "best")
+```
+
+
+Entrenamiento 1:
+
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_accu <- train(y ~ ., data = bank_processed_train, method = "svmRadial",
+            metric = "Accuracy",
+            trControl = ctrl_accu)
+})
+```
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_roc <- train(y ~ ., data = bank_processed_train, method = "svmRadial",
+            metric = "ROC",
+            trControl = ctrl_roc)
+})
+```
+
+```{r}
+cat("Using Accuracy:\n")
+m_accu
+cat("\n")
+cat("\n")
+cat("Using ROC:\n")
+m_roc
+```
+
+Usando exactitud obtenemos **sigma = 0.01716206** y **C = 1.**
+Con ROC obtenemos **sigma = 0.01716206** y **C = 0.25.**
+
+Ahora que se tiene una idea de los valores de sigma y C, podemos construir una rejilla teniendo esto en cuenta.
+
+
+Rejilla/matriz de parámetros:
+
+```{r}
+grid <- expand.grid(C = c(0.15, 0.20, 0.25, 0.30, 0.35, 0.9, 1.0, 1.10),
+                    sigma = c(0.010, 0.015, 0.01716, 0.020, 0.025))
+```
+
+
+```{r}
+grid
+```
+
+Entrenamiento final usando la matriz de parámetros:
+
+- Accuracy
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_accu <- train(y ~ ., data = bank_processed_train, method = "svmRadial",
+            metric = "Accuracy",
+            trControl = ctrl_accu,
+            tuneGrid = grid)
+})
+```
+
+```{r}
+m_accu
+```
+
+```{r}
+plot(m_accu)
+```
+
+- ROC:
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_roc <- train(y ~ ., data = bank_processed_train, method = "svmRadial",
+            metric = "ROC",
+            trControl = ctrl_roc,
+            tuneGrid = grid)
+})
+```
+
+
+```{r}
+m_roc
+```
+
+```{r}
+plot(m_roc)
+```
+
+
+Con los valores de sigma y C obtenidos (son iguales con ambas métricas), evaluamos el modelo con el conjunto de test:
+
+
+```{r}
+m_accu$finalModel
+```
+
+Predicción:
+
+```{r}
+
+m_accu_pred <- predict(m_accu, bank_processed_test[,1:40])
+
+```
+
+Matriz de confusión:
+
+```{r}
+confusionMatrix(ref = as.factor(bank_processed_test$y), data = as.factor(m_accu_pred), positive="yes", mode = "everything")
+```
+
+--------------------------------------------------------------------------------
+
+Se trata de un dataset no balanceado:
+
+
+```{r}
+table(bank_raw$y)
+```
+
+
+
+Mejor usar kappa como criterio?
+
+Control:
+
+```{r}
+ctrl_kappa <- trainControl(method = "cv", number = 10, selectionFunction = "best", 
+                     classProbs=TRUE)
+```
+
+
+Entrenamiento 1:
+
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_kappa <- train(y ~ ., data = bank_processed_train, method = "svmRadial",
+            metric = "Kappa",
+            trControl = ctrl_kappa)
+})
+```
+
+
+```{r}
+m_kappa
+```
+
+
+Entrenamiento final usando la matriz de parámetros:
+
+
+```{r}
+grid_kappa <- expand.grid(C = c(0.8, 0.9, 1.0, 1.10),
+                    sigma = c(0.010, 0.015, 0.01716, 0.020, 0.025))
+```
+
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_kappa <- train(y ~ ., data = bank_processed_train, method = "svmRadial",
+            metric = "Kappa",
+            trControl = ctrl_kappa,
+            tuneGrid = grid_kappa)
+})
+```
+
+
+```{r}
+m_kappa
+```
+
+```{r}
+m_kappa$finalModel
+```
+
+Predicción:
+
+```{r}
+
+m_kappa_pred <- predict(m_kappa, bank_processed_test[,1:40])
+
+```
+
+Matriz de confusión:
+
+```{r}
+confusionMatrix(ref = as.factor(bank_processed_test$y), data = as.factor(m_kappa_pred), positive="yes", mode = "everything")
+```
+
+Resultado practicamente igual a todos los anteriores:
+
+```{r}
+cat("Kappa model vs accuracy model:\n")
+0.8947 - 0.8894
+cat("Kappa model vs task 7 model:\n")
+0.8947 - 0.8965
+```
+
+
+## Conclusiones
+
+La única conclusción que puedo deducir, es que con esta dataset, no es posible pasar del 90% de exactitud. 
+Si se tratara de un dataset balanceado, este valor estaría muy bien.
+Pero dado que se trata de un dataset no balanceado, hay que considerar mejor un parámetro como kappa: 
+y el valor obtenido  (0.27, prácticamente lo mismo que en la tarea del Tema 7, que fue un 0.3), indica que el valor 
+de las predicciones que se obtienen es bastante justo/mediocre.
+
+(Poner la gráfica esa que compara ML tradicional con deep learning según la cantidad de datos disponibles)
+
+
+
+
+
+ 

@@ -1,0 +1,283 @@
+---
+title: "Tema11_Improve_NB_Model"
+author: "Fran Camacho"
+date: "2025-04-30"
+output: word_document
+---
+
+
+# Tema 11 - Mejora de un modelo de ML usando la libreria caret
+
+1. Utilizando el procedimiento descrito en el capítulo 11 del libro con la
+librería caret, realice una búsqueda de los parámetros óptimos para
+cualquiera de los modelos de las pruebas de evaluación de los temas 3, 4,
+5, 6 o 7. Comente los resultados obtenidos.
+
+Utilizaremos el tema 4. 
+
+http://topepo.github.io/caret/available-models.html
+
+Candidatos:
+
+Model        method Vale   Type            Libraries   Tuning Paremeters   
+--------------------------------------------------------------------------------
+Naive Bayes	 naive_bayes	 Classification	 naivebayes	 laplace, usekernel, adjust
+
+Naive Bayes	 nb	           Classification	 klaR	       fL, usekernel, adjust
+
+
+## Paso 1: Carga de los datos
+
+```{r}
+# import the CSV file
+movies_raw <- read.csv(file.path("CSVs", "Movie_pang02.csv"))
+```
+
+## Paso 2: Preparación de los datos
+
+Preparamos el dataset de igual manera a como lo hicimos en el ejercicio 4.
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+if (!require(tm)) install.packages('tm', dependencies = T)   # text mining
+library(tm)
+
+if (!require(SnowballC)) install.packages('SnowballC', dependencies = T)   # stemming
+library(SnowballC)
+
+if (!require(wordcloud)) install.packages('wordcloud', dependencies = T)   # wordclouds
+library(wordcloud)
+
+if (!require(RColorBrewer)) install.packages('RColorBrewer', dependencies = T)   # color palettes
+library(RColorBrewer)
+
+if (!require(naivebayes)) install.packages('naivebayes', dependencies = T)
+library(naivebayes)
+
+if (!require(caret)) install.packages('caret', dependencies = T)   # data partitioning, confusion matrix
+library(caret)         
+```
+
+
+```{r}
+#See the structure
+str(movies_raw)
+```
+
+La columna "class" es de tipo carácter. Ya que se trata en realidad de una variable categórica, la transformábamos en un factor:
+
+```{r}
+#Convert class into a factor
+movies_raw$class <- factor(movies_raw$class)
+
+table(movies_raw$class) # -> 1000 Neg, 1000 Pos
+```
+
+Procesado de los textos:
+
+```{r}
+#create corpus
+movies_corpus <- VCorpus(VectorSource(movies_raw$text))
+print(movies_corpus)
+#inspect(movies_corpus) omitted for brevity
+
+# Process the reviews (we will use some functions from the packate tm)
+
+#To lowercase (content seems to be already in lowercase and without punctuation signs, but just in case)
+movies_corpus_clean <- tm_map(movies_corpus, content_transformer(tolower))
+
+#Check the result (output omitted for brevity)
+#as.character(movies_corpus[[1]])
+#as.character(movies_corpus_clean[[1]])
+
+#Remove numbers
+movies_corpus_clean <- tm_map(movies_corpus_clean, removeNumbers)
+
+#Remove stopwords
+# check words and languages with ?stopwords
+movies_corpus_clean <- tm_map(movies_corpus_clean, removeWords, stopwords()) 
+#Remove punctuation signs
+movies_corpus_clean <- tm_map(movies_corpus_clean, removePunctuation) 
+
+
+#Carry out the stemming:
+# To apply the wordStem() function to an entire corpus of text documents, the tm package includes
+# the stemDocument() transformation.
+movies_corpus_clean <- tm_map(movies_corpus_clean, stemDocument)
+
+#Finally eliminate unneeded whitespace produced by previous steps
+movies_corpus_clean <- tm_map(movies_corpus_clean, stripWhitespace) 
+
+#Check the final result (output omitted for brevity)
+#before cleaning
+#as.character(movies_corpus[[1]])
+#after
+#as.character(movies_corpus_clean[[1]])
+
+# Tokenization - document-term matrix (DTM)
+movies_dtm <- DocumentTermMatrix(movies_corpus_clean)
+movies_dtm
+```
+
+Volvemos a obtener 2000 documentos y 24951 palabras.
+
+
+Ahora hay que crear los conjuntos de entrenamiento y de test.
+Las críticas vienen ordenadas, primero las 1000 críticas positivas, y después las 1000 críticas negativas.
+Por tanto hay que crear estos dos conjuntos de manera aleatoria.
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(8)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(movies_raw$class, times=1, p=.75, list=FALSE)
+
+#create training set
+movies_dtm_train <- movies_dtm[train_indices, ]
+
+#create testing set
+movies_dtm_test  <- movies_dtm[-train_indices, ]
+
+#create labels sets
+movies_train_labels <- movies_raw[train_indices, ]$class
+movies_test_labels <- movies_raw[-train_indices, ]$class
+
+#view number of rows in each set
+#nrow(movies_dtm_train)  # 1500
+#nrow(movies_dtm_test)   # 500
+#length(movies_train_labels)  # 1500
+#length(movies_test_labels)   # 500
+```
+
+Vamos a comprobar ahora que los dos conjuntos tienen la misma proporción de críticas positivas y negativas (si no, el entrenamiento no serviría para nada):
+
+```{r}
+prop.table(table(movies_train_labels))
+prop.table(table(movies_test_labels))
+```
+
+###Finalizamos ahora la preparación de los datos
+
+Se necesita obtener un listado con las palabras más utilizadas:
+
+```{r}
+# Data preparation – creating indicator features for frequent words
+# the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
+movies_freq_words <- findFreqTerms(movies_dtm_train, 100)
+
+#movies_freq_words
+```
+  [1] "abil"         "abl"          "absolut"      "accept"       "achiev"       "across"       "act"          "action"       "actor"        "actress"      "actual"      
+ [12] "adam"         "adapt"        "add"          "addit"        "admit"        "adult"        "adventur"     "age"          "agent"        "ago"          "agre"        
+...
+ [991] "whatev"       "whether"      "white"        "whole"        "whose"        "wife"         "wild"         "will"         "willi"        "william"     
+ [ reached 'max' / getOption("max.print") -- omitted 27 entries ]
+
+
+
+Y ahora utilizamos ese listado para limitar el número de columnas/features:
+
+```{r}
+#ncol(movies_dtm_train)
+#[1] 24951
+
+movies_dtm_freq_train <- movies_dtm_train[ , movies_freq_words]
+movies_dtm_freq_test <- movies_dtm_test[ , movies_freq_words]
+
+#ncol(movies_dtm_freq_train)
+#[1] 1027
+```
+
+
+Finalmente, ya que las matrices DTM tienen valores numéricos, mientras que el algoritmo de clasificación basado en naive bayes necesita operar sobre variables categóricas, se necesita realizar una última tranformación: pasar los valores numéricos a Sí/No:
+
+```{r}
+#We need a function that converts counts to a factor
+convert_counts <- function(x) {
+  x <- ifelse(x > 0, "Yes", "No")
+}
+#and we apply it
+movies_train <- apply(movies_dtm_freq_train, MARGIN = 2, convert_counts)  # MARGIN = 2 <- columns
+movies_test <- apply(movies_dtm_freq_test, MARGIN = 2, convert_counts)
+# The result will be two matrices, each with cells indicating "Yes" or "No" for whether
+# the word represented by the column appears at any point in the message represented by the row.
+```
+
+
+## Uso de caret para mejorar el modelo
+
+Para comprobar qué parámetros pueden ser ajustados:
+
+```{r}
+modelLookup("naive_bayes")
+```
+
+Control:
+
+```{r}
+ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "best")  #repeats = 10, 
+```
+
+Rejilla/matriz de parámetros:
+
+```{r}
+grid <- expand.grid(laplace = c(0, 1.0),
+                    usekernel = c(FALSE, TRUE),
+                    adjust = c(0.5, 1))
+```
+
+```{r}
+grid
+```
+
+Entrenamiento:
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m <- train(class ~ ., data = movies_train, method = "naive_bayes",
+            usepoisson = TRUE,
+            metric = "Kappa",
+            trControl = ctrl,
+            tuneGrid = grid)
+})
+```
+
+
+```{r}
+m
+```
+
+```{r}
+plot(m)
+```
+
+
+```{r}
+set.seed(12345)
+
+#usepoisson = TRUE,
+
+system.time({
+m2 <- train(class ~ ., data = movies_train, method = "naive_bayes",
+            metric = "Accuracy",
+            trControl = ctrl,
+            tuneGrid = grid)
+})
+```
+
+```{r}
+m2
+```
+```{r}
+plot(m2)
+```
+
+
+```{r}
+movies_pred <- predict(m2$finalModel, movies_test)
+```
+
