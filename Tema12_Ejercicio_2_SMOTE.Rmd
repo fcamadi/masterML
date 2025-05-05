@@ -1,0 +1,389 @@
+---
+title: "Tema12_Ejercicio_2_SMOTE"
+author: "Fran Camacho"
+date: "2025-05-05"
+output: html_document
+---
+
+# Tema 12 - Ejercicio 2 (versión "a")
+
+Utilizando el archivo Bank.csv del Tema 7, reequilibre la muestra utilizando
+SMOTE y repita el ejercicio usando la técnica que desee (redes neuronales
+o SVM), comparando los resultados obtenidos con los que se obtuvieron
+previamente.
+
+```{r}
+#https://www.jstatsoft.org/article/view/v011i09
+if (!require(kernlab)) install.packages('kernlab', dependencies = T)
+library(kernlab) 
+
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)
+
+# themis contains extra steps for the recipes package for dealing with unbalanced data. 
+if (!require(themis)) install.packages('themis', dependencies = T)
+library(themis)
+```
+
+
+
+## Carga de los datos
+
+
+Cargamos mismos datos que en el ejercicio 7. 
+
+
+```{r}
+# import the CSV file
+bank_raw <- read.csv(file.path("CSVs/Bank", "bank.csv"), sep = ";", stringsAsFactors = TRUE)
+```
+
+[
+Tibble:
+
+```{r}
+# import the CSV file
+bank_raw_tb <- read_csv2("CSVs/Bank/bank.csv", cols(y = col_factor()))
+
+```
+
+Investigar cómo hacer stringsAsFactors con tidyverse. No parece inmediato!
+
+```{r}
+x <- spec_csv("CSVs/Bank/bank.csv")
+x
+```
+
+Según spec_csv, "balance" es un string!!! :))))))
+
+]
+
+Se trataba de un dataset con un gran desequilibrio en la variable dependiente:
+
+```{r}
+#table(bank_raw$y)
+fct_count(bank_raw$y, prop = TRUE)
+```
+
+## Aplicando SMOTE (Synthetic Minority Oversampling Technique)
+
+
+[
+Probamos también por curiosidad las técnicas de downsampling y oversampling:
+
+- downsampling
+
+```{r}
+bank_raw_undersample <- downSample(x = bank_raw[1:16], y = bank_raw$y, yname = "y")
+
+fct_count(bank_raw_undersample$y, prop = TRUE)
+```
+
+- oversampling:
+
+```{r}
+bank_raw_oversample <- upSample(x = bank_raw[1:16], y = bank_raw$y, yname = "y")
+
+fct_count(bank_raw_oversample$y, prop = TRUE)
+```
+
+```{r}
+#Summary
+summary(bank_raw)
+cat(" ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- \n\n")
+summary(bank_raw_undersample)
+cat(" ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- \n\n")
+summary(bank_raw_oversample)
+```
+
+
+
+```{r}
+boxplot(bank_raw$age, main = "Boxplot of Age", ylab = "Age")
+boxplot(bank_raw_undersample$age, main = "Boxplot of Age (downsampling)", ylab = "Age")
+boxplot(bank_raw_oversample$age, main = "Boxplot of Age (oversampling)", ylab = "Age")
+```
+```{r}
+boxplot(bank_raw$balance, main = "Boxplot of Balance", ylab = "Balance")
+boxplot(bank_raw_undersample$balance, main = "Boxplot of Balance (downsampling)", ylab = "Balance")
+boxplot(bank_raw_oversample$balance, main = "Boxplot of Balance (oversampling)", ylab = "Balance")
+```
+
+]
+
+
+```{r}
+#scale numeric variables (neither day nor month)
+maxs <- apply(bank_raw[c(1,6,12,13,14,15)], 2, max)
+mins <- apply(bank_raw[c(1,6,12,13,14,15)], 2, min)
+
+bank_norm <- data.frame(scale(bank_raw[c(1,6,12,13,14,15)], center = mins, scale = maxs - mins))
+
+#hot encoding of categorical features         
+dummies <- dummyVars(" ~ job + marital + education + default + housing + loan + contact + poutcome", data = bank_raw)
+bank_hot_encoded_feat <-  data.frame(predict(dummies, newdata = bank_raw))
+
+#encoding month (name to number)
+month_to_number <- function(month_name) {
+  month_and_number <- c("jan"=1,"feb"=2,"mar"=3,"apr"=4,"may"=5,"jun"=6,"jul"=7,"aug"=8,"sep"=9,"oct"=10,"nov"=11,"dec"=12)
+  return(month_and_number[as.character(month_name)])
+}
+bank_raw$month_num <- sapply(bank_raw$month, month_to_number)
+
+
+#put all features in the same dataframe
+bank_processed <- cbind(bank_norm,as.numeric(bank_raw$day),bank_raw$month_num,bank_hot_encoded_feat,bank_raw$y)
+names(bank_processed)[7:8] <- c("day","month")
+names(bank_processed)[41] <- "y"
+head(bank_processed,5)
+
+```
+
+
+```{r}
+#library(themis)
+bank_processed_balanced <- bank_processed |> smote("y")  # using y as the feature to balance
+
+fct_count(bank_processed_balanced$y, prop = TRUE)
+```
+
+
+```{r, fig.height=8}
+boxplot(bank_raw$balance, main = "Boxplot of Balance", ylab = "Balance")
+boxplot(bank_raw_undersample$balance, main = "Boxplot of Balance (downsampling)", ylab = "Balance")
+boxplot(bank_raw_oversample$balance, main = "Boxplot of Balance (oversampling)", ylab = "Balance")
+boxplot(bank_processed_balanced$balance, main = "Boxplot of Balance (SMOTE)", ylab = "Balance")
+```
+
+## Ahora que ya tenemos el dataset balanceado, aplicamos SVM:
+
+
+Creamos los conjuntos de entrenamiento y test:
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(bank_processed_balanced$y, times=1, p=.75, list=FALSE)
+
+#create training set
+bank_processed_balanced_train <- bank_processed_balanced[train_indices, ]
+
+#create testing set
+bank_processed_balanced_test  <- bank_processed_balanced[-train_indices, ]
+
+
+#view number of rows in each set
+nrow(bank_processed_balanced_train)  # 6000
+nrow(bank_processed_balanced_test)   # 2000
+
+```
+
+
+Entrenamiento 1:
+
+
+```{r}
+ctrl_accu <- trainControl(method = "cv", number = 10, selectionFunction = "best", 
+                     classProbs=TRUE)
+```
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_accu <- train(y ~ ., data = bank_processed_balanced_train, method = "svmRadial",
+            metric = "Accuracy",
+            trControl = ctrl_accu)
+})
+```
+
+
+```{r}
+cat("Using Accuracy:\n")
+m_accu
+```
+
+Entrenamiento 2:
+
+```{r}
+grid <- expand.grid(C = c( 0.9, 1.0, 1.10),
+                    sigma = c(0.010, 0.015, 0.01716, 0.020, 0.025))
+grid
+```
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_accu <- train(y ~ ., data = bank_processed_balanced_train, method = "svmRadial",
+            metric = "Accuracy",
+            trControl = ctrl_accu,
+            tuneGrid = grid)
+})
+```
+
+
+```{r}
+cat("Using Accuracy:\n")
+m_accu
+```
+
+Parece que por fin se ha conseguido pasar del 90% de precisión (con un Kappa más que bueno: 0.8327)
+
+ C    sigma    Accuracy   Kappa   
+ 1.1  0.02500  0.9163333  0.8326667
+
+
+Vamos a evaluar el modelo resultante con el conjunto de test que creamos anteriormente:
+
+```{r}
+m_accu$finalModel
+```
+
+```{r}
+plot(m_accu)
+```
+
+Al ver esta gráfica, vamos a probar una tercera vez, intentanto aumentar el valor de sigma un poco más:
+(y un poco más, hasta 0.050 en lugar de 0.030)
+
+```{r}
+grid_2 <- expand.grid(C = c(1.0, 1.10, 1.15),
+                    sigma = c(0.015, 0.020, 0.025, 0.0275, 0.030, 0.035, 0.040, 0.045, 0.050))
+grid_2
+```
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_accu_2 <- train(y ~ ., data = bank_processed_balanced_train, method = "svmRadial",
+            metric = "Accuracy",
+            trControl = ctrl_accu,
+            tuneGrid = grid_2)
+})
+```
+
+```{r}
+m_accu_2
+```
+
+Accuracy was used to select the optimal model using the largest value.
+The final values used for the model were sigma = 0.03 and C = 1.1.
+  C     sigma   Accuracy   Kappa
+  1.10  0.0300  0.9215000  0.8430000
+  
+Accuracy was used to select the optimal model using the largest value.
+The final values used for the model were sigma = 0.05 and C = 1.1.
+  C     sigma   Accuracy   Kappa 
+  1.10  0.0500  0.9295000  0.8590000  
+
+```{r}
+plot(m_accu_2)
+```
+
+La exactitud sigue subiendo con sigma. Así que probamos más valores:
+
+```{r}
+grid_3 <- expand.grid(C = c(1.0, 1.10, 1.15),
+                    sigma = c(0.040, 0.050, 0.06, 0.07, 0.08, 0.09, 0.1))
+grid_3
+```
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_accu_3 <- train(y ~ ., data = bank_processed_balanced_train, method = "svmRadial",
+            metric = "Accuracy",
+            trControl = ctrl_accu,
+            tuneGrid = grid_3)
+})
+```
+
+
+```{r}
+m_accu_3
+```
+
+Accuracy was used to select the optimal model using the largest value.
+The final values used for the model were sigma = 0.1 and C = 1.15.
+
+**C     sigma  Accuracy   Kappa** 
+**1.15  0.10   0.9411667  0.8823333**
+
+
+```{r}
+plot(m_accu_3)
+```
+
+```{r}
+grid_4 <- expand.grid(C = c(1.0, 1.10, 1.15),
+                    sigma = c(0.09, 0.1, 0.15, 0.2, 0.25))
+grid_4
+```
+
+Último intento! (Estamos rozando el 95%)
+
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m_accu_4 <- train(y ~ ., data = bank_processed_balanced_train, method = "svmRadial",
+            metric = "Accuracy",
+            trControl = ctrl_accu,
+            tuneGrid = grid_4)
+})
+```
+
+
+```{r}
+m_accu_4
+```
+
+Accuracy was used to select the optimal model using the largest value.
+The final values used for the model were sigma = 0.15 and C = 1.15.
+
+**C     sigma  Accuracy   Kappa**
+**1.15  0.15   0.9465000  0.8930000**
+
+```{r}
+plot(m_accu_4)
+```
+
+
+```{r}
+m_accu_4$finalModel
+```
+
+
+
+Finalmente, realizamos la predicción y la evaluación usando el dataset que habíamos reservado para test:
+
+```{r}
+
+m_accu_pred <- predict(m_accu_4, bank_processed_balanced_test[,1:40])
+
+```
+
+Matriz de confusión:
+
+```{r}
+confusionMatrix(ref = as.factor(bank_processed_balanced_test$y), data = as.factor(m_accu_pred), positive="yes", mode = "everything")
+```
+
+Se ha obtenido una exactitud del 96.4!
+
+Los valores de Kappa, de F1 .. todos, rozan el 97%.
+
+
+**Repetir el proceso entero, pero separando el conjunto de test antes de aplicar SMOTE**
+(En otro .Rmd para no liar).
+
+
