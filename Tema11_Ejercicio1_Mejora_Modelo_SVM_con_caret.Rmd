@@ -340,6 +340,7 @@ confusionMatrix(ref = as.factor(bank_processed_test$y), data = as.factor(m_kappa
 Resultado practicamente igual a todos los anteriores:
 
 ```{r}
+#Differencies between models
 cat("Kappa model vs accuracy model:\n")
 0.8947 - 0.8894
 cat("Kappa model vs task 7 model:\n")
@@ -349,7 +350,8 @@ cat("Kappa model vs task 7 model:\n")
 
 ## Conclusiones
 
-La única conclusción que puedo deducir, es que con esta dataset, no es posible pasar del 90% de exactitud. 
+La única conclusión que puedo deducir, es que con esta dataset, no es posible pasar del 90% de exactitud. 
+(Yo al menos, claro).
 Si se tratara de un dataset balanceado, este valor estaría muy bien.
 Pero dado que se trata de un dataset no balanceado, hay que considerar mejor un parámetro como kappa: 
 y el valor obtenido  (0.27, prácticamente lo mismo que en la tarea del Tema 7, que fue un 0.3), indica que el valor 
