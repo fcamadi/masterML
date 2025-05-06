@@ -58,8 +58,8 @@ library(adabag)
 if (!require(randomForest)) install.packages('randomForest', dependencies = T)
 library(randomForest)
 
-#if (!require(ranger)) install.packages('ranger', dependencies = T)
-#library(ranger)
+if (!require(ranger)) install.packages('ranger', dependencies = T)
+library(ranger)
 ```
 
 
@@ -414,7 +414,103 @@ Con adaboost se obtiene el peor resultado con el conjunto de test.
 
 ### Random Forests
 
+Utlizaremos directamente caret con las dos librerias (randomForest ranger)
+
+
+A) librería randomForest
+
+
+```{r}
+set.seed(123)
+
+ctrl_rf <- trainControl(method = "cv", number = 10)
+
+#grid_rf <- expand.grid(mtry=c(5,10,11,15,20))
+
+system.time({
+  carseats_rf_caret  <-  train(SalesFactor ~ ., data = CarseatsNew_train, 
+                               method = "rf", 
+                               trControl = ctrl_boosting,
+                               #tuneGrid = grid_rf
+                               )
+})
+
+carseats_rf_caret
+```
+
+Predicción:
+
+```{r}
+rf_pred_caret <- predict(carseats_rf_caret, CarseatsNew_test)
+```
+
+Resultado:
+
+```{r}
+confusionMatrix(reference = CarseatsNew_test_labels, data = rf_pred_caret, mode = "everything", positive = "Yes")
+```       
+
+Se obtiene una exactitud bastante parecida a las obtenidas hasta ahora.
+Se puede decir lo mismo del valor de kappa.
+
+
+B) librería ranger
+
+
+Entrenamiento 1:
+
+```{r}
+set.seed(123)
+
+ctrl_ranger <- trainControl(method = "cv", number = 10)
+
+
+system.time({
+  carseats_ranger_caret  <-  train(SalesFactor ~ ., data = CarseatsNew_train, 
+                               method = "ranger", 
+                               trControl = ctrl_ranger)
+})
+
+carseats_ranger_caret
+```
 
 
 
-       
+
+```{r}
+set.seed(123)
+
+ctrl_ranger <- trainControl(method = "cv", number = 10)
+
+grid_ranger <- expand.grid(mtry=c(1,2,3,5,10,11),
+                           splitrule=c("gini","extratrees"),
+                           min.node.size=c(1,2,3,5,10))
+
+system.time({
+  carseats_ranger_caret  <-  train(SalesFactor ~ ., data = CarseatsNew_train, 
+                               method = "ranger", 
+                               trControl = ctrl_ranger,
+                               tuneGrid = grid_ranger)
+})
+
+carseats_ranger_caret
+```
+  mtry  splitrule   min.node.size  Accuracy   Kappa 
+   5    gini         1             0.8573118  0.7147441
+
+
+Predicción:
+
+```{r}
+ranger_pred_caret <- predict(carseats_ranger_caret, CarseatsNew_test)
+```
+
+Resultado:
+
+```{r}
+confusionMatrix(reference = CarseatsNew_test_labels, data = ranger_pred_caret, mode = "everything", positive = "Yes")
+```  
+
+De nuevo se obtiene mucho mejor resultado en el conjunto de entrenamiento que en el de test.
+
+
