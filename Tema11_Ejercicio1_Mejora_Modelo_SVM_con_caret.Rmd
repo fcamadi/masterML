@@ -340,7 +340,7 @@ confusionMatrix(ref = as.factor(bank_processed_test$y), data = as.factor(m_kappa
 Resultado practicamente igual a todos los anteriores:
 
 ```{r}
-#Differencies between models
+#Differences between models
 cat("Kappa model vs accuracy model:\n")
 0.8947 - 0.8894
 cat("Kappa model vs task 7 model:\n")
