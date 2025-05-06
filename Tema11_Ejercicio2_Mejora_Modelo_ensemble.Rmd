@@ -1,0 +1,420 @@
+---
+title: "Tema11_Improve_Model_Ensemble"
+author: "Fran Camacho"
+date: "2025-04-30"
+output: word_document
+---
+
+# Tema 11 - Mejora de un modelo de ML mediante bagging, boosting y random forests
+
+Ejercicio 2
+
+Usando los diferentes métodos de meta-aprendizaje propuestos en el
+capítulo 14 (bagging, boosting, random forests), elabore modelos con el
+dataset de la prueba de evaluación del tema 5.
+
+
+## Paso 1: Carga de los datos
+
+```{r}
+#Load data from CRAN package ISLR
+#install.packages("ISLR")
+library("ISLR")
+
+# Carseats: Sales of Child Car Seats
+# Description
+#
+# A simulated data set containing sales of child car seats at 400 different stores. 
+```
+
+
+## Paso 2: Explorar y preparar los datos
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+# C50 Decision trees C5.0 algorithm
+if (!require(C50)) install.packages('C50', dependencies = T) 
+library(C50)
+
+if (!require(caret)) install.packages('caret', dependencies = T)  # data partitioning, confusion matrix
+library(caret)      
+
+if (!require(vcd)) install.packages('vcd', dependencies = T)
+library(vcd)
+
+# ipred package offers a classic implementation of bagged decision trees
+if (!require(ipred)) install.packages('ipred', dependencies = T) 
+library(ipred)
+
+# ada boosting
+# https://r-packages.io/packages/adabag/adabag-package
+# It implements Freund and Schapire's Adaboost.M1 algorithm and Breiman's Bagging algorithm 
+#using classification trees as individual classifiers.
+if (!require(adabag)) install.packages('adabag', dependencies = T)
+library(adabag)
+
+## random forests libraries:  randomForest and ranger
+if (!require(randomForest)) install.packages('randomForest', dependencies = T)
+library(randomForest)
+
+#if (!require(ranger)) install.packages('ranger', dependencies = T)
+#library(ranger)
+```
+
+
+Preparación de los datos:
+
+La variable dependiente "Sales" es numérica. Para poder predecir si un carrito se venderá o no en función de las variables independientes, 
+debemos transformarla en una variable categórica tipo Sí/No. Consideramos que si las ventas están por encima de la media será un "Sí", y si no, un "No":
+
+```{r}
+#transform Sales into SalesFactor
+sales_mean <- mean(Carseats$Sales)  # mean and median are almost the same
+Carseats$SalesFactor <- factor(ifelse(Carseats$Sales>sales_mean,"Yes","No"))
+#table(Carseats$SalesFactor)  #check
+
+#Remove Sales variable
+CarseatsNew <- Carseats[-1]
+```
+
+
+Conjuntos de entrenamiento y test:
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(9)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(CarseatsNew$SalesFactor, times=1, p=.75, list=FALSE)
+
+#create training set
+CarseatsNew_train <- CarseatsNew[train_indices, ]
+
+#create testing set
+CarseatsNew_test  <- CarseatsNew[-train_indices, ]
+
+#create labels sets
+CarseatsNew_train_labels <- CarseatsNew[train_indices, ]$SalesFactor
+CarseatsNew_test_labels <- CarseatsNew[-train_indices, ]$SalesFactor
+
+#view number of rows in each set
+#nrow(CarseatsNew_train)  # 301
+#nrow(CarseatsNew_test)   # 99
+#length(CarseatsNew_train_labels)  # 301
+#length(CarseatsNew_test_labels)   # 99
+
+#Check the proportion in both sets
+#prop.table(table(CarseatsNew_train$SalesFactor))
+#prop.table(table(CarseatsNew_test$SalesFactor))
+```
+
+
+## Aplicación de métodos de meta-aprendizaje
+
+En la tarea del tema 5 se obtuvieron los siguientes resultados:
+
+```{r}
+# For the first iteration of the model, we use the default C5.0 settings
+#sales_model <- C5.0(SalesFactor ~ ., data = CarseatsNew_train)
+#sales_model
+```
+
+Call:
+C5.0.formula(formula = SalesFactor ~ ., data = CarseatsNew_train)
+
+Classification Tree
+Number of samples: 301 
+Number of predictors: 10 
+
+Tree size: 19 
+
+Non-standard options: attempt to group attributes
+
+
+```{r}
+#confusion matrix
+#confusionMatrix(reference = CarseatsNew_test_labels, data = sales_pred, mode = "everything", positive = "Yes")
+```
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction No Yes
+       No  41  16
+       Yes  9  33
+                                          
+             **Accuracy : 0.7475**          
+                 95% CI : (0.6502, 0.8294)
+    No Information Rate : 0.5051          
+    P-Value [Acc > NIR] : 7.008e-07       
+                                          
+                **Kappa : 0.4942**          
+                                          
+ Mcnemar's Test P-Value : 0.2301          
+                                          
+            Sensitivity : 0.6735          
+            Specificity : 0.8200          
+         Pos Pred Value : 0.7857          
+         Neg Pred Value : 0.7193          
+              Precision : 0.7857          
+                 Recall : 0.6735          
+                   **F1 : 0.7253**          
+             Prevalence : 0.4949          
+         Detection Rate : 0.3333          
+   Detection Prevalence : 0.4242          
+      Balanced Accuracy : 0.7467          
+                                          
+       'Positive' Class : Yes    
+       
+       
+### Bagging
+
+A) Usando la librería **ipred**
+
+Creamos el conjunto de árboles:
+
+```{r}
+set.seed(123)
+
+#create ensemble
+carseats_bagging <- ipred::bagging(SalesFactor ~ ., data = CarseatsNew_train, nbagg = 25)  # default value of 25 decision trees
+```
+
+```{r}
+#Omitted for brevity
+#carseats_bagging$mtrees
+```
+
+Y realizamos la predicción
+
+```{r}
+bagging_pred <- predict(carseats_bagging, CarseatsNew_test)
+```
+
+Cuyo resultado es:
+
+```{r}
+confusionMatrix(reference = CarseatsNew_test_labels, data = bagging_pred, mode = "everything", positive = "Yes")
+```
+
+Es una pequeña mejora con respecto al modelo original.
+(Aumentando nbagg a 50 y 100 no se mejora este resultado).
+
+
+B) Usando la librería **baguette** y **C50**
+
+```{r}
+# baguette
+if (!require(baguette)) install.packages('baguette', dependencies = T) 
+library(baguette)
+```
+
+
+```{r}
+set.seed(9)
+
+#define ensemble model
+carseats_bagging_C50 <- bag_tree(min_n = 2) %>%
+                          set_engine("C5.0") %>%
+                          set_mode("classification") %>%
+                          translate()
+```
+
+```{r}
+#before training
+carseats_bagging_C50
+```
+
+
+```{r}
+#training the model
+carseats_bagging_C50 <- fit(carseats_bagging_C50, SalesFactor ~ ., data = CarseatsNew_train)
+```
+
+```{r}
+#after training
+carseats_bagging_C50
+```
+
+
+Predicción:
+
+```{r}
+bagging_pred_C50 <- predict(carseats_bagging_C50, CarseatsNew_test)
+```
+
+
+Resultado:
+
+```{r}
+confusionMatrix(reference = CarseatsNew_test_labels, data = bagging_pred_C50$.pred_class, mode = "everything", positive = "Yes")
+```
+
+Resultado muy parecido a los anteriores (77.78 y 74.75).
+
+[
+Primera ejecución sin inicializar la secuencia de números aleatorios:
+
+El resultado con baguette y C5.0 es ligeramente mejor al del paquete ipred y al original (79.8 vs 77.78 vs 74.75).
+Son 5 puntos porcentuales más que C.50 sin bagging.
+(Kappa y F1 también son mejores, por supuesto).
+]
+
+C) Usando la librería **ipred** con **caret**
+
+NOTA: como se puede ver en http://topepo.github.io/caret/available-models.html,
+El modelo Bagged CART y modelo "treebag" de la librería ipred no tiene parametros que tunear,
+por eso no es necesario un objeto "gridsearch".
+
+```{r}
+set.seed(123)
+
+ctrl_bagging <- trainControl(method = "cv", number = 10)
+
+carseats_bagging_caret  <-  train(SalesFactor ~ ., data = CarseatsNew_train, method = "treebag", trControl = ctrl_bagging)
+carseats_bagging_caret
+```
+
+Con este método se obtiene una exactitud y un valor de Kappa bastante buenos.
+
+Lo comprobamos con el conjunto de test:
+
+```{r}
+bagging_pred_caret <- predict(carseats_bagging_caret, CarseatsNew_test)
+```
+
+Resultado:
+
+```{r}
+confusionMatrix(reference = CarseatsNew_test_labels, data = bagging_pred_caret, mode = "everything", positive = "Yes")
+```
+
+El resultado no es tan bueno como los dos anteriores.
+
+
+
+### Boosting
+
+
+A) Usando "ada boosting":
+
+```{r}
+set.seed(123)
+
+system.time({
+  adaboost_cv <- boosting.cv(SalesFactor ~ ., data = CarseatsNew) # 10-fold CV
+})
+
+```
+
+```{r}
+adaboost_cv
+```
+
+Resultado:
+
+```{r}
+Kappa(adaboost_cv$confusion)
+```
+
+Se obtiene un kappa de 0.65, el mejor valor de los obtenidos.
+
+`
+
+
+B) Usando **C5.0** con **parsnip**
+
+
+```{r}
+#define model
+carseats_boost_C50 <- boost_tree(trees = 25, min_n = 2, sample_size = 0.75) %>%  # default values: trees = 15
+                    set_engine("C5.0") %>%
+                    set_mode("classification") %>%
+                    translate()
+```
+
+```{r}
+#before training
+carseats_boost_C50
+```
+
+
+```{r}
+#training the model
+set.seed(123)
+
+system.time({
+  carseats_boost_C50 <- fit(carseats_boost_C50, SalesFactor ~ ., data = CarseatsNew_train)
+})
+```
+
+```{r}
+#after training
+carseats_boost_C50
+```
+
+
+Predicción:
+
+```{r}
+boosting_pred_C50 <- predict(carseats_boost_C50, CarseatsNew_test)
+```
+
+
+Resultado:
+
+```{r}
+confusionMatrix(reference = CarseatsNew_test_labels, data = boosting_pred_C50$.pred_class, mode = "everything", positive = "Yes")
+```
+
+La exactitud obtenida con 25 árboles es la mejor de todas.
+Kappa tiene un valor aceptable.
+
+
+C) Adaboost con **caret**
+
+```{r}
+set.seed(123)
+
+ctrl_boosting <- trainControl(method = "cv", number = 10)
+
+system.time({
+  carseats_boosting_caret  <-  train(SalesFactor ~ ., data = CarseatsNew_train, method = "AdaBoost.M1", trControl = ctrl_boosting)
+})
+
+carseats_boosting_caret
+```
+ coeflearn  maxdepth  mfinal  Accuracy   Kappa 
+ Zhu        2         150     0.8672043  0.7345756
+
+Con Adaboost se ha obtenido el mejor resultado de todos en el dataset de entrenamiento.
+(Comentar también que el tiempo de ejecución ha sido de 7 minutos, cuando todos los demás han necesitado segundos).
+
+
+```{r}
+carseats_boosting_caret$
+```
+
+
+Predicción:
+
+```{r}
+boosting_pred_caret <- predict(carseats_boosting_caret, CarseatsNew_test)
+```
+
+Resultado:
+
+```{r}
+confusionMatrix(reference = CarseatsNew_test_labels, data = boosting_pred_caret, mode = "everything", positive = "Yes")
+```
+No así a la hora de la verdad.
+Con adaboost se obtiene el peor resultado con el conjunto de test.
+
+
+### Random Forests
+
+
+
+
+       
