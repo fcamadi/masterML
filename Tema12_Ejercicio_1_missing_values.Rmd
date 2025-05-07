@@ -43,6 +43,8 @@ airquality_raw[!complete.cases(airquality_raw), ]
 Se puede ver qué en la mayoría de los casos, el valor que falta es el ozono, pero también hay observaciones sin radiación solar.
 
 
+### Representación gráfica del dataset original 
+
 ```{r, fig.height=8}
 #I do not think this graphic is useful (do not put in the document)
 plot(airquality_raw[,1:4])
@@ -82,12 +84,12 @@ date_2025 <- as.Date(ISOdate(2025, airquality_raw$Month, airquality_raw$Day))
 airquality_raw_with_date <- airquality_raw
 airquality_raw_with_date <- airquality_raw_with_date[-c(5,6)]
 airquality_raw_with_date$date <- date_2025
-
 ```
 
 
 ```{r}
 # first version, without a function
+# 
 # ozone_data <- data.frame(x = airquality_raw_with_date$date,
 #                          y = airquality_raw_with_date$Ozone)
 # 
@@ -119,7 +121,7 @@ plot_airquality_var <- function(x,y, title, ylab) {
 }
 ```
 
-```{r, fig.height=6}
+```{r, fig.height=5}
 
 ozone_plot <- plot_airquality_var(airquality_raw_with_date$date,
                                   airquality_raw_with_date$Ozone,
@@ -148,9 +150,222 @@ temp_plot
 
 ```
 
+## Completar variables usando la media
+
+Procesado del dataset:
+
+```{r}
+airquality_raw_completed_with_mean <- airquality_raw |>
+            mutate(
+                  Ozone_MVI = if_else(is.na(Ozone), 1, 0),
+                  Ozone = if_else(is.na(Ozone), mean(Ozone, na.rm = TRUE), Ozone),
+                  Solar.R_MVI = if_else(is.na(Solar.R), 1, 0),
+                  Solar.R = if_else(is.na(Solar.R), mean(Solar.R, na.rm = TRUE), Solar.R)
+            )
+```
+
+Comparación de las gráficas:
+
+```{r}
+# add date field 
+airquality_mean_with_date <- airquality_raw_completed_with_mean
+airquality_mean_with_date <- airquality_mean_with_date[-c(5,6)]
+airquality_mean_with_date$date <- date_2025
+
+ozone_plot_mean <- plot_airquality_var(airquality_mean_with_date$date,
+                                  airquality_mean_with_date$Ozone,
+                                  "Monthly Variation of Ozone levels (gaps filled with mean value)",
+                                  "Ozone")
+# compare graphics
+ozone_plot
+ozone_plot_mean
+```
+Donde faltaban en la gráfica varios valores seguidos, se pueden apreciar ahora tramos horizontales, ya que ahora 
+se repite el mismo valor para esos días.
+
+
+## Completar variables usando la mediana
+
+Procesado del dataset:
+
+```{r}
+airquality_raw_completed_with_median <- airquality_raw |>
+            mutate(
+                  Ozone_MVI = if_else(is.na(Ozone), 1, 0),
+                  Ozone = if_else(is.na(Ozone), median(Ozone, na.rm = TRUE), Ozone),
+                  Solar.R_MVI = if_else(is.na(Solar.R), 1, 0),
+                  Solar.R = if_else(is.na(Solar.R), median(Solar.R, na.rm = TRUE), Solar.R)
+            )
+```
+
+
+Comparación de las gráficas:
+
+```{r}
+# add date field 
+airquality_median_with_date <- airquality_raw_completed_with_median
+airquality_median_with_date <- airquality_median_with_date[-c(5,6)]
+airquality_median_with_date$date <- date_2025
+
+ozone_plot_median <- plot_airquality_var(airquality_median_with_date$date,
+                                  airquality_median_with_date$Ozone,
+                                  "Monthly Variation of Ozone levels (Gaps filled with median value)",
+                                  "Ozone")
+
+ozone_plot
+ozone_plot_median
+```
+
+La mediana es algo inferior a la media, así que lógicamente los valores completados son menores también que en la gráfica del apartado anterior.
+
+
+## Completar variables usando la moda
+
+Procesado del dataset:
+
+```{r}
+#import one library that can calculates the mode
+if (!require(modeest)) install.packages('modeest', dependencies = T)
+library(modeest)
+```
+
+```{r}
+ozone_mode <- mfv(airquality_raw$Ozone, na_rm = TRUE)
+solar.r_mode <- mfv1(airquality_raw$Solar.R, na_rm = TRUE) # mvf returns 2 values
+
+```
+
+
+```{r}
+mean(airquality_raw$Ozone, na.rm = TRUE)
+median(airquality_raw$Ozone, na.rm = TRUE)
+ozone_mode
+
+
+mean(airquality_raw$Solar.R, na.rm = TRUE)
+median(airquality_raw$Solar.R, na.rm = TRUE)
+solar.r_mode
+```
+
+
+```{r}
+airquality_raw_completed_with_mode <- airquality_raw |>
+            mutate(
+                  Ozone_MVI = if_else(is.na(Ozone), 1, 0),
+                  Ozone = if_else(is.na(Ozone), ozone_mode, Ozone),
+                  Solar.R_MVI = if_else(is.na(Solar.R), 1, 0),
+                  Solar.R = if_else(is.na(Solar.R), solar.r_mode, Solar.R)
+            )
+```
+
+
+Comparación de las gráficas:
+
+```{r}
+# add date field 
+airquality_mode_with_date <- airquality_raw_completed_with_mode
+airquality_mode_with_date <- airquality_mode_with_date[-c(5,6)]
+airquality_mode_with_date$date <- date_2025
+
+ozone_plot_mode <- plot_airquality_var(airquality_mode_with_date$date,
+                                  airquality_mode_with_date$Ozone,
+                                  "Monthly Variation of Ozone levels (gaps filled with mode value)",
+                                  "Ozone")
+
+ozone_plot
+ozone_plot_mode
+```
+
+Comparamos también los histogramas:
+
+```{r, fig.height=6}
+#Ozone
+hist(airquality_raw$Ozone) # breaks = Sturges by default to set the number of bins
+hist(airquality_raw_completed_with_mean$Ozone)    
+hist(airquality_raw_completed_with_median$Ozone) 
+hist(airquality_raw_completed_with_mode$Ozone) 
+```
+
+
+Como el valor de la media es 42, el histograma refleja un aumento considerable de la columna ("bin") en la que ese valor está incluido.
+En el caso de la mediana, es la segunda columna la que refleja que se ha usado este valor para completar los valores que faltaban.
+(También en el caso de la moda).
+
+
+```{r}
+#Solar.R
+hist(airquality_raw$Solar.R)
+hist(airquality_raw_completed_with_mean$Solar.R)
+hist(airquality_raw_completed_with_median$Solar.R) 
+hist(airquality_raw_completed_with_mode$Solar.R) 
+
+```
+En el caso de la radiación solar, las columnas que experimentan un incremento más apreciable son las que están entre los valores 200 y 300 (para la mediana y la moda).
 
 
 
 
 
+### Gráfica conjunta del ozono:
+
+[
+
+De esta manera no he conseguido añadir la leyenda:
+
+```{r, fig.height=8}
+ggplot() + 
+  geom_line(data = airquality_mean_with_date, aes(x=date, y=Ozone), color='blue') +
+  geom_line(data = airquality_median_with_date, aes(x=date, y=Ozone), color='green') +
+  geom_line(data = airquality_mode_with_date, aes(x=date, y=Ozone), color='red') +
+  geom_line(data = airquality_raw_with_date, aes(x=date, y=Ozone), color='black') +
+  labs(title = "Ozone full graphic", caption ="Prepared by Fran Camacho, May 2025") +
+  theme_minimal()
+
+```
+
+]
+
+Otra manera:      
+      
+Creamos un dataframe con todos los datos, y una columna nueva ("type") que especifica de donde vienen:
+      
+```{r}
+airquality_mean_with_date <- airquality_mean_with_date[,-c(5,6)]
+airquality_mean_with_date$type <- "mean"
+
+airquality_median_with_date <- airquality_median_with_date[,-c(5,6)]
+airquality_median_with_date$type <- "median"
+
+airquality_mode_with_date <- airquality_mode_with_date[,-c(5,6)]
+airquality_mode_with_date$type <- "mode"
+
+airquality_raw_with_date$type <- "original" 
+
+airquality_data <- rbind(airquality_mean_with_date, airquality_median_with_date, airquality_mode_with_date, airquality_raw_with_date)
+```
+      
+      
+Gráfica:
+
+
+```{r, fig.height=8}
+ggplot(data = airquality_data, aes(x = date, y = Ozone, colour = type)) + 
+  geom_line() +
+  labs(title = "Ozone full graphic", caption ="Prepared by Fran Camacho, May 2025") +
+  scale_colour_manual(values = c("blue","green","red","black")) + 
+  theme_minimal()
+
+```
+
+      
+```{r, fig.height=8}
+ggplot(data = airquality_data, aes(x = date, y = Solar.R, colour = type)) + 
+  geom_line() +
+  labs(title = "Solar.R full graphic", caption ="Prepared by Fran Camacho, May 2025") +
+  scale_colour_manual(values = c("blue","green","red","black")) + 
+  theme_minimal()
+
+```      
+
+Para la radiación solar, al contrario que para el ozono, la moda y la mediana añaden valores más altos que la media.
 
