@@ -27,20 +27,80 @@ to discern from the other features in the dataset.
 ## Performing missing value imputation
 
 
-
 ```{r}
 if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
 library(tidyverse)
 ```
 
+Load data:
+
+```{r}
+titanic_train <- read.csv("./CSVs/titanic_train.csv", stringsAsFactors = TRUE)
+```
+
+Check data:
+
+```{r}
+summary(titanic_train)
+```
+
+NAs in the dataset:
+
+check where the NAs are located
+```{r}
+which(is.na(titanic_train), arr.ind=TRUE)
+```
+The column number 6 (Age) is missing in all those rows.
+(But those are not the only missing values).
+
+To find those rows in the dataset:
+
+```{r}
+titanic_train[ which(is.na(titanic_train), arr.ind=TRUE)[,1] , ]
+```
+
+```{r}
+#rows with NAs in any column
+titanic_train[!complete.cases(titanic_train), ]
+```
+
+### Performing missing value imputation
+
+The Titanic dataset includes two categorical features with missing data: Cabin and Embarked. 
+We can easily impute 'X' in place of the missing Cabin values and 'Unknown' in place
+of missing Embarked values as follows:
 
 ```{r}
 titanic_train <- titanic_train |>
-    mutate(
-      Cabin = if_else(is.na(Cabin), "X", Cabin),
-      Embarked = if_else(is.na(Embarked), "Unknown", Embarked)
-    )
+  mutate(
+    Cabin = if_else( Cabin == "", "X", Cabin),
+    Embarked = if_else( Embarked == "", "Unknown", Embarked)
+  )
 ```
+
+NOTE: the code from the book:
+
+Cabin = if_else(is.na(Cabin), "X", Cabin),
+Embarked = if_else(is.na(Embarked), "Unknown", Embarked)
+
+was not working. is.na() does not consider "" as na ...  ?!
+
+```{r}
+titanic_train
+```
+How many passengers had not embarked?
+
+```{r}
+sum(titanic_train$Embarked=="Unknown")
+```
+
+Which ones where those passengers?
+
+```{r}
+titanic_train[which(titanic_train$Embarked=="Unknown", arr.ind=TRUE), ]
+```
+
+Those 2 women had not embarked. (At least "Embarked" field was empty).
 
 
 
@@ -56,6 +116,14 @@ titanic_train <- titanic_train |>
                   Age_MVI = if_else(is.na(Age), 1, 0),
                   Age = if_else(is.na(Age), mean(Age, na.rm = TRUE), Age)
             )
+```
+
+
+Which passengers had no age?
+
+
+```{r}
+titanic_train[ which(titanic_train$Age_MVI==1), ]
 ```
 
 
