@@ -1,0 +1,156 @@
+---
+title: "Tema12_Ejercicio_1_missing_values"
+author: "Fran Camacho"
+date: "2025-05-07"
+output: word_document
+---
+
+# Tema 12 - Ejercicio 1
+
+Utilizando el dataset airquality, incluido de serie en R, realice una
+imputación de valores ausentes para las variables Ozone y Solar.R usando
+la media, la mediana y la moda. Seguidamente obtenga los gráficos de las
+distribuciones de las variables corregid
+
+```{r}
+
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse)
+
+if (!require(caret)) install.packages('caret', dependencies = T)
+library(caret)
+
+```
+
+Carga del dataset:
+
+```{r}
+airquality_raw <- airquality
+```
+
+Observamos el dataset sin procesar:
+
+```{r cars}
+summary(airquality_raw)
+```
+
+Buscamos las líneas con NAs:
+
+```{r}
+#rows with NAs in any column
+airquality_raw[!complete.cases(airquality_raw), ]
+```
+Se puede ver qué en la mayoría de los casos, el valor que falta es el ozono, pero también hay observaciones sin radiación solar.
+
+
+```{r, fig.height=8}
+#I do not think this graphic is useful (do not put in the document)
+plot(airquality_raw[,1:4])
+```
+
+
+```{r, fig.height=6}
+hist(airquality_raw$Ozone) # breaks = Sturges by default to set the number of bins
+hist(airquality_raw$Solar.R)
+hist(airquality_raw$Wind)
+hist(airquality_raw$Temp)
+```
+
+```{r, fig.height=6}
+plot(airquality_raw$Ozone)
+plot(airquality_raw$Solar.R)
+plot(airquality_raw$Wind)
+plot(airquality_raw$Temp)
+```
+
+
+### Gráficas de las variables usando ggplot2
+
+Para aprovechar la capacidad de ggplot2 de dibujar series temporales, convertimos los campos "Month" y "Day" en una fecha.
+(Definimos el año arbitrariamente como 2025)
+
+[
+  Docum.:
+
+  https://r-graph-gallery.com/279-plotting-time-series-with-ggplot2.html
+]
+
+```{r}
+date_2025 <- as.Date(ISOdate(2025, airquality_raw$Month, airquality_raw$Day))
+#date_2025
+
+airquality_raw_with_date <- airquality_raw
+airquality_raw_with_date <- airquality_raw_with_date[-c(5,6)]
+airquality_raw_with_date$date <- date_2025
+
+```
+
+
+```{r}
+# first version, without a function
+# ozone_data <- data.frame(x = airquality_raw_with_date$date,
+#                          y = airquality_raw_with_date$Ozone)
+# 
+# ozone_plot <- ggplot(ozone_data, aes(x,y)) +
+#       geom_line() +
+#       labs(title = "Monthly Variation of Ozone levels",
+#            caption ="Prepared by Fran Camacho, May 2025") +
+#       xlab("Month") +
+#       ylab("Ozone") +
+#       theme_minimal()
+# 
+# ozone_plot
+```
+
+
+```{r}
+# aux. function to plot the variables of the dataframe
+
+plot_airquality_var <- function(x,y, title, ylab) {
+  
+  df <- data.frame(x = x, y = y)
+  
+  p <- ggplot(df, aes(x,y)) +
+      geom_line() +
+      labs(title = title, caption ="Prepared by Fran Camacho, May 2025") +
+      xlab("Month") +
+      ylab(ylab) +
+      theme_minimal()
+}
+```
+
+```{r, fig.height=6}
+
+ozone_plot <- plot_airquality_var(airquality_raw_with_date$date,
+                                  airquality_raw_with_date$Ozone,
+                                  "Monthly Variation of Ozone levels",
+                                  "Ozone")
+
+solar.r_plot <- plot_airquality_var(airquality_raw_with_date$date,
+                                  airquality_raw_with_date$Solar.R,
+                                  "Monthly Variation of Solar Rad. levels",
+                                  "Solar Rad.")
+
+wind_plot <- plot_airquality_var(airquality_raw_with_date$date,
+                                  airquality_raw_with_date$Wind,
+                                  "Monthly Variation of Wind",
+                                  "Wind")
+
+temp_plot <- plot_airquality_var(airquality_raw_with_date$date,
+                                  airquality_raw_with_date$Temp,
+                                  "Monthly Variation of Temp",
+                                  "Temp")
+
+ozone_plot
+solar.r_plot
+wind_plot
+temp_plot
+
+```
+
+
+
+
+
+
+
