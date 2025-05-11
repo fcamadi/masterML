@@ -336,6 +336,7 @@ airquality_mode_with_date$type <- "mode"
 
 airquality_raw_with_date$type <- "original" 
 
+#create dataframe joining the 4 previous dataframes
 airquality_data <- rbind(airquality_mean_with_date, airquality_median_with_date, airquality_mode_with_date, airquality_raw_with_date)
 ```
       
