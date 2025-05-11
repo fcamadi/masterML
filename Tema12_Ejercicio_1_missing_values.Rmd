@@ -5,22 +5,20 @@ date: "2025-05-07"
 output: word_document
 ---
 
+
 # Tema 12 - Ejercicio 1
 
 Utilizando el dataset airquality, incluido de serie en R, realice una
 imputación de valores ausentes para las variables Ozone y Solar.R usando
 la media, la mediana y la moda. Seguidamente obtenga los gráficos de las
-distribuciones de las variables corregid
+distribuciones de las variables corregidas.
+
 
 ```{r}
-
 if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
 library(tidyverse)
-
-if (!require(caret)) install.packages('caret', dependencies = T)
-library(caret)
-
 ```
+
 
 Carga del dataset:
 
@@ -28,7 +26,7 @@ Carga del dataset:
 airquality_raw <- airquality
 ```
 
-Observamos el dataset sin procesar:
+Examinamos el dataset sin procesar:
 
 ```{r cars}
 summary(airquality_raw)
@@ -40,19 +38,19 @@ Buscamos las líneas con NAs:
 #rows with NAs in any column
 airquality_raw[!complete.cases(airquality_raw), ]
 ```
-Se puede ver qué en la mayoría de los casos, el valor que falta es el ozono, pero también hay observaciones sin radiación solar.
+Se puede ver qué en la mayoría de los casos, el valor que falta es el ozono, pero también hay algunas observaciones sin radiación solar.
 
 
 ### Representación gráfica del dataset original 
 
 ```{r, fig.height=8}
-#I do not think this graphic is useful (do not put in the document)
+#I do not think this graphic is useful (do not add it to the document)
 plot(airquality_raw[,1:4])
 ```
 
 
 ```{r, fig.height=6}
-hist(airquality_raw$Ozone) # breaks = Sturges by default to set the number of bins
+hist(airquality_raw$Ozone) # breaks = Sturges formula by default to set the number of bins
 hist(airquality_raw$Solar.R)
 hist(airquality_raw$Wind)
 hist(airquality_raw$Temp)
@@ -69,7 +67,7 @@ plot(airquality_raw$Temp)
 ### Gráficas de las variables usando ggplot2
 
 Para aprovechar la capacidad de ggplot2 de dibujar series temporales, convertimos los campos "Month" y "Day" en una fecha.
-(Definimos el año arbitrariamente como 2025)
+(Definimos el año arbitrariamente como 2025).
 
 [
   Docum.:
@@ -155,7 +153,7 @@ temp_plot
 Procesado del dataset:
 
 ```{r}
-airquality_raw_completed_with_mean <- airquality_raw |>
+airquality_mean_with_date <- airquality_raw |>
             mutate(
                   Ozone_MVI = if_else(is.na(Ozone), 1, 0),
                   Ozone = if_else(is.na(Ozone), mean(Ozone, na.rm = TRUE), Ozone),
@@ -168,7 +166,6 @@ Comparación de las gráficas:
 
 ```{r}
 # add date field 
-airquality_mean_with_date <- airquality_raw_completed_with_mean
 airquality_mean_with_date <- airquality_mean_with_date[-c(5,6)]
 airquality_mean_with_date$date <- date_2025
 
@@ -189,7 +186,7 @@ se repite el mismo valor para esos días.
 Procesado del dataset:
 
 ```{r}
-airquality_raw_completed_with_median <- airquality_raw |>
+airquality_median_with_date <- airquality_raw |>
             mutate(
                   Ozone_MVI = if_else(is.na(Ozone), 1, 0),
                   Ozone = if_else(is.na(Ozone), median(Ozone, na.rm = TRUE), Ozone),
@@ -203,7 +200,6 @@ Comparación de las gráficas:
 
 ```{r}
 # add date field 
-airquality_median_with_date <- airquality_raw_completed_with_median
 airquality_median_with_date <- airquality_median_with_date[-c(5,6)]
 airquality_median_with_date$date <- date_2025
 
@@ -232,15 +228,14 @@ library(modeest)
 ```{r}
 ozone_mode <- mfv(airquality_raw$Ozone, na_rm = TRUE)
 solar.r_mode <- mfv1(airquality_raw$Solar.R, na_rm = TRUE) # mvf returns 2 values
-
 ```
 
 
 ```{r}
+#check some values
 mean(airquality_raw$Ozone, na.rm = TRUE)
 median(airquality_raw$Ozone, na.rm = TRUE)
 ozone_mode
-
 
 mean(airquality_raw$Solar.R, na.rm = TRUE)
 median(airquality_raw$Solar.R, na.rm = TRUE)
@@ -249,7 +244,7 @@ solar.r_mode
 
 
 ```{r}
-airquality_raw_completed_with_mode <- airquality_raw |>
+airquality_mode_with_date <- airquality_raw |>
             mutate(
                   Ozone_MVI = if_else(is.na(Ozone), 1, 0),
                   Ozone = if_else(is.na(Ozone), ozone_mode, Ozone),
@@ -263,7 +258,6 @@ Comparación de las gráficas:
 
 ```{r}
 # add date field 
-airquality_mode_with_date <- airquality_raw_completed_with_mode
 airquality_mode_with_date <- airquality_mode_with_date[-c(5,6)]
 airquality_mode_with_date$date <- date_2025
 
@@ -323,9 +317,10 @@ ggplot() +
 
 ```
 
+Otra manera:   
+
 ]
 
-Otra manera:      
       
 Creamos un dataframe con todos los datos, y una columna nueva ("type") que especifica de donde vienen:
       
