@@ -13,7 +13,9 @@ librería caret, realice una búsqueda de los parámetros óptimos para
 cualquiera de los modelos de las pruebas de evaluación de los temas 3, 4,
 5, 6 o 7. Comente los resultados obtenidos.
 
-Utilizaremos el tema 4. 
+Utilizaremos Naive Bayes como en el tema 4. 
+
+Examinamos en la documentación los candidatos:
 
 http://topepo.github.io/caret/available-models.html
 
@@ -24,6 +26,7 @@ Model        method Vale   Type            Libraries   Tuning Paremeters
 Naive Bayes	 naive_bayes	 Classification	 naivebayes	 laplace, usekernel, adjust
 
 Naive Bayes	 nb	           Classification	 klaR	       fL, usekernel, adjust
+
 
 
 ## Paso 1: Carga de los datos
@@ -40,22 +43,16 @@ Preparamos el dataset de igual manera a como lo hicimos en el ejercicio 4.
 Carga de paquetes que son necesarios para diversas funciones.
 
 ```{r}
-if (!require(tm)) install.packages('tm', dependencies = T)   # text mining
+if (!require(tm)) install.packages('tm', dependencies = T) # text mining
 library(tm)
 
-if (!require(SnowballC)) install.packages('SnowballC', dependencies = T)   # stemming
+if (!require(SnowballC)) install.packages('SnowballC', dependencies = T) # stemming
 library(SnowballC)
-
-if (!require(wordcloud)) install.packages('wordcloud', dependencies = T)   # wordclouds
-library(wordcloud)
-
-if (!require(RColorBrewer)) install.packages('RColorBrewer', dependencies = T)   # color palettes
-library(RColorBrewer)
 
 if (!require(naivebayes)) install.packages('naivebayes', dependencies = T)
 library(naivebayes)
 
-if (!require(caret)) install.packages('caret', dependencies = T)   # data partitioning, confusion matrix
+if (!require(caret)) install.packages('caret', dependencies = T)
 library(caret)         
 ```
 
@@ -74,32 +71,25 @@ movies_raw$class <- factor(movies_raw$class)
 table(movies_raw$class) # -> 1000 Neg, 1000 Pos
 ```
 
+Se trataba de un dataset totalmente balanceado.
+
 Procesado de los textos:
 
 ```{r}
 #create corpus
 movies_corpus <- VCorpus(VectorSource(movies_raw$text))
 print(movies_corpus)
-#inspect(movies_corpus) omitted for brevity
 
 # Process the reviews (we will use some functions from the packate tm)
-
+#
 #To lowercase (content seems to be already in lowercase and without punctuation signs, but just in case)
 movies_corpus_clean <- tm_map(movies_corpus, content_transformer(tolower))
-
-#Check the result (output omitted for brevity)
-#as.character(movies_corpus[[1]])
-#as.character(movies_corpus_clean[[1]])
-
 #Remove numbers
 movies_corpus_clean <- tm_map(movies_corpus_clean, removeNumbers)
-
 #Remove stopwords
-# check words and languages with ?stopwords
 movies_corpus_clean <- tm_map(movies_corpus_clean, removeWords, stopwords()) 
 #Remove punctuation signs
 movies_corpus_clean <- tm_map(movies_corpus_clean, removePunctuation) 
-
 
 #Carry out the stemming:
 # To apply the wordStem() function to an entire corpus of text documents, the tm package includes
@@ -108,12 +98,6 @@ movies_corpus_clean <- tm_map(movies_corpus_clean, stemDocument)
 
 #Finally eliminate unneeded whitespace produced by previous steps
 movies_corpus_clean <- tm_map(movies_corpus_clean, stripWhitespace) 
-
-#Check the final result (output omitted for brevity)
-#before cleaning
-#as.character(movies_corpus[[1]])
-#after
-#as.character(movies_corpus_clean[[1]])
 
 # Tokenization - document-term matrix (DTM)
 movies_dtm <- DocumentTermMatrix(movies_corpus_clean)
@@ -145,20 +129,20 @@ movies_train_labels <- movies_raw[train_indices, ]$class
 movies_test_labels <- movies_raw[-train_indices, ]$class
 
 #view number of rows in each set
-#nrow(movies_dtm_train)  # 1500
-#nrow(movies_dtm_test)   # 500
-#length(movies_train_labels)  # 1500
-#length(movies_test_labels)   # 500
+nrow(movies_dtm_train)  # 1500
+nrow(movies_dtm_test)   # 500
+length(movies_train_labels)  # 1500
+length(movies_test_labels)   # 500
 ```
 
-Vamos a comprobar ahora que los dos conjuntos tienen la misma proporción de críticas positivas y negativas (si no, el entrenamiento no serviría para nada):
+Volvemos a comprobar que los dos conjuntos tienen la misma proporción de críticas positivas y negativas (si no, el entrenamiento no serviría para nada):
 
 ```{r}
 prop.table(table(movies_train_labels))
 prop.table(table(movies_test_labels))
 ```
 
-###Finalizamos ahora la preparación de los datos
+###Finalizamos la preparación de los datos
 
 Se necesita obtener un listado con las palabras más utilizadas:
 
@@ -167,7 +151,7 @@ Se necesita obtener un listado con las palabras más utilizadas:
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
 movies_freq_words <- findFreqTerms(movies_dtm_train, 100)
 
-#movies_freq_words
+movies_freq_words
 ```
   [1] "abil"         "abl"          "absolut"      "accept"       "achiev"       "across"       "act"          "action"       "actor"        "actress"      "actual"      
  [12] "adam"         "adapt"        "add"          "addit"        "admit"        "adult"        "adventur"     "age"          "agent"        "ago"          "agre"        
@@ -176,17 +160,16 @@ movies_freq_words <- findFreqTerms(movies_dtm_train, 100)
  [ reached 'max' / getOption("max.print") -- omitted 27 entries ]
 
 
-
 Y ahora utilizamos ese listado para limitar el número de columnas/features:
 
 ```{r}
-#ncol(movies_dtm_train)
+ncol(movies_dtm_train)
 #[1] 24951
 
 movies_dtm_freq_train <- movies_dtm_train[ , movies_freq_words]
 movies_dtm_freq_test <- movies_dtm_test[ , movies_freq_words]
 
-#ncol(movies_dtm_freq_train)
+ncol(movies_dtm_freq_train)
 #[1] 1027
 ```
 
@@ -196,7 +179,7 @@ Finalmente, ya que las matrices DTM tienen valores numéricos, mientras que el a
 ```{r}
 #We need a function that converts counts to a factor
 convert_counts <- function(x) {
-  x <- ifelse(x > 0, "Yes", "No")
+  x <- ifelse(x > 0, "Pos", "Neg")
 }
 #and we apply it
 movies_train <- apply(movies_dtm_freq_train, MARGIN = 2, convert_counts)  # MARGIN = 2 <- columns
@@ -220,29 +203,20 @@ Control:
 ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "best")  #repeats = 10, 
 ```
 
-Rejilla/matriz de parámetros:
 
-```{r}
-grid <- expand.grid(laplace = c(0, 1.0),
-                    usekernel = c(FALSE, TRUE),
-                    adjust = c(0.5, 1))
-```
+Entrenamiento 1:
 
-```{r}
-grid
-```
-
-Entrenamiento:
+Dado que se trata de un dataset balanceado, vamos a usar la métrica exactitud en lugar de Kappa.
 
 ```{r}
 set.seed(12345)
 
 system.time({
-  m <- train(class ~ ., data = movies_train, method = "naive_bayes",
-            usepoisson = TRUE,
-            metric = "Kappa",
-            trControl = ctrl,
-            tuneGrid = grid)
+  m <- train(class ~ ., data = movies_train, 
+             method = "naive_bayes",
+             metric = "Accuracy",
+             #usepoisson = TRUE,
+             trControl = ctrl)
 })
 ```
 
@@ -251,33 +225,168 @@ system.time({
 m
 ```
 
+Me llama mucho la atención que el valor de la exactitud es muy muy alto, mientras que el de Kappa es 0 ..
+(He probado varias combinaciones, con el mismo resultado).
+
+
+```{r}
+plot(m)
+```
+
+
+Entrenamiento 2:
+
+Creamos una rejilla/matriz de parámetros alrededor de los parámetros encontrados de manera automática por caret:
+
+```{r}
+grid <- expand.grid(laplace = c(0, 0.5, 1.0),
+                    usekernel = c(FALSE, TRUE),
+                    adjust = c(0.5, 0.75, 1, 1.25))
+
+grid
+```
+
+```{r}
+#set.seed(12345)
+#
+#system.time({
+#  m_nb <- train(class ~ ., data = dtm, 
+#             method = "nb",
+#             metric = "Accuracy",
+#             trControl = ctrl,
+#             tuneGrid = grid)
+#})
+```
+Output:
+
+Error: protect(): protección del desborde de la pila
+Timing stopped at: 95.97 0.723 96.43
+
+!!!?
+
+
+```{r}
+set.seed(12345)
+
+system.time({
+  m <- train(class ~ ., data = movies_train, 
+             method = "naive_bayes",
+             metric = "Accuracy",
+             usepoisson = TRUE,
+             trControl = ctrl,
+             tuneGrid = grid)
+})
+```
+
+
+```{r}
+m
+```
+El parámetro que verdaderamente influye es "usekernel". Si "userkernel" es TRUE (y FALSE), 
+los valores de laplace y de "adjust" no influyen, se obtiene la misma exactitud y Kappa.
+
+  0        FALSE      1.25  **0.6786667  0.06693412**
+  0         TRUE      0.50  **0.9133333  0.00000000**
+  
+  O exactitud 0.913 y kappa 0, o exactitud 0.678 y kappa 0.669
+
 ```{r}
 plot(m)
 ```
 
 
 ```{r}
+#m$finalModel
+```
+
+
+Predicción:
+
+```{r}
+movies_pred <- predict(m, movies_test)
+movies_pred
+```
+
+
+Resultado:
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = movies_test_labels, data = movies_pred, mode = "everything", positive = "Pos")
+```
+
+Se obtiene un resultado ... absurdo, con los parámetros que devuelve caret.
+
+
+Si forzamos kernel FALSE:
+
+
+```{r}
+grid2 <- expand.grid(laplace = c(0, 1.0),
+                    usekernel = c(FALSE),
+                    adjust = c(0.75, 1, 1.25))
+
+grid2
+```
+
+
+```{r}
 set.seed(12345)
 
-#usepoisson = TRUE,
-
 system.time({
-m2 <- train(class ~ ., data = movies_train, method = "naive_bayes",
+  m2 <- train(class ~ ., data = movies_train, method = "naive_bayes",
             metric = "Accuracy",
+            usepoisson = TRUE,
             trControl = ctrl,
-            tuneGrid = grid)
+            tuneGrid = grid2)
 })
 ```
+
 
 ```{r}
 m2
 ```
+
+Predicción:
+
 ```{r}
-plot(m2)
+movies_pred2 <- predict(m2, movies_test)
+movies_pred2
+```
+
+
+Resultado:
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = movies_test_labels, data = movies_pred2, mode = "everything", positive = "Pos")
+```
+
+Se obtiene un resultado peor que en la tarea del tema 4.
+
+Si el procesado de los textos estuviera erróneo, al aplicar naive bayes de igual manera que en ejercicio 4
+se obtendría un resultado también peor. Pero se obtiene exactamente lo mismo:
+
+**Tema 4:**
+
+```{r}
+system.time({
+  movies_classifier_tema4 <- naive_bayes(movies_train, movies_train_labels)
+})
+#movies_classifier_tema4
 ```
 
 
 ```{r}
-movies_pred <- predict(m2$finalModel, movies_test)
+#predict
+system.time({
+  movies_test_pred_tema4 <- predict(movies_classifier_tema4, movies_test)
+})
 ```
+
+```{r}
+#confusion matrix
+confusionMatrix(reference = movies_test_labels, data = movies_test_pred_tema4, mode = "everything", positive = "Pos")
+```
+
 
