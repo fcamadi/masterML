@@ -179,7 +179,7 @@ Finalmente, ya que las matrices DTM tienen valores numéricos, mientras que el a
 ```{r}
 #We need a function that converts counts to a factor
 convert_counts <- function(x) {
-  x <- ifelse(x > 0, "Pos", "Neg")
+  x <- ifelse(x > 0, "Yes", "No")
 }
 #and we apply it
 movies_train <- apply(movies_dtm_freq_train, MARGIN = 2, convert_counts)  # MARGIN = 2 <- columns
