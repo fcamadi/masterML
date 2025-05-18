@@ -2,7 +2,9 @@
 title: "Tema12_Ejercicio_2_SMOTE"
 author: "Fran Camacho"
 date: "2025-05-05"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 # Tema 12 - Ejercicio 2 (versión "a")
@@ -11,6 +13,9 @@ Utilizando el archivo Bank.csv del Tema 7, reequilibre la muestra utilizando
 SMOTE y repita el ejercicio usando la técnica que desee (redes neuronales
 o SVM), comparando los resultados obtenidos con los que se obtuvieron
 previamente.
+
+
+Utilizaremos SVM, por eso importamos la librería kernlab.
 
 ```{r}
 #https://www.jstatsoft.org/article/view/v011i09
@@ -116,7 +121,7 @@ boxplot(bank_raw_oversample$balance, main = "Boxplot of Balance (oversampling)",
 
 
 ```{r}
-#scale numeric variables (neither day nor month)
+#scale numeric variables (except day and month)
 maxs <- apply(bank_raw[c(1,6,12,13,14,15)], 2, max)
 mins <- apply(bank_raw[c(1,6,12,13,14,15)], 2, min)
 
