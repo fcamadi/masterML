@@ -151,7 +151,7 @@ fct_count(bank_processed_balanced$y, prop = TRUE)
 ```
 
 
-```{r, fig.height=8}
+```{r, fig.height=6}
 boxplot(bank_raw$balance, main = "Boxplot of Balance", ylab = "Balance")
 boxplot(bank_raw_undersample$balance, main = "Boxplot of Balance (downsampling)", ylab = "Balance")
 boxplot(bank_raw_oversample$balance, main = "Boxplot of Balance (oversampling)", ylab = "Balance")
@@ -315,7 +315,7 @@ Accuracy was used to select the optimal model using the largest value.
 The final values used for the model were sigma = 0.1 and C = 1.15.
 
 **C     sigma  Accuracy   Kappa** 
-**1.15  0.10   0.9411667  0.8823333**
+**1.15  0.10   0.9421667  0.8843333**
 
 
 ```{r}
@@ -382,8 +382,9 @@ Se ha obtenido una exactitud del 96.4!
 
 Los valores de Kappa, de F1 .. todos, rozan el 97%.
 
-
-**Repetir el proceso entero, pero separando el conjunto de test antes de aplicar SMOTE**
-(En otro .Rmd para no liar).
+El resultado creo que es demasiado bueno para ser verdad.
+Así que vamos a repetir el proceso entero, pero separando el conjunto de test **antes de aplicar SMOTE**.
+De esta manera veremos si este resultado tan bueno es real, o es solo debido a que se ha producido un sobreajuste
+a los datos de entrada.
 
 

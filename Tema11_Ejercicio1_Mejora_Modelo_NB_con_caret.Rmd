@@ -272,7 +272,7 @@ system.time({
   m <- train(class ~ ., data = movies_train, 
              method = "naive_bayes",
              metric = "Accuracy",
-             usepoisson = TRUE,
+             #usepoisson = TRUE,
              trControl = ctrl,
              tuneGrid = grid)
 })
