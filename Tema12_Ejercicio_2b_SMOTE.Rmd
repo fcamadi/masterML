@@ -1,5 +1,5 @@
 ---
-title: "Tema12_Ejercicio_2_SMOTE"
+title: "Tema12_Ejercicio_2b_SMOTE"
 author: "Fran Camacho"
 date: "2025-05-05"
 output: html_document
