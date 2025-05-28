@@ -414,7 +414,7 @@ Con adaboost se obtiene el peor resultado con el conjunto de test.
 
 ### Random Forests
 
-Utlizaremos directamente caret con las dos librerias (randomForest ranger)
+Utilizaremos directamente caret con las dos librerias (randomForest y ranger)
 
 
 A) librería randomForest
