@@ -1,0 +1,118 @@
+---
+title: "Web_scraping"
+author: "Fran Camacho"
+date: "2025-05-14"
+output: word_document
+---
+
+
+
+Importar librerías
+
+```{r}
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse) 
+
+if (!require(rvest)) install.packages('rvest', dependencies = T)
+library(rvest) 
+
+if (!require(xml2)) install.packages('xml2', dependencies = T)
+library(xml2) 
+```
+
+Enlaces:
+
+```{r}
+elmundo_link <- "https://www.elmundo.es/"
+
+publico_link <- "https://www.publico.es/"
+```
+
+
+Descarga documentos:
+
+
+Un periódico:
+
+```{r}
+elmundo_pag <- read_html(elmundo_link)
+```
+
+Otro:
+
+```{r}
+publico_pag <- read_html(publico_link)
+```
+
+
+
+
+```{r}
+elmundo_portada_links <- elmundo_pag |> html_nodes("a") #links to other htmls  
+
+elmundo_portada_links
+
+# [1] <a href="https://www.elmundo.es/ultimas-noticias.html">Últimas noticias</a>
+```
+
+
+```{r}
+link_i <- elmundo_portada_links[4]
+
+link_i
+```
+
+
+```{r}
+link_to_read <- link_i |> html_attr("href")
+
+link_to_read
+```
+
+
+```{r}
+link_pag <- read_html(link_to_read)
+
+link_pag
+```
+
+
+```{r}
+link_pag |> html_text2()
+```
+
+
+
+
+
+```{r}
+publico_portada_links <- publico_pag |> html_nodes("a")
+
+publico_portada_links
+```
+
+
+
+```{r}
+link_0 <- read_html(publico_portada_links[0])
+
+link_0
+```
+
+
+```{r}
+elmundo_pag$doc
+```
+
+
+
+```{r}
+articulos <- elmundo_pag %>% 
+              html_nodes(".article") %>%
+              map(~.x %>% html_text())
+
+```
+
+
+
+
