@@ -1,0 +1,253 @@
+---
+title: "Web_scraping_RSelenium"
+author: "Fran Camacho"
+date: "2025-05-22"
+output: word_document
+---
+
+---
+title: "Web_scraping"
+author: "Fran Camacho"
+date: "2025-05-14"
+output: word_document
+---
+
+Importar librerías
+
+```{r}
+if (!require(RSelenium)) install.packages('RSelenium', dependencies = T)
+library(RSelenium) 
+
+if (!require(wdman)) install.packages('wdman', dependencies = T)
+library(wdman)
+
+if (!require(httr)) install.packages('httr', dependencies = T)
+library(httr)
+
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse) 
+
+if (!require(rvest)) install.packages('rvest', dependencies = T)
+library(rvest) 
+
+if (!require(xml2)) install.packages('xml2', dependencies = T)
+library(xml2) 
+```
+
+Arrancar el driver del Chrome:
+
+```{r}
+
+## linux console:  
+# xvfb-run java -Dwebdriver.chrome.driver=/usr/local/bin/chromedriver -jar /usr/local/bin/selenium-server-standalone.jar
+
+system("java -Dwebdriver.chrome.driver=/usr/local/bin/chromedriver -jar /usr/local/bin/selenium-server-standalone.jar &")
+```
+
+Ejemplo 1:
+
+```{r}
+rD <- rsDriver(browser = "firefox",
+               chromever = NULL)
+remDr <- rD$client
+
+remDr$navigate("https://www.worldometers.info/coronavirus/")
+
+# Extract the total number of cases
+total_cases <- remDr$findElement(using = "xpath",
+                                 value = '//*[@id="maincounter-wrap"]/div/span')
+total_cases <- total_cases$getElementText()[[1]]
+
+# Extract the total number of deaths
+total_deaths <- remDr$findElement(using = "xpath",
+                                  value = '/html/body/div[3]/div[2]/div[1]/div/div[6]/div/span')
+total_deaths <- total_deaths$getElementText()[[1]]
+
+# Extract the total number of recoveries
+total_recoveries <- remDr$findElement(using = "xpath",
+                                      value = '/html/body/div[3]/div[2]/div[1]/div/div[7]/div/span')
+total_recoveries <- total_recoveries$getElementText()[[1]]
+
+# Print the extracted data
+cat("Total Cases: ", total_cases, "\n")
+cat("Total Deaths: ", total_deaths, "\n")
+cat("Total Recoveries: ", total_recoveries, "\n")
+
+# Close the server
+remDr$close()
+```
+
+Ejemplo 2:
+
+```{r}
+elmundo_link <- "https://www.elmundo.es/"
+
+publico_link <- "https://www.publico.es/"
+
+el_pais_link <- "https://elpais.com/"
+
+link <- elmundo_link
+```
+
+```{r}
+# Specify the path to the ChromeDriver executable
+chrome_driver_path <- "/usr/local/bin/chromedriver" 
+
+# Start the Selenium server with the specified driver and capabilities
+selenium_server <- selenium(port = 4444L, 
+                            verbose = FALSE, 
+                            driver = "chrome", 
+                            extraCapabilities = list(
+                              "goog:chromeOptions" = list(
+                                #"args" = list("--headless"),  # Optional: run in headless mode
+                                "binary" = chrome_driver_path
+                              )
+                            ))
+```
+
+
+```{r}
+remDr <- remoteDriver(port = 4444L, browserName = "chrome")
+remDr$open()
+
+# Navigate to news website
+remDr$navigate(link)
+
+# Wait for the page to load
+Sys.sleep(3)
+
+# Get the page source
+page_source <- remDr$getPageSource()[[1]]
+
+# Parse the HTML with rvest
+html_content <- read_html(page_source)
+
+# Extract all anchor nodes
+anchor_nodes <- html_content |>  html_nodes("a")
+
+# Print the anchor nodes
+#print(anchor_nodes)
+
+# Optionally, extract the href attributes
+hrefs <- anchor_nodes |>  html_attr("href")
+print(hrefs)
+```
+
+
+```{r}
+remDr <- remoteDriver(port = 4444L, browserName = "chrome")
+remDr$open()
+
+Sys.sleep(1)
+
+#page_link <- "https://www.elmundo.es/television/momentvs/2025/05/22/682eb61ffdddff620c8b457f.html"
+#page_link <- "https://www.elmundo.es/deportes/2025/05/26/68344b9921efa09a428b4583.html"
+page_link <- "https://www.elmundo.es/espana/2025/05/26/6834b7e5e4d4d8664a8b4584.html"
+remDr$navigate(page_link)  
+
+
+button_privacy <- remDr$findElement(using = "xpath", value = '/html/body/div[1]/div/div/div/div/div/div[2]/div[1]/p/div[2]/button[1]')
+button_privacy$clickElement()  
+
+                                                               
+button_show_comments <- remDr$findElement(using = "xpath", value = '/html/body/main[1]/div[5]/div/div/div[1]/aside[2]/button')
+button_show_comments$clickElement()
+        
+Sys.sleep(1)
+    
+num_clicks <- 10
+               
+comments_block <- remDr$findElement(using = "xpath", "/html/body/main[1]/div[7]")  
+
+for (i in 1:num_clicks) {    
+  
+    comments_block$sendKeysToElement(list(key = "page_down"))
+    comments_block$sendKeysToElement(list(key = "page_down"))
+    comments_block$sendKeysToElement(list(key = "page_down"))
+    
+    button_show_more_comments <- remDr$findElement(using = "xpath", value = '/html/body/main[1]/div[7]/section/div/section/div[2]/ul/li/a')
+    button_show_more_comments$clickElement()
+        
+    # wait
+    #Sys.sleep(1)
+}
+
+comments_block$sendKeysToElement(list(key = "page_down"))
+comments_block$sendKeysToElement(list(key = "page_down"))
+comments_block$sendKeysToElement(list(key = "page_down"))
+comments_block$sendKeysToElement(list(key = "page_down"))
+
+```
+
+
+```{r}
+
+# Read the page source after clicking the button
+page_source <- remDr$getPageSource()[[1]]
+html_content <- read_html(page_source)
+
+# Extract all comments
+article_nodes <- html_content |>  html_elements("article")
+
+num_comments <- length(article_nodes)
+
+paste("numero de comentarios: ",length(article_nodes))
+
+
+article_nodes <- article_nodes[3:num_comments]
+
+comments <- html_nodes(article_nodes, "div") |> html_text2()
+
+comments <- comments[1:(2*num_comments)]
+comments
+
+#remDr$close()
+```
+```{r}
+remDr$close()
+```
+
+
+
+```{r}
+comments_list <- remDr$findElement(using = "id", "listado_comentarios") 
+
+comments_list
+```
+
+
+```{r}
+articles <- html_content |>  html_nodes("article") 
+
+articles
+```
+
+
+```{r}
+articles[6] |> html_nodes("header")
+```
+
+
+```{r}
+articles[6] |> html_nodes("div") 
+```
+
+```{r}
+articles[3:length(articles)] |> html_nodes("div") |> html_text2()
+```
+
+```{r}
+html_content |>  html_nodes("article") |> html_nodes("div")  |> html_text2()
+```
+
+
+
+```{r}
+selenium_server$stop()
+```
+
+```{r}
+# Close the browser and stop the server
+remDr$close()
+selenium_server$stop()
+```
