@@ -1,0 +1,198 @@
+---
+title: "Web_scraping_RSelenium_periodicos_online"
+author: "Fran Camacho"
+date: "2025-05-28"
+output: word_document
+---
+
+
+
+Importar librerías
+
+```{r}
+if (!require(RSelenium)) install.packages('RSelenium', dependencies = T)
+library(RSelenium) 
+
+if (!require(rvest)) install.packages('rvest', dependencies = T)
+library(rvest) 
+
+if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+library(tidyverse) 
+
+if (!require(wdman)) install.packages('wdman', dependencies = T)
+library(wdman)
+
+if (!require(stringr)) install.packages('stringr', dependencies = T) #regex
+library(stringr)
+
+if (!require(httr)) install.packages('httr', dependencies = T)
+library(httr)
+
+if (!require(xml2)) install.packages('xml2', dependencies = T)
+library(xml2) 
+```
+
+Ojo:
+✖ dplyr::filter()         masks stats::filter()
+✖ readr::guess_encoding() masks rvest::guess_encoding()
+✖ dplyr::lag()            masks stats::lag()
+
+
+
+
+```{r}
+# Start Selenium server:
+
+# Linux console:  
+# xvfb-run java -Dwebdriver.chrome.driver=/usr/local/bin/chromedriver -jar /usr/local/bin/selenium-server-standalone.jar
+
+# Here:
+#system("java -Dwebdriver.chrome.driver=/usr/local/bin/chromedriver -jar /usr/local/bin/selenium-server-standalone.jar &")
+
+# Best way:
+# run selenium_server$process as done below
+```
+
+Arrancar servidor Selenium:
+
+```{r}
+# Start the Selenium server with the specified driver and capabilities
+
+# selenium_server <- selenium(retcommand = TRUE, verbose = TRUE, check = FALSE) #debug
+
+#binman::list_versions("chromedriver") # list chromedriver versions
+
+extraCap <-  list("goog:chromeOptions" = list(
+                      "args" = list("--headless")  # Optional: run in headless mode
+                    )
+                 )
+                              
+selenium_server <- selenium(port = 4444L, 
+                            verbose = FALSE, 
+                            extraCapabilities = extraCap
+                           )
+```
+
+```{r}
+#selenium_server
+selenium_server$process # to show the running status and the pid
+```
+
+
+```{r}
+# to stop the selenium server
+selenium_server$stop()
+```
+
+```{r}
+selenium_server$error()
+print("-------------------")
+selenium_server$log()
+```
+
+
+
+
+```{r}
+# link list
+
+link01 <- "https://www.elmundo.es/television/momentvs/2025/05/22/682eb61ffdddff620c8b457f.html"
+link02 <- "https://www.elmundo.es/deportes/2025/05/26/68344b9921efa09a428b4583.html"
+link03 <- "https://www.elmundo.es/espana/2025/05/26/6834b7e5e4d4d8664a8b4584.html"
+link04 <- "https://www.elmundo.es/espana/2025/05/29/683820d3e85eceba4a8b45b0.html"
+
+link_list <- c(link01,link02,link03,link04)
+
+```
+
+
+Procesar una página:
+
+
+```{r, message=FALSE}
+
+#open remote driver
+remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4444L, browserName = "chrome")
+remDr$open()
+
+Sys.sleep(1)
+
+remDr$navigate(page_link)  
+     
+Sys.sleep(1)
+
+#button_privacy <- remDr$findElement(using = "xpath", value = '/html/body/div[1]/div/div/div/div/div/div[2]/div[1]/p/div[2]/button[1]')
+button_privacy <- remDr$findElement(using = "id", value = "ue-accept-notice-button")
+button_privacy$clickElement()  
+
+button_show_comments <- remDr$findElement(using = "xpath", value = '/html/body/main[1]/div[5]/div/div/div[1]/aside[2]/button')
+button_show_comments$clickElement()
+        
+Sys.sleep(1)
+    
+
+comments_block <- remDr$findElement(using = "xpath", "/html/body/main[1]/div[7]")  
+                                                            
+num_comments_html <- remDr$findElement(using = "class name", value = "js-numComments")
+number_of_posts <- as.integer(str_extract(num_comments_html$getElementAttribute("innerHTML"), "(?<=<strong>)\\d+(?=</strong>)"))
+number_of_posts
+
+num_clicks <- round(number_of_posts / 10, 0)
+
+for (i in 1:num_clicks+1) {    
+  
+    comments_block$sendKeysToElement(list(key = "page_down"))
+    comments_block$sendKeysToElement(list(key = "page_down"))
+    comments_block$sendKeysToElement(list(key = "page_down"))
+    
+    button_show_more_comments <- remDr$findElement(using = "xpath", value = '/html/body/main[1]/div[7]/section/div/section/div[2]/ul/li/a')
+    button_show_more_comments$clickElement()
+        
+    # wait
+    Sys.sleep(0.1)
+}
+
+comments_block$sendKeysToElement(list(key = "page_down"))
+comments_block$sendKeysToElement(list(key = "page_down"))
+comments_block$sendKeysToElement(list(key = "page_down"))
+comments_block$sendKeysToElement(list(key = "page_down"))
+
+```
+
+
+```{r}
+
+# Read the page source after clicking the button
+page_source <- remDr$getPageSource()[[1]]
+html_content <- read_html(page_source)
+
+# Extract all comments
+article_nodes <- html_content |>  html_elements("article")
+
+num_comments <- length(article_nodes)
+
+paste("numero de comentarios: ",length(article_nodes))
+
+
+article_nodes <- article_nodes[3:num_comments]
+
+comments <- html_nodes(article_nodes, "div") |> html_text2()
+
+#comments <- comments[1:(2*num_comments)]
+comments <- comments[1:(2*number_of_posts)]
+
+cat(comments, file="comments.txt", sep="\n")
+
+```
+
+
+Cerrar el driver
+
+```{r}
+remDr$close()
+```
+
+```{r}
+# stop the server
+selenium_server$stop()
+```
