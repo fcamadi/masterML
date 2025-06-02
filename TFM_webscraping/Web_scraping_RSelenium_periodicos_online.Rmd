@@ -53,7 +53,8 @@ Ojo:
 # run selenium_server$process as done below
 ```
 
-Arrancar servidor Selenium:
+
+### Arrancar servidor Selenium:
 
 ```{r}
 # Start the Selenium server with the specified driver and capabilities
@@ -90,56 +91,106 @@ print("-------------------")
 selenium_server$log()
 ```
 
-
+### Lista de páginas:
 
 
 ```{r}
-# link list
+# 1st link list
 
 link01 <- "https://www.elmundo.es/television/momentvs/2025/05/22/682eb61ffdddff620c8b457f.html"
+summary01 <- "Felipe_González_Hormiguero"
+
 link02 <- "https://www.elmundo.es/deportes/2025/05/26/68344b9921efa09a428b4583.html"
+summary02 <- "Euskadi_vs_España_pelota_vasca"
+
 link03 <- "https://www.elmundo.es/espana/2025/05/26/6834b7e5e4d4d8664a8b4584.html"
+summary03 <- "Leire_Díez_UCO"
+
 link04 <- "https://www.elmundo.es/espana/2025/05/29/683820d3e85eceba4a8b45b0.html"
+summary04 <- "Novio_Ayuso_procesado"
 
-link_list <- c(link01,link02,link03,link04)
+link05 <- "https://www.elmundo.es/espana/2025/05/30/68397ab9fc6c8361558b456d.html"
+summary05 <- "Periodistas_ElPais_se_ratifican_Supremo"
 
+links_vector <- c(link01,link02,link03,link04,link05)
+summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
 ```
 
 
-Procesar una página:
+```{r}
+# 2nd link list
+
+link01 <- "https://www.elmundo.es/television/2025/05/30/6839d219e85eceb30a8b45b2.html"
+summary01 <- "Familia_Tele_cancelada_parcialmente"
+
+link02 <- "https://www.elmundo.es/andalucia/2025/05/30/683877e5e4d4d89d1f8b4614.html"
+summary02 <- "UCO_85_enchufados"
+
+link03 <- "https://www.elmundo.es/economia/dinero-inversion/2025/05/30/683991d0fc6c83734d8b4572.html"
+summary03 <- "IBEX35_mejor_mes"
+
+link04 <- "https://www.elmundo.es/espana/2025/05/30/6839b825e4d4d898398b459e.html"
+summary04 <- "Feijoo_pancartero"
+
+link05 <- "https://www.elmundo.es/andalucia/2025/05/30/683990dde85eceb12d8b4593.html"
+summary05 <- "Juez_Sevilla_PSOE"
+
+links_vector <- c(link01,link02,link03,link04,link05)
+summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
+```
+
+```{r}
+links_df <- data.frame(summary = summaries_vector, link = links_vector)
+```
+
+```{r}
+links_df
+```
 
 
-```{r, message=FALSE}
+### Procesar una página:
 
-#open remote driver
-remDr <- remoteDriver(remoteServerAddr = "localhost", port = 4444L, browserName = "chrome")
-remDr$open()
 
-Sys.sleep(1)
+Función que recibe el nombre resumido y el enlace de la noticia:
 
-remDr$navigate(page_link)  
-     
-Sys.sleep(1)
+```{r}
 
-#button_privacy <- remDr$findElement(using = "xpath", value = '/html/body/div[1]/div/div/div/div/div/div[2]/div[1]/p/div[2]/button[1]')
-button_privacy <- remDr$findElement(using = "id", value = "ue-accept-notice-button")
-button_privacy$clickElement()  
+read_page_el_mundo_function <- function(link_info) {
+  
+  remDr <- remoteDriver(port = 4444L, browserName = "chrome")
+  remDr$open()
 
-button_show_comments <- remDr$findElement(using = "xpath", value = '/html/body/main[1]/div[5]/div/div/div[1]/aside[2]/button')
-button_show_comments$clickElement()
+  link_info <- data.frame(link_info) 
+    
+  info <- link_info$summary
+  print(info)
+  page_link <- link_info$link
+  print(page_link)
+  
+  remDr$navigate(page_link)  
+  Sys.sleep(1)
+                 
+  try({                                               
+    button_privacy <- remDr$findElement(using = "xpath", value = '/html/body/div[1]/div/div/div/div/div/div[2]/div[1]/p/div[2]/button[1]')
+    #button_privacy <- remDr$findElement(using = "id", value = "ue-accept-notice-button")
+    button_privacy$clickElement()  
+  })
+  
+  button_show_comments <- remDr$findElement(using = "xpath", value = '/html/body/main[1]/div[5]/div/div/div[1]/aside[2]/button')
+  button_show_comments$clickElement()
         
-Sys.sleep(1)
+  Sys.sleep(1)
     
 
-comments_block <- remDr$findElement(using = "xpath", "/html/body/main[1]/div[7]")  
+  comments_block <- remDr$findElement(using = "xpath", "/html/body/main[1]/div[7]")  
                                                             
-num_comments_html <- remDr$findElement(using = "class name", value = "js-numComments")
-number_of_posts <- as.integer(str_extract(num_comments_html$getElementAttribute("innerHTML"), "(?<=<strong>)\\d+(?=</strong>)"))
-number_of_posts
+  num_comments_html <- remDr$findElement(using = "class name", value = "js-numComments")
+  number_of_posts <- as.integer(str_extract(num_comments_html$getElementAttribute("innerHTML"), "(?<=<strong>)\\d+(?=</strong>)"))
+  paste("numero de posts: ", number_of_posts)
 
-num_clicks <- round(number_of_posts / 10, 0)
+  num_clicks <- round(number_of_posts / 10, 0)
 
-for (i in 1:num_clicks+1) {    
+  for (i in 1:num_clicks+1) {    
   
     comments_block$sendKeysToElement(list(key = "page_down"))
     comments_block$sendKeysToElement(list(key = "page_down"))
@@ -150,39 +201,89 @@ for (i in 1:num_clicks+1) {
         
     # wait
     Sys.sleep(0.1)
-}
+  }
 
-comments_block$sendKeysToElement(list(key = "page_down"))
-comments_block$sendKeysToElement(list(key = "page_down"))
-comments_block$sendKeysToElement(list(key = "page_down"))
-comments_block$sendKeysToElement(list(key = "page_down"))
+  comments_block$sendKeysToElement(list(key = "page_down"))
+  comments_block$sendKeysToElement(list(key = "page_down"))
+  comments_block$sendKeysToElement(list(key = "page_down"))
+  comments_block$sendKeysToElement(list(key = "page_down"))
+  
+  # Read the page source after clicking the button
+  page_source <- remDr$getPageSource()[[1]]
+  html_content <- read_html(page_source)
+
+  # Extract all comments
+  article_nodes <- html_content |>  html_elements("article")
+
+  num_comments <- length(article_nodes)
+  paste("numero de comentarios: ",length(article_nodes))
+
+  article_nodes <- article_nodes[3:num_comments]
+  #comments <- html_nodes(article_nodes, "div") |> html_text2()
+  
+  #build lines author | comment:
+  comments <- article_nodes |> 
+    map(function(x) {
+      divs <- html_nodes(x, "div")
+      author <- divs[1] |>  html_text2()
+      text <- divs[2] |>  html_text2()
+      tibble(author = author, text = text)
+    }) |> 
+    bind_rows() |> 
+    mutate(comments = paste(author, text, sep = "|")) |> 
+    pull(comments)
+  
+  
+  comments <- comments[1:(number_of_posts+20)]
+  comments
+
+  file_name <- paste(info,".txt")
+  #create file and add info
+  cat(info, file=file_name, sep="\n")
+  #append comments
+  cat(comments, file=file_name, sep="\n",append = TRUE)
+
+  remDr$close()
+}
 
 ```
 
 
+Leer una página:
+
 ```{r}
 
-# Read the page source after clicking the button
-page_source <- remDr$getPageSource()[[1]]
-html_content <- read_html(page_source)
+read_page_el_mundo_function(links_df[5,])
 
-# Extract all comments
-article_nodes <- html_content |>  html_elements("article")
-
-num_comments <- length(article_nodes)
-
-paste("numero de comentarios: ",length(article_nodes))
+```
 
 
-article_nodes <- article_nodes[3:num_comments]
+Leer todas las páginas:
 
-comments <- html_nodes(article_nodes, "div") |> html_text2()
 
-#comments <- comments[1:(2*num_comments)]
-comments <- comments[1:(2*number_of_posts)]
+```{r}
+#open remote driver  
+#remDr <- remoteDriver(port = 4444L, browserName = "chrome")
+#remDr$open()
 
-cat(comments, file="comments.txt", sep="\n")
 
+# IT DOESN'T WORK!
+#apply(links_df, 1, read_page_el_mundo_function)
+
+# IT DOESN'T WORK!
+#for (page in links_df) {
+#  print(page)
+#  read_page_el_mundo_function(page)
+#}
+
+read_page_el_mundo_function(links_df[1,])
+read_page_el_mundo_function(links_df[2,])
+read_page_el_mundo_function(links_df[3,])
+read_page_el_mundo_function(links_df[4,])
+read_page_el_mundo_function(links_df[5,])
+
+#close remote driver
+#remDr$close()
 ```
 
 
@@ -196,3 +297,12 @@ remDr$close()
 # stop the server
 selenium_server$stop()
 ```
+
+
+
+
+
+
+
+
+
