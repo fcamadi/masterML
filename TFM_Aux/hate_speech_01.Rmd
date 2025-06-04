@@ -1,0 +1,328 @@
+---
+title: "hate_speech_01"
+author: "Fran Camacho"
+date: "2025-03-29"
+output: word_document
+---
+
+
+# TFM - Preparar datasets
+
+
+En esta carpeta "TFM_Aux" se encuentras los datasets originales.
+Se trata de realizar una primera exploración para ver el aspecto de cada uno.
+
+
+## Obtención de datasets
+
+
+### 1 - Dataset obtenido del proyecto "Hatemedia"
+
+
+https://hatemedia.es/
+
+GitHub:
+
+https://github.com/esaidh266/Hate-Speech-Library-in-Spanish
+
+Dataset:  https://doi.org/10.6084/m9.figshare.26085700.v1
+
+"El dataset que se ha utilizado para el entrenamiento de los modelos de algoritmos de odio/no odio, intensidad y tipo. 
+El datasets consta de mensajes (noticias y comentarios), publicados por en usuarios asociados a El Mundo, ABC, La Vanguardia, 
+El Mundo y 20 Minutos en Twitter y sus portales webs, durante el mes de enero de 2021."
+
+
+Este dataset está ya procesado (eliminadas "stopwords", realizada la "radicalización" ("stemming") ...)
+
+```{r}
+# import the CSV file
+odio_hatemedia_raw <- read.csv(file.path("dataset_completo_v1.csv"), sep=";")  # -> 574272 obs. of 22 variables
+
+# In a linux console: 
+# head -n 200001 dataset_completo_v1.csv > dataset_200k.csv 
+#odio_hatemedia_raw <- read.csv(file.path("dataset_100k.csv"), sep=";")
+```
+
+
+```{r}
+str(odio_hatemedia_raw)
+```
+
+Solo columnas "comentario" y "label"
+
+```{r}
+odio_hatemedia_raw <- odio_hatemedia_raw[,6:7]
+```
+
+
+
+```{r}
+table(odio_hatemedia_raw$label)
+```
+
+Este dataset está muy muy descompensado* como se puede ver.
+
+Y parece que los mensajes de odio están todos al final del dataset:
+
+```{r}
+#which(odio_raw_coments_labels$label==1)
+```
+
+[1] 563209 563210 563211 563212 563213 563214 563215 563216 563217 563218 563219 563220
+...
+[991] 564199 564200 564201 564202 564203 564204 564205 564206 564207 564208
+ [ reached 'max' / getOption("max.print") -- omitted 10064 entries ]
+ 
+
+*En el TFM "Comparativa de modelos de aprendizaje profundo para la detección de odio en
+castellano en medios de información social." (08/02/2023)
+
+de Carlos Simón Gallego (estudiante del "Máster Universitario en Inteligencia Artificial" de UNIR),
+
+se puede encontrar:
+
+"Tras el trabajo comparativo, encontramos que el dataset original resulta inservible
+debido al problema del desbalanceo de clases, ocasionando que todos los modelos acaben
+prediciendo únicamente la clase dominante, obteniendo un 98% de accuracy pero un 0% de
+recall para la clase minoritaria."
+
+
+```{r}
+#export dataset to a file
+write.csv2(odio_hatemedia_raw, "dataset_01_hatemedia.csv")
+```
+
+Solo los mensajes de odio, para ver qué aspecto tienen:
+
+```{r}
+odio <- odio_hatemedia_raw[odio_hatemedia_raw$label==1.0,]
+
+head(odio$comentario)
+```
+
+
+### 2 - Dataset encontrado en HuggingFace
+
+Nombre del fichero: es_hf_102024.csv
+
+https://huggingface.co/datasets/manueltonneau/spanish-hate-speech-superset
+
+"This dataset is a **superset (N=29,855)** of posts annotated as hateful or not. 
+It results from the preprocessing and merge of all available Spanish hate speech datasets in April 2024."
+
+[...]
+
+The dataset contains six columns:
+- `text`: the annotated post
+- `labels`: annotation of whether the post is hateful (`== 1`) or not (`==0`). As datasets have different annotation schemes, we systematically binarized the labels.
+- `source`: origin of the data (e.g., Twitter)
+- `dataset`: dataset the data is from (see "Datasets" part below)
+- `nb_annotators`: number of annotators by post
+- `tweet_id`: tweet ID where available
+- `post_author_country_location`: post author country location, when it could be inferred. Details on the inference in [our survey paper](https://aclanthology.org/2024.woah-1.23/).
+
+[...]
+
+"The datasets that compose this superset are:
+- hatEval, SemEval-2019 Task 5: Multilingual Detection of Hate Speech Against Immigrants and Women in Twitter (`hateval` in the `dataset` column)
+  - [paper link](https://www.aclweb.org/anthology/S19-2007)
+  - [raw data link](https://github.com/msang/hateval/tree/master)
+- Detecting and Monitoring Hate Speech in Twitter (`haternet` in the `dataset` column)
+  - [paper link](https://www.mdpi.com/1424-8220/19/21/4654)
+  - [raw data link](https://zenodo.org/record/2592149#.XmuNJahKg2w)
+- Multilingual Resources for Offensive Language Detection (`chileno`)
+  - [paper link](https://aclanthology.org/2022.woah-1.pdf#page=136)
+  - [raw data link](https://github.com/aymeam/Datasets-for-Hate-Speech-Detection/tree/master/Chilean%20dataset)
+- Analyzing Zero-Shot transfer Scenarios across Spanish variants for Hate Speech Detection (`hascosva`)
+  - [paper link](https://aclanthology.org/2023.vardial-1.1.pdf)
+  - [raw data link](https://gitlab.inria.fr/counter/HaSCoSVa/-/blob/main/dataset/hascosva_2022_anonymized.tsv?ref_type=heads)
+- HOMO-MEX: A Mexican Spanish Annotated Corpus for LGBT+phobia Detection on Twitter (`homomex`)
+  - [paper link](https://aclanthology.org/2023.woah-1.20.pdf)
+  - [raw data link](https://github.com/juanmvsa/HOMO-MEX)"
+  
+  
+NOTA:
+considerar solo los conjuntos hateval y haternet?
+(Por no mezclar el español de España con el de México, Chile ...)
+
+```{r}
+# import the CSV file
+odio_huggingface_raw <- read.csv(file.path("es_hf_102024.csv"))  # -> 29855 obs. of 7 variables
+```
+
+Estructura:
+
+```{r}
+str(odio_huggingface_raw)
+```
+
+
+Algunos registros:
+
+```{r}
+head(odio_huggingface_raw)
+```
+
+Si no consideramos el dataset origen del comentario, ni ninguna otra información que no sea el comentario y su etiqueta:
+
+```{r}
+odio_huggingface_raw <- odio_huggingface_raw[,1:2]
+```
+
+```{r}
+# Rename columns
+colnames(odio_huggingface_raw) <- c("comentario", "label")
+```
+
+
+Está desbalanceado también, pero no de manera tan exagerada como el de Hatemedia:
+
+```{r}
+table(odio_huggingface_raw$label)
+```
+
+Los mensajes de odio están intercalados:
+
+```{r}
+#which(odio_huggingface_raw$label==1)
+```
+   [1]    3   24  106  142  143  161  164  177  179  193  203  2
+   ...
+   [973] 9874 9875 9876 9877 9878 9879 9880 9881 9882 9883 9884 9885 9886 9887 9888 9889 9890 9891 9892 9893 9894 9895 9896 9897 9898 9899 9900 9901
+ [ reached 'max' / getOption("max.print") -- omitted 6265 entries ]
+ 
+
+
+Lo escribimos también en un fichero:
+
+```{r}
+#export dataset to a file
+write.csv2(odio_huggingface_raw, "dataset_02_huggingface.csv")
+```
+
+
+### 3 - Dataset encontrado en Kaggle
+
+MultiLanguageTrainDataset.csv
+
+https://www.kaggle.com/datasets/wajidhassanmoosa/multilingual-hatespeech-dataset
+
+About Dataset
+
+This dataset contains hate speech text with labels where 0 represents non-hate and 1 shows hate
+texts also the data from different languages needed to be identified as a corresponding
+correct language. The following are the languages in the dataset with the numbers corresponding to that language.
+(1 Arabic)(2 English)(3 Chinese)(4 French) (5 German) (6 Russian)(7 Turkish) (8 Roman Hindi/Urdu) (9 Korean)(10 Italian) (11 Spanish)(12 Portuguese) (13 Indonesian)
+
+MultiLanguageTrainDataset
+
+los que tienen el código 11, que es el que se corresponde con el castellano.
+
+
+```{r}
+# import the CSV file
+odio_kaggle_raw <- read.csv(file.path("MultiLanguageTrainDataset.csv"))  # -> 219981 obs. (all languages) of 4 variables
+```
+
+Estructura:
+
+```{r}
+str(odio_kaggle_raw)
+```
+
+Obtener los mensajes en castellano:
+
+```{r}
+odio_kaggle_raw_ES <- odio_kaggle_raw[odio_kaggle_raw$language==11,2:3]
+```
+
+Examinar dataset:
+
+```{r}
+head(odio_kaggle_raw_ES)
+```
+```{r}
+# Rename columns
+colnames(odio_kaggle_raw_ES) <- c("comentario", "label")
+```
+
+
+Está desbalanceado, pero sin exagerar:
+
+```{r}
+table(odio_kaggle_raw_ES$label)
+```
+
+Los mensajes de odio están intercalados:
+
+```{r}
+#which(odio_kaggle_raw_ES$label==1)
+```
+
+ [1]    5    6    8    9   10   14   15   18   22   23   34   35   43   44
+ ...
+ [981] 2979 2980 2988 2996 3000 3001 3005 3007 3009 3011 3016 3018 3025 3030 3032 3046 3049 3050 3051 3056
+ [ reached 'max' / getOption("max.print") -- omitted 2815 entries ]
+
+
+Lo escribimos también en un fichero:
+
+```{r}
+#export dataset to a file
+write.csv2(odio_kaggle_raw_ES, "dataset_03_kaggle.csv")
+```
+
+
+
+**Hacer lo mismo con el dataset de test.**
+
+Aquí lo sumamos todo.
+
+Luego se harán 3 grupos:  entrenamiento, validación, y test.
+(Y luego la idea es sacar comentarios del periódico online).
+
+
+```{r}
+# import the CSV file
+odio_kaggle_raw_Test_ES <- read.csv(file.path("Spain_test.csv"))  # -> 1243 obs. (only spanish) of 3 variables
+```
+
+Estructura:
+
+```{r}
+str(odio_kaggle_raw_Test_ES)
+```
+
+
+Los mensajes de odio también están intercalados:
+
+```{r}
+odio_kaggle_raw_Test_ES <- odio_kaggle_raw_Test_ES[-1]
+head(odio_kaggle_raw_Test_ES)
+```
+```{r}
+which(odio_kaggle_raw_Test_ES$label==1)
+```
+
+```{r}
+# Rename columns
+colnames(odio_kaggle_raw_Test_ES) <- c("comentario", "label")
+```
+
+
+Lo escribimos también en un fichero:
+
+```{r}
+#export dataset to a file
+write.csv2(odio_kaggle_raw_Test_ES, "dataset_04_kaggle.csv")
+```
+
+
+
+
+# 4 - Mensajes de odio "sintéticos" producidos con LLMs
+
+
+
+
+
