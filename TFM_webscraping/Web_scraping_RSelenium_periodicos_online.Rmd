@@ -91,26 +91,28 @@ print("-------------------")
 selenium_server$log()
 ```
 
-### Lista de páginas:
+### Listados de páginas:
 
 
 ```{r}
 # 1st link list
 
-link01 <- "https://www.elmundo.es/television/momentvs/2025/05/22/682eb61ffdddff620c8b457f.html"
+link01 <- "https://www.elmundo.es/television/momentvs/2025/05/22/682eb61ffdddff620c8b457f.html"    #81
 summary01 <- "Felipe_González_Hormiguero"
 
-link02 <- "https://www.elmundo.es/deportes/2025/05/26/68344b9921efa09a428b4583.html"
+link02 <- "https://www.elmundo.es/deportes/2025/05/26/68344b9921efa09a428b4583.html"      #248
 summary02 <- "Euskadi_vs_España_pelota_vasca"
 
-link03 <- "https://www.elmundo.es/espana/2025/05/26/6834b7e5e4d4d8664a8b4584.html"
+link03 <- "https://www.elmundo.es/espana/2025/05/26/6834b7e5e4d4d8664a8b4584.html"    #311
 summary03 <- "Leire_Díez_UCO"
 
-link04 <- "https://www.elmundo.es/espana/2025/05/29/683820d3e85eceba4a8b45b0.html"
+link04 <- "https://www.elmundo.es/espana/2025/05/29/683820d3e85eceba4a8b45b0.html"    #481
 summary04 <- "Novio_Ayuso_procesado"
 
-link05 <- "https://www.elmundo.es/espana/2025/05/30/68397ab9fc6c8361558b456d.html"
+link05 <- "https://www.elmundo.es/espana/2025/05/30/68397ab9fc6c8361558b456d.html"    #361
 summary05 <- "Periodistas_ElPais_se_ratifican_Supremo"
+
+#1482 comments
 
 links_vector <- c(link01,link02,link03,link04,link05)
 summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
@@ -120,20 +122,22 @@ summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
 ```{r}
 # 2nd link list
 
-link01 <- "https://www.elmundo.es/television/2025/05/30/6839d219e85eceb30a8b45b2.html"
+link01 <- "https://www.elmundo.es/television/2025/05/30/6839d219e85eceb30a8b45b2.html"   #99
 summary01 <- "Familia_Tele_cancelada_parcialmente"
 
-link02 <- "https://www.elmundo.es/andalucia/2025/05/30/683877e5e4d4d89d1f8b4614.html"
+link02 <- "https://www.elmundo.es/andalucia/2025/05/30/683877e5e4d4d89d1f8b4614.html"    #342
 summary02 <- "UCO_85_enchufados"
 
-link03 <- "https://www.elmundo.es/economia/dinero-inversion/2025/05/30/683991d0fc6c83734d8b4572.html"
+link03 <- "https://www.elmundo.es/economia/dinero-inversion/2025/05/30/683991d0fc6c83734d8b4572.html"    #98
 summary03 <- "IBEX35_mejor_mes"
 
-link04 <- "https://www.elmundo.es/espana/2025/05/30/6839b825e4d4d898398b459e.html"
+link04 <- "https://www.elmundo.es/espana/2025/05/30/6839b825e4d4d898398b459e.html"    #171 
 summary04 <- "Feijoo_pancartero"
 
-link05 <- "https://www.elmundo.es/andalucia/2025/05/30/683990dde85eceb12d8b4593.html"
+link05 <- "https://www.elmundo.es/andalucia/2025/05/30/683990dde85eceb12d8b4593.html"   #92
 summary05 <- "Juez_Sevilla_PSOE"
+
+#802
 
 links_vector <- c(link01,link02,link03,link04,link05)
 summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
@@ -143,26 +147,32 @@ summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
 ```{r}
 # 3rd link list
 
-link01 <- "https://www.elmundo.es/espana/2025/06/04/6840086321efa044528b4573.html"
+link01 <- "https://www.elmundo.es/espana/2025/06/04/6840086321efa044528b4573.html"     #142
 summary01 <- "Aldama_irrumpe_conferencia_Leire_Diez"
 
-link02 <- "https://www.elmundo.es/espana/2025/06/04/683fea3021efa081758b45b7.html"
+link02 <- "https://www.elmundo.es/espana/2025/06/04/683fea3021efa081758b45b7.html"     #432
 summary02 <- "Leire_Diez_comparecencia_sin_preguntas"
 
-link03 <- "https://www.elmundo.es/internacional/2025/06/03/683f1d9ae85eced8208b45a6.html"
+link03 <- "https://www.elmundo.es/internacional/2025/06/03/683f1d9ae85eced8208b45a6.html"   #91
 summary03 <- "España_niega_5_porciento_OTAN"
 
-link04 <- "https://www.elmundo.es/internacional/2025/06/03/683ea3bde85ece3c108b458f.html"
+link04 <- "https://www.elmundo.es/internacional/2025/06/03/683ea3bde85ece3c108b458f.html"  #81
 summary04 <- "Ultra_Geert_Wilders_abandona_gobierno_PPBB"
 
-link05 <- "https://www.elmundo.es/espana/2025/06/04/683f3458e9cf4ad9038b45b6.html"
+link05 <- "https://www.elmundo.es/espana/2025/06/04/683f3458e9cf4ad9038b45b6.html"      #81
 summary05 <- "Gobierno_asume_falta_plazas_universidad_publica"
+
+#827
 
 links_vector <- c(link01,link02,link03,link04,link05)
 summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
 ```
 
 
+Total de mensajes obtenidos: 3111
+
+
+Agrupamos los listados en dataframes:
 
 ```{r}
 links_df <- data.frame(summary = summaries_vector, link = links_vector)
@@ -212,7 +222,7 @@ read_page_el_mundo_function <- function(link_info) {
                                                             
   num_comments_html <- remDr$findElement(using = "class name", value = "js-numComments")
   number_of_posts <- as.integer(str_extract(num_comments_html$getElementAttribute("innerHTML"), "(?<=<strong>)\\d+(?=</strong>)"))
-  paste("numero de posts: ", number_of_posts)
+  print(paste("number of posts: ", number_of_posts))
 
   num_clicks <- round(number_of_posts / 10, 0)
 
@@ -242,11 +252,10 @@ read_page_el_mundo_function <- function(link_info) {
   article_nodes <- html_content |>  html_elements("article")
 
   num_comments <- length(article_nodes)
-  paste("numero de comentarios: ",length(article_nodes))
+  print(paste("number of comments: ",length(article_nodes)))
 
   article_nodes <- article_nodes[3:num_comments]
-  #comments <- html_nodes(article_nodes, "div") |> html_text2()
-  
+
   #build lines author | comment:
   comments <- article_nodes |> 
     map(function(x) {
@@ -261,13 +270,12 @@ read_page_el_mundo_function <- function(link_info) {
   
   
   comments <- comments[1:(number_of_posts+20)]
-  comments
+  #comments
 
-  file_name <- paste(info,".txt")
-  #create file and add info
-  cat(info, file=file_name, sep="\n")
-  #append comments
-  cat(comments, file=file_name, sep="\n",append = TRUE)
+  file_name <- paste(info, "txt", sep = ".")
+  #file_name <- gsub(" ","",file_name)
+  #create file with the comments
+  cat(comments, file=file_name, sep="\n")
 
   remDr$close()
 }
@@ -275,11 +283,25 @@ read_page_el_mundo_function <- function(link_info) {
 ```
 
 
+```{r}
+info <- links_df[3,]$summary
+
+file_name <- paste(info, "txt",sep = ".")
+
+print(file_name)
+
+file_name <- gsub(" ","",file_name)
+print(file_name)
+
+```
+
+
+
 Leer una página:
 
 ```{r}
 
-read_page_el_mundo_function(links_df[5,])
+read_page_el_mundo_function(links_df[3,])
 
 ```
 
