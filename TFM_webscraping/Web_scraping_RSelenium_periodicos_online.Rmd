@@ -139,6 +139,31 @@ links_vector <- c(link01,link02,link03,link04,link05)
 summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
 ```
 
+
+```{r}
+# 3rd link list
+
+link01 <- "https://www.elmundo.es/espana/2025/06/04/6840086321efa044528b4573.html"
+summary01 <- "Aldama_irrumpe_conferencia_Leire_Diez"
+
+link02 <- "https://www.elmundo.es/espana/2025/06/04/683fea3021efa081758b45b7.html"
+summary02 <- "Leire_Diez_comparecencia_sin_preguntas"
+
+link03 <- "https://www.elmundo.es/internacional/2025/06/03/683f1d9ae85eced8208b45a6.html"
+summary03 <- "España_niega_5_porciento_OTAN"
+
+link04 <- "https://www.elmundo.es/internacional/2025/06/03/683ea3bde85ece3c108b458f.html"
+summary04 <- "Ultra_Geert_Wilders_abandona_gobierno_PPBB"
+
+link05 <- "https://www.elmundo.es/espana/2025/06/04/683f3458e9cf4ad9038b45b6.html"
+summary05 <- "Gobierno_asume_falta_plazas_universidad_publica"
+
+links_vector <- c(link01,link02,link03,link04,link05)
+summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
+```
+
+
+
 ```{r}
 links_df <- data.frame(summary = summaries_vector, link = links_vector)
 ```
@@ -154,6 +179,7 @@ links_df
 Función que recibe el nombre resumido y el enlace de la noticia:
 
 ```{r}
+#Function to obtain the comments of the readers of a piece of news
 
 read_page_el_mundo_function <- function(link_info) {
   
