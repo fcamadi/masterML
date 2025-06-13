@@ -70,6 +70,7 @@ extraCap <-  list("goog:chromeOptions" = list(
                               
 selenium_server <- selenium(port = 4444L, 
                             verbose = FALSE, 
+                            phantomver = NULL,
                             extraCapabilities = extraCap
                            )
 ```
@@ -149,6 +150,31 @@ summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
 
 link01 <- "https://www.elmundo.es/espana/2025/06/04/6840086321efa044528b4573.html"     #142
 summary01 <- "Aldama_irrumpe_conferencia_Leire_Diez"
+
+link02 <- "https://www.elmundo.es/espana/2025/06/04/683fea3021efa081758b45b7.html"     #432
+summary02 <- "Leire_Diez_comparecencia_sin_preguntas"
+
+link03 <- "https://www.elmundo.es/internacional/2025/06/03/683f1d9ae85eced8208b45a6.html"   #91
+summary03 <- "España_niega_5_porciento_OTAN"
+
+link04 <- "https://www.elmundo.es/internacional/2025/06/03/683ea3bde85ece3c108b458f.html"  #81
+summary04 <- "Ultra_Geert_Wilders_abandona_gobierno_PPBB"
+
+link05 <- "https://www.elmundo.es/espana/2025/06/04/683f3458e9cf4ad9038b45b6.html"      #81
+summary05 <- "Gobierno_asume_falta_plazas_universidad_publica"
+
+#827
+
+links_vector <- c(link01,link02,link03,link04,link05)
+summaries_vector <- c(summary01,summary02,summary03,summary04,summary05)
+```
+
+
+```{r}
+# 4rd link list
+
+link01 <- "https://www.elmundo.es/espana/2025/06/09/6841c35ae85ece91648b4580.html"     #142
+summary01 <- "Juez_supremo_envia_juicio_a_fiscal_general"
 
 link02 <- "https://www.elmundo.es/espana/2025/06/04/683fea3021efa081758b45b7.html"     #432
 summary02 <- "Leire_Diez_comparecencia_sin_preguntas"
@@ -284,7 +310,7 @@ read_page_el_mundo_function <- function(link_info) {
 
 
 ```{r}
-info <- links_df[3,]$summary
+info <- links_df[1,]$summary
 
 file_name <- paste(info, "txt",sep = ".")
 
@@ -301,7 +327,7 @@ Leer una página:
 
 ```{r}
 
-read_page_el_mundo_function(links_df[3,])
+read_page_el_mundo_function(links_df[1,])
 
 ```
 
