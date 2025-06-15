@@ -19,6 +19,7 @@ Examinamos en la documentación los candidatos:
 
 http://topepo.github.io/caret/available-models.html
 
+
 Candidatos:
 
 Model        method Vale   Type            Libraries   Tuning Paremeters   
@@ -27,6 +28,8 @@ Naive Bayes	 naive_bayes	 Classification	 naivebayes	 laplace, usekernel, adjust
 
 Naive Bayes	 nb	           Classification	 klaR	       fL, usekernel, adjust
 
+Utilizaremos el método naive_bayes de la librería naivebayses, ya que esta librería es 
+la que fue utilizada en el tema 4.
 
 
 ## Paso 1: Carga de los datos
@@ -49,8 +52,8 @@ library(tm)
 if (!require(SnowballC)) install.packages('SnowballC', dependencies = T) # stemming
 library(SnowballC)
 
-if (!require(naivebayes)) install.packages('naivebayes', dependencies = T)
-library(naivebayes)
+#if (!require(naivebayes)) install.packages('naivebayes', dependencies = T)
+#library(naivebayes)
 
 if (!require(caret)) install.packages('caret', dependencies = T)
 library(caret)         
@@ -104,7 +107,7 @@ movies_dtm <- DocumentTermMatrix(movies_corpus_clean)
 movies_dtm
 ```
 
-Volvemos a obtener 2000 documentos y 24951 palabras.
+Volvemos a obtener 2000 documentos y 24951 términos.
 
 
 Ahora hay que crear los conjuntos de entrenamiento y de test.
@@ -151,7 +154,7 @@ Se necesita obtener un listado con las palabras más utilizadas:
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
 movies_freq_words <- findFreqTerms(movies_dtm_train, 100)
 
-movies_freq_words
+#movies_freq_words
 ```
   [1] "abil"         "abl"          "absolut"      "accept"       "achiev"       "across"       "act"          "action"       "actor"        "actress"      "actual"      
  [12] "adam"         "adapt"        "add"          "addit"        "admit"        "adult"        "adventur"     "age"          "agent"        "ago"          "agre"        
@@ -177,15 +180,18 @@ ncol(movies_dtm_freq_train)
 Finalmente, ya que las matrices DTM tienen valores numéricos, mientras que el algoritmo de clasificación basado en naive bayes necesita operar sobre variables categóricas, se necesita realizar una última tranformación: pasar los valores numéricos a Sí/No:
 
 ```{r}
-#We need a function that converts counts to a factor
 convert_counts <- function(x) {
-  x <- ifelse(x > 0, "Yes", "No")
+  factor(ifelse(x > 0, "Yes", "No"))  # IMPORTANTE: usar factor()
 }
-#and we apply it
-movies_train <- apply(movies_dtm_freq_train, MARGIN = 2, convert_counts)  # MARGIN = 2 <- columns
-movies_test <- apply(movies_dtm_freq_test, MARGIN = 2, convert_counts)
-# The result will be two matrices, each with cells indicating "Yes" or "No" for whether
-# the word represented by the column appears at any point in the message represented by the row.
+
+# Aplicamos la conversi?n y creamos data.frame
+movies_train_df <- as.data.frame(apply(movies_dtm_freq_train, MARGIN = 2, convert_counts))
+movies_train_df$class <- movies_train_labels  
+
+movies_test_df <- as.data.frame(apply(movies_dtm_freq_test, MARGIN = 2, convert_counts))
+
+# Verificamos estructura
+str(movies_train_df[1:5])
 ```
 
 
@@ -197,115 +203,72 @@ Para comprobar qué parámetros pueden ser ajustados:
 modelLookup("naive_bayes")
 ```
 
-Control:
+Objeto control:
 
 ```{r}
-ctrl <- trainControl(method = "cv", number = 10, selectionFunction = "best")  #repeats = 10, 
+ctrl <- trainControl(method = "cv", 
+                     number = 10, 
+                     selectionFunction = "best",
+                     classProbs = TRUE,  
+                     summaryFunction = twoClassSummary   # -> metric ROC in grid
+                     ) 
 ```
 
 
-Entrenamiento 1:
+Matriz de parámetros:
 
-Dado que se trata de un dataset balanceado, vamos a usar la métrica exactitud en lugar de Kappa.
+Intentamos que la matriz tenga un rango amplio de valores.
 
 ```{r}
-set.seed(12345)
-
-system.time({
-  m <- train(class ~ ., data = movies_train, 
-             method = "naive_bayes",
-             metric = "Accuracy",
-             #usepoisson = TRUE,
-             trControl = ctrl)
-})
+grid <- expand.grid(
+  laplace = c(0, 0.5, 1.0, 2.0, 10),
+  usekernel = c(FALSE, TRUE),
+  adjust = c(0.1, 0.5, 0.75, 1.0, 1.25, 1.5, 10, 50)
+)
 ```
 
 
-```{r}
-m
-```
-
-Me llama mucho la atención que el valor de la exactitud es muy muy alto, mientras que el de Kappa es 0 ..
-(He probado varias combinaciones, con el mismo resultado).
-
-
-```{r}
-plot(m)
-```
-
-
-Entrenamiento 2:
-
-Creamos una rejilla/matriz de parámetros alrededor de los parámetros encontrados de manera automática por caret:
-
-```{r}
-grid <- expand.grid(laplace = c(0, 0.5, 1.0),
-                    usekernel = c(FALSE, TRUE),
-                    adjust = c(0.5, 0.75, 1, 1.25))
-
-grid
-```
-
-```{r}
-#set.seed(12345)
-#
-#system.time({
-#  m_nb <- train(class ~ ., data = dtm, 
-#             method = "nb",
-#             metric = "Accuracy",
-#             trControl = ctrl,
-#             tuneGrid = grid)
-#})
-```
-Output:
-
-Error: protect(): protección del desborde de la pila
-Timing stopped at: 95.97 0.723 96.43
-
-!!!?
-
+Entrenamiento:
 
 ```{r}
 set.seed(12345)
 
 system.time({
-  m <- train(class ~ ., data = movies_train, 
-             method = "naive_bayes",
-             metric = "Accuracy",
-             #usepoisson = TRUE,
-             trControl = ctrl,
-             tuneGrid = grid)
-})
-```
-
-
-```{r}
-m
-```
-El parámetro que verdaderamente influye es "usekernel". Si "userkernel" es TRUE (y FALSE), 
-los valores de laplace y de "adjust" no influyen, se obtiene la misma exactitud y Kappa.
-
-  0        FALSE      1.25  **0.6786667  0.06693412**
-  0         TRUE      0.50  **0.9133333  0.00000000**
   
-  O exactitud 0.913 y kappa 0, o exactitud 0.678 y kappa 0.669
+  m <- train(class ~ ., data = movies_train_df, 
+                method = "naive_bayes",
+                metric = "ROC",
+                trControl = ctrl,
+                tuneGrid = grid)
+  
+})
+```
+
+
+```{r}
+print(m)
+```
+
+
+
 
 ```{r}
 plot(m)
 ```
 
 
+
 ```{r}
-#m$finalModel
+m$finalModel
 ```
 
 
 Predicción:
 
 ```{r}
-movies_pred <- predict(m, movies_test)
-movies_pred
+movies_pred <- predict(m, movies_test_df)
 ```
+
 
 
 Resultado:
@@ -315,78 +278,39 @@ Resultado:
 confusionMatrix(reference = movies_test_labels, data = movies_pred, mode = "everything", positive = "Pos")
 ```
 
-Se obtiene un resultado ... absurdo, con los parámetros que devuelve caret.
+
+Se obtiene un resultado ligeramente peor que en la tarea del tema 4.
 
 
-Si forzamos kernel FALSE:
 
+Resultado obtenido en el tema 4 con la librería naivebayes:
 
-```{r}
-grid2 <- expand.grid(laplace = c(0, 1.0),
-                    usekernel = c(FALSE),
-                    adjust = c(0.75, 1, 1.25))
+Confusion Matrix and Statistics
 
-grid2
-```
-
-
-```{r}
-set.seed(12345)
-
-system.time({
-  m2 <- train(class ~ ., data = movies_train, method = "naive_bayes",
-            metric = "Accuracy",
-            usepoisson = TRUE,
-            trControl = ctrl,
-            tuneGrid = grid2)
-})
-```
-
-
-```{r}
-m2
-```
-
-Predicción:
-
-```{r}
-movies_pred2 <- predict(m2, movies_test)
-movies_pred2
-```
-
-
-Resultado:
-
-```{r}
-#confusion matrix
-confusionMatrix(reference = movies_test_labels, data = movies_pred2, mode = "everything", positive = "Pos")
-```
-
-Se obtiene un resultado peor que en la tarea del tema 4.
-
-Si el procesado de los textos estuviera erróneo, al aplicar naive bayes de igual manera que en ejercicio 4
-se obtendría un resultado también peor. Pero se obtiene exactamente lo mismo:
-
-**Tema 4:**
-
-```{r}
-system.time({
-  movies_classifier_tema4 <- naive_bayes(movies_train, movies_train_labels)
-})
-#movies_classifier_tema4
-```
-
-
-```{r}
-#predict
-system.time({
-  movies_test_pred_tema4 <- predict(movies_classifier_tema4, movies_test)
-})
-```
-
-```{r}
-#confusion matrix
-confusionMatrix(reference = movies_test_labels, data = movies_test_pred_tema4, mode = "everything", positive = "Pos")
-```
-
-
+          Reference
+Prediction Neg Pos
+       Neg 207  59
+       Pos  43 191
+                                         
+               Accuracy : 0.796          
+                 95% CI : (0.758, 0.8305)
+    No Information Rate : 0.5            
+    P-Value [Acc > NIR] : <2e-16         
+                                         
+                  Kappa : 0.592          
+                                         
+ Mcnemar's Test P-Value : 0.1375         
+                                         
+            Sensitivity : 0.7640         
+            Specificity : 0.8280         
+         Pos Pred Value : 0.8162         
+         Neg Pred Value : 0.7782         
+              Precision : 0.8162         
+                 Recall : 0.7640         
+                     F1 : 0.7893         
+             Prevalence : 0.5000         
+         Detection Rate : 0.3820         
+   Detection Prevalence : 0.4680         
+      Balanced Accuracy : 0.7960         
+                                         
+       'Positive' Class : Pos   
