@@ -116,7 +116,7 @@ En la tarea del tema 5 se obtuvieron los siguientes resultados:
 
 ```{r}
 # For the first iteration of the model, we use the default C5.0 settings
-#sales_model <- C5.0(SalesFactor ~ ., data = CarseatsNew_train)
+sales_model <- C5.0(SalesFactor ~ ., data = CarseatsNew_train)
 #sales_model
 ```
 
@@ -167,6 +167,9 @@ Prediction No Yes
                                           
        'Positive' Class : Yes    
        
+       
+
+Aplicamos los diferentes métodos:       
        
 ### Bagging
 
@@ -251,7 +254,7 @@ Resultado:
 confusionMatrix(reference = CarseatsNew_test_labels, data = bagging_pred_C50$.pred_class, mode = "everything", positive = "Yes")
 ```
 
-Resultado muy parecido a los anteriores (77.78 y 74.75).
+Resultado muy parecido a los anteriores (exactitud 77.78 y 74.75, kappa 0.555 y 0.494).
 
 [
 Primera ejecución sin inicializar la secuencia de números aleatorios:
@@ -276,7 +279,7 @@ carseats_bagging_caret  <-  train(SalesFactor ~ ., data = CarseatsNew_train, met
 carseats_bagging_caret
 ```
 
-Con este método se obtiene una exactitud y un valor de Kappa bastante buenos.
+Con este método se obtiene una exactitud y un valor de Kappa bastante buenos aparentemente.
 
 Lo comprobamos con el conjunto de test:
 
@@ -290,14 +293,14 @@ Resultado:
 confusionMatrix(reference = CarseatsNew_test_labels, data = bagging_pred_caret, mode = "everything", positive = "Yes")
 ```
 
-El resultado no es tan bueno como los dos anteriores.
+El resultado es muy parecido a los anteriores.
 
 
 
 ### Boosting
 
 
-A) Usando "ada boosting":
+A) Ada boosting (adaptative boosting):
 
 ```{r}
 set.seed(123)
@@ -369,7 +372,7 @@ confusionMatrix(reference = CarseatsNew_test_labels, data = boosting_pred_C50$.p
 ```
 
 La exactitud obtenida con 25 árboles es la mejor de todas.
-Kappa tiene un valor aceptable.
+Kappa tiene un valor más que aceptable.
 
 
 C) Adaboost con **caret**
@@ -393,7 +396,7 @@ Con Adaboost se ha obtenido el mejor resultado de todos en el dataset de entrena
 
 
 ```{r}
-carseats_boosting_caret$
+carseats_boosting_caret$results[1:10,]
 ```
 
 
@@ -409,10 +412,12 @@ Resultado:
 confusionMatrix(reference = CarseatsNew_test_labels, data = boosting_pred_caret, mode = "everything", positive = "Yes")
 ```
 No así a la hora de la verdad.
-Con adaboost se obtiene el peor resultado con el conjunto de test.
+Con adaboost y caret se obtiene el peor resultado con el conjunto de test.
+
 
 
 ### Random Forests
+
 
 Utilizaremos directamente caret con las dos librerias (randomForest y ranger)
 
