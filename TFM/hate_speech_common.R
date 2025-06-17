@@ -109,7 +109,7 @@ clean_corpus <- function(corpus) {
 
 ################################################################################
 #                                                                              #
-#  Clean corpus                                                                #
+#  train_test_split: create train and tests sets                               #
 #                                                                              #
 ################################################################################
 train_test_split  <- function(df, dtm, percentage) {
