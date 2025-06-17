@@ -6,104 +6,89 @@ output: word_document
 ---
 
 
-# TFM - Procesar dataset HuggingFace
+# TFM - Procesar dataset HuggingFace - SVM
+
+
+```{r}
+source('hate_speech_common.R')
+```
 
 
 Carga de paquetes que son necesarios para diversas funciones.
 
 ```{r}
-if (!require(tm)) install.packages('tm', dependencies = T)   # text mining
-library(tm)
-
-if (!require(SnowballC)) install.packages('SnowballC', dependencies = T)   # stemming
-library(SnowballC)
-
-if (!require(caret)) install.packages('caret', dependencies = T)   # data partitioning, confusion matrix
-library(caret)         
-
-if (!require(e1071)) install.packages('e1071', dependencies = T)  #LibSVM
-library(e1071)  
-
-# Liblinear instead of LibSVM
-#
-# https://www.csie.ntu.edu.tw/~cjlin/liblinear/
-#
-# https://cran.r-project.org/web/packages/LiblineaR/
-if (!require(LiblineaR)) install.packages('LiblineaR', dependencies = T)
-library(LiblineaR)
+load_libraries()    
 ```
 
 
 
-# Paso 1: obtención del dataset y procesado
+# Paso 1: obtención del dataset y procesado preliminar
 
 
 ```{r}
 # import the CSV file
-odio_huggingface <- read.csv(file.path("dataset_02_huggingface.csv"), sep=";")  
-odio_huggingface <- odio_huggingface[-1]     # -> 574272 obs. of 2 variables
+odio_huggingface_raw <- read.csv(file.path("dataset_02_huggingface.csv"), sep=";")  
+odio_huggingface_raw <- odio_huggingface_raw[-1]     # -> 574272 obs. of 2 variables
 ```
 
 
 Estructura del dataset:
 
 ```{r}
-str(odio_huggingface)
+str(odio_huggingface_raw)
 ```
 
 La columna "label" es de tipo int Ya que se trata en realidad de una variable categórica 0/1, es conveniente transformarla en un factor:
 
 ```{r}
 #Convert class into a factor
-odio_huggingface$label <- factor(odio_huggingface$label)
+odio_huggingface_raw$label <- factor(odio_huggingface_raw$label)
 ```
 
 
-Ya sabíamos que se trata de un dataset muy, muy desbalanceado:
+Examinamos el resultado
 
 ```{r}
-table(odio_huggingface$label)
+table(odio_huggingface_raw$label)
+prop.table(table(odio_huggingface_raw$label))
+```
+
+
+```{r}
+head(odio_huggingface_raw)
 ```
 
 ```{r}
-prop.table(table(odio_huggingface$label))
+tail(odio_huggingface_raw)
 ```
-
-
 
 # Paso 2: procesado del dataset
 
-Como primer paso, se van a eliminar que referencien a otros usuarios en los comentarios. Estos son referenciados mediante la "@".
-Por ejemplo "@USER".
 
+Como primer paso, se van a eliminar que referencien a otros usuarios en los comentarios. 
+Estos son referenciados mediante la "@".
+
+También, con ayuda de la librería cleantext examinamos los comentarios y haremos un primer procesado:
+
+
+```{r}
+odio_huggingface_raw[2,1]
+```
+
+```{r}
+#check_text(odio_kaggle_raw$post)
+
+odio_huggingface <- preprocess_posts(odio_huggingface, odio_huggingface_raw)
+```
+
+Comprobamos el resultado:
 
 ```{r}
 odio_huggingface[2,1]
 ```
 
-Eliminar referencias:
 
-```{r}
-#remove references to other posters (marked with @)
-odio_huggingface$post <- gsub("@\\w+", "", odio_huggingface$post) 
-```
-
-Comprobación:
-
-```{r}
-odio_huggingface[2,1]
-```
-
-
-
-Hay que borrar también los emoticonos, y los teléfonos
-
-
-
-```{r}
-tail(odio_huggingface,100)[1]
-```
-
+### Corpus
 
 Creación del objeto corpus con todas los mensajes:
 
@@ -113,60 +98,21 @@ posts_corpus <- VCorpus(VectorSource(odio_huggingface$post))
 print(posts_corpus)
 ```
 
-
-Limpieza de los textos:
-
-Procesado habitual: eliminar mayúsculas, números ...
+Limpieza de los textos del corpus:
 
 ```{r}
 system.time({
 
-#To lowercase 
-posts_corpus_clean <- tm_map(posts_corpus, content_transformer(tolower))
-
-#Remove numbers
-posts_corpus_clean <- tm_map(posts_corpus_clean, removeNumbers)
-
-#Remove stopwords
-# check words and languages with ?stopwords
-posts_corpus_clean <- tm_map(posts_corpus_clean, removeWords, stopwords()) 
-
-#Remove punctuation signs
-posts_corpus_clean <- tm_map(posts_corpus_clean, removePunctuation) 
+  posts_corpus_clean <- clean_corpus(posts_corpus)
 
 })
 ```
 
-
-Stemming dataset completo:
-
-```{r}
-system.time({
-
-#Carry out the stemming:
-# To apply the wordStem() function to an entire corpus of text documents, the tm package includes
-# the stemDocument() transformation.
-posts_corpus_clean <- tm_map(posts_corpus_clean, stemDocument)
-
-#Finally eliminate unneeded whitespace produced by previous steps
-posts_corpus_clean <- tm_map(posts_corpus_clean, stripWhitespace) 
-
-})
-```
-
-Unos 2
-
+Se examina el corpus y no se aprecia nada raro.
 
 ```{r}
-#Check the final result (output omitted for brevity)
-#before cleaning
-i <- 29760
-print(as.character(posts_corpus[[i]]))
-#after
-print(as.character(posts_corpus_clean[[i]]))
+#View(posts_corpus_clean)
 ```
-
-
 
 
 Finalmente, se procede a la **"tokenización"** de los comentarios:
@@ -188,25 +134,20 @@ Ahora hay que crear los conjuntos de entrenamiento y de test.
 #Set seed to make the process reproducible
 set.seed(123)
 
-#partitioning data frame into training (75%) and testing (25%) sets
-train_indices <- createDataPartition(odio_huggingface$label, times=1, p=.75, list=FALSE)
+result <- train_test_split(odio_huggingface, posts_dtm, 0.75)
 
 #create training set
-posts_dtm_train <- posts_dtm[train_indices, ]
+posts_dtm_train <-  result$dtm_train 
 
 #create testing set
-posts_dtm_test  <- posts_dtm[-train_indices, ]
+posts_dtm_test  <- result$dtm_test
 
 #create labels sets
-posts_train_labels <- odio_huggingface[train_indices, ]$label
-posts_test_labels <- odio_huggingface[-train_indices, ]$label
+posts_train_labels <- result$train_labels
+posts_test_labels <- result$test_labels
 
-#view number of rows in each set
-nrow(posts_dtm_train)  # 
-nrow(posts_dtm_test)   # 
-length(posts_train_labels)  # 
-length(posts_test_labels)   # 
 ```
+
 
 Vamos a comprobar si se mantiene la (des)proporción mensajes no de odio/mensajes de odio:
 
@@ -225,26 +166,25 @@ Se necesita ahora obtener un listado con las palabras más utilizadas:
 ```{r}
 # Data preparation – creating indicator features for frequent words
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
-posts_freq_words <- findFreqTerms(posts_dtm_train, 20)  #   100 -> ~17000 terms
+posts_freq_words_train <- findFreqTerms(posts_dtm_train, 20)  #   100 -> ~17000 terms
                                                           #   500 ->  ~6000
                                                           #  1000 ->  ~3600 
-print("tonto" %in% posts_freq_words)    
-print("imbecil" %in% posts_freq_words)  # <- FALSE with freq 1000
-print("cabron" %in% posts_freq_words)   # <- FALSE with freq  150
+print("tonto" %in% posts_freq_words_train)    
+print("imbecil" %in% posts_freq_words_train)  # <- FALSE with freq 1000
+print("cabron" %in% posts_freq_words_train)   # <- FALSE with freq  150
 ```
 
-Vamos a probar primero usando los términos que aparecen al menos 100 veces.
 
-
-Y ahora utilizamos ese listado para limitar el número de columnas/features de los conjuntos de entrenamiento y de test:
+Y ahora utilizamos ese listado para limitar el número de columnas/features tanto del conjuntos de entrenamiento como del de test:
 
 ```{r}
-ncol(posts_dtm_train)
-#[1] 24951
-posts_dtm_freq_train <- posts_dtm_train[ , posts_freq_words]
-posts_dtm_freq_test <- posts_dtm_test[ , posts_freq_words]
-ncol(posts_dtm_freq_train)
-#[1] 1027
+dim(posts_dtm_train)
+posts_dtm_freq_train <- posts_dtm_train[ , posts_freq_words_train]
+dim(posts_dtm_freq_train)
+
+dim(posts_dtm_test)
+posts_dtm_freq_test <- posts_dtm_test[ , posts_freq_words_train]     
+dim(posts_dtm_freq_test)
 ```
 
 
@@ -253,10 +193,9 @@ ncol(posts_dtm_freq_train)
 ## Paso 3: Entrenamiento del modelo
 
 
-Se descarta intentar mejorar el modelo LIBSVM con tune. No tiene sentido. 
-Se ha visto que para este tipo de problema, LIBSVM no es muy bueno.
+Tanto caret como LIBSVM (e1071) han demostrado ser muy poco eficientes a la hora de tratar dataset de estos tamaños.
 
-LiblineaR es mucho más eficiente.
+Utilizamos por tanto LiblineaR también con este dataset.
 
 
 
@@ -264,41 +203,33 @@ LiblineaR es mucho más eficiente.
 
 
 ```{r}
-# dtm to df
+# dtm -> matrix
 
 posts_freq_train_mat <- as.matrix(posts_dtm_freq_train)
-posts_freq_train_df <- as.data.frame(posts_freq_train_mat)
+#posts_freq_train_df <- as.data.frame(posts_freq_train_mat)
 
 posts_freq_test_mat <- as.matrix(posts_dtm_freq_test)
-posts_freq_test_df <- as.data.frame(posts_freq_test_mat)
+#posts_freq_test_df <- as.data.frame(posts_freq_test_mat)
 ```
 
 
 
 ```{r}
-c <- heuristicC(posts_freq_train_df)
+c <- heuristicC(posts_freq_train_mat)
 
 c
 ```
 
-c <-  0.3438449
-
-
+c <-  0.2896794
 
 
 ```{r}
 system.time({
 
-  liblinear_svm_model <- LiblineaR(data = posts_freq_train_df, target = posts_train_labels, type = 3)  # C = 1, not the found with heuristicC
-  #liblinear_svm_model <- LiblineaR(data = posts_freq_train_df, target = posts_train_labels, type = 3,  cost = 1.5,) # not better
+  liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3)  # C = 1, not the found with heuristicC
 
 })
 ```
-
-Este modelo tarda 14-15 s en entrenar con el conjunto 100k !!!  (type = 1)(dual)  
-Este modelo tarda 4 s en entrenar con el conjunto 100k !!!  (type = 2)  (primal) 
-Este modelo tarda 2 s en entrenar con el conjunto 100k !!!  (type = 3) (dual)
-Este modelo tarda 4 s en entrenar con el conjunto 100k !!! (type = 5) (primal?)
 
 
 "We recommend users
@@ -314,15 +245,10 @@ users need a sparse model."
 # prediction
 system.time({
   
-  prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_df)
+  prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
 
 })
 ```
-
-```{r}
-table(as.factor(prediction_liblinear$predictions))
-```
-
 
 
 ```{r}
@@ -408,31 +334,31 @@ Confusion Matrix and Statistics
 
           Reference
 Prediction    0    1
-         0 5255  860
-         1  392  956
+         0 5225  826
+         1  422  990
                                           
-               Accuracy : 0.8322          
-                 95% CI : (0.8236, 0.8407)
+               Accuracy : 0.8328          
+                 95% CI : (0.8241, 0.8412)
     No Information Rate : 0.7567          
     P-Value [Acc > NIR] : < 2.2e-16       
                                           
-                  Kappa : 0.5008          
+                  Kappa : 0.5088          
                                           
  Mcnemar's Test P-Value : < 2.2e-16       
                                           
-            Sensitivity : 0.5264          
-            Specificity : 0.9306          
-         Pos Pred Value : 0.7092          
-         Neg Pred Value : 0.8594          
-              Precision : 0.7092          
-                 Recall : 0.5264          
-                     F1 : 0.6043          
+            Sensitivity : 0.5452          
+            Specificity : 0.9253          
+         Pos Pred Value : 0.7011          
+         Neg Pred Value : 0.8635          
+              Precision : 0.7011          
+                 Recall : 0.5452          
+                     F1 : 0.6134          
              Prevalence : 0.2433          
-         Detection Rate : 0.1281          
-   Detection Prevalence : 0.1806          
-      Balanced Accuracy : 0.7285          
+         Detection Rate : 0.1327          
+   Detection Prevalence : 0.1892          
+      Balanced Accuracy : 0.7352          
                                           
-       'Positive' Class : 1  
+       'Positive' Class : 1 
 
 
 
@@ -456,7 +382,7 @@ class_weights <- c("0" = 2, "1" = 3)  # Assign higher weight to the minority cla
 ```{r}
 system.time({
 
-  liblinear_svm_model <- LiblineaR(data = posts_freq_train_df, target = posts_train_labels, type = 3,
+  liblinear_svm_model_weights <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3, cost = c,
                                    wi = class_weights)
 
 })
@@ -467,24 +393,20 @@ system.time({
 # prediction
 system.time({
   
-  prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_df)
+  prediction_liblinear_weights <- predict(liblinear_svm_model_weights, posts_freq_test_mat)
 
 })
 ```
 
 ```{r}
 #Confusion matrix
-confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear_weights$predictions), positive="1", mode = "everything")
 ```
 
-Con freq=100, pesos 1/2, coste 1.5, la exactitud es la misma, y se consigue mejorar kappa ligeramente.
 
-Con freq=20, no se consigue mejorar el resultado usando pesos.
+Con freq=20, pesos 2/3, coste el de la heurística, la exactitud es casi igual, y se consigue mejorar kappa ligeramente.
 
-
-De todas maneras los valores obtenidos no son increíblemente buenos con este dataset
-
-exactitud rozando el 83%, kappa el 0.5
+La exactitud roza el 82.5%, kappa el 0.52
        
 
 
