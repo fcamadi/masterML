@@ -59,10 +59,11 @@ if (!complete_dataset) {
   df_no_hate_sample <- df_no_hate[ids, ,drop = FALSE]
 
   # join sample dataset with no hate obs. with hate obs.
-  odio_hatemedia_300k <- rbind(df_no_hate_sample, df_hate)
+  odio_hatemedia_sample_k <- rbind(df_no_hate_sample, df_hate)
 
   #so we don't have to change variable names
-  odio_hatemedia_raw <- odio_hatemedia_300k
+  odio_hatemedia_raw <- odio_hatemedia_sample_k
+  
 } else {
   print("Working with the whooole dataset. Be patient!!!")
 }
