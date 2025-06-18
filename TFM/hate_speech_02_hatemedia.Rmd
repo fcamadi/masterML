@@ -1,0 +1,576 @@
+---
+title: "hate_speech_02_hatemedia"
+author: "Fran Camacho"
+date: "2025-06-04"
+output: word_document
+---
+
+
+# TFM - Procesar dataset hatemedia
+
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+if (!require(tm)) install.packages('tm', dependencies = T)   # text mining
+library(tm)
+
+if (!require(SnowballC)) install.packages('SnowballC', dependencies = T)   # stemming
+library(SnowballC)
+
+if (!require(textclean)) install.packages('textclean', dependencies = T)  
+library(textclean)
+
+if (!require(dplyr)) install.packages('dplyr', dependencies = T)
+library(dplyr)
+
+if (!require(caret)) install.packages('caret', dependencies = T)   # data partitioning, confusion matrix
+library(caret)         
+
+#if (!require(e1071)) install.packages('e1071', dependencies = T)  #LibSVM
+#library(e1071)  
+
+# Liblinear instead of LibSVM
+#
+# https://www.csie.ntu.edu.tw/~cjlin/liblinear/
+#
+# https://cran.r-project.org/web/packages/LiblineaR/
+if (!require(LiblineaR)) install.packages('LiblineaR', dependencies = T)
+library(LiblineaR)
+```
+
+
+
+# Paso 1: obtención del dataset y procesado
+
+
+```{r}
+# import the CSV file
+odio_hatemedia <- read.csv(file.path("dataset_01_hatemedia.csv"), sep=";")  
+odio_hatemedia <- odio_hatemedia[-1]     # -> 574272 obs. of 2 variables
+```
+
+
+Se ha comprobado que este dataset es demasiado grande para el equipo en el que se ejecuta el programa.
+Se ha considerado también aplicar "downsampling". El resultado era un dataset de 22128 observaciones (completamente equilibrado).
+Se ha optado por una solución intermedia: elegir de manera aleatoria un número tal de mensajes "no odio" que sumados 
+a los de odio den un total de 100.000 observaciones.
+
+
+```{r}
+# Prepare a bit smaller dataset:  200k ?
+
+df_hate <- odio_hatemedia[odio_hatemedia$label == 1, ]
+df_no_hate <- odio_hatemedia[odio_hatemedia$label == 0, ]
+
+n  <- nrow(df_no_hate)
+k  <- 88936      # number of random rows 88936
+
+ids <- sample(n,size = k, replace = FALSE)
+df_no_hate_sample <- df_no_hate[ids, ,drop = FALSE]
+```
+
+
+
+```{r}
+# join sample dataset with no hate obs. with hate obs.
+
+odio_hatemedia_100k <- rbind(df_no_hate_sample, df_hate)
+```
+
+```{r}
+odio_hatemedia <- odio_hatemedia_100k
+```
+
+
+
+Estructura del dataset:
+
+```{r}
+str(odio_hatemedia)
+```
+
+La columna "label" es de tipo int. Ya que se trata en realidad de una variable categórica 0/1, es conveniente transformarla en un factor:
+
+```{r}
+#Convert class into a factor
+odio_hatemedia$label <- factor(odio_hatemedia$label)
+```
+
+
+En la variable "post", reemplazamos las "," por espacios. Si no hacemos esto con este primer dataset, lo que se obtiene más tarde es una única cadena enorme que contiene todas las palabras del comentario. (Esto es debido a que este dataset de hatemedia ya estaba parcialmente procesado).
+
+```{r}
+# Replace all "," in this dataset. If not, after processing it we get lines of only one "huge word"
+odio_hatemedia$post <- gsub(',',' ',odio_hatemedia$post)
+```
+
+Comprobamos:
+
+```{r}
+head(odio_hatemedia,)
+```
+
+Ya sabíamos que se trata de un dataset muy, muy desbalanceado:
+
+```{r}
+table(odio_hatemedia$label)
+```
+
+```{r}
+prop.table(table(odio_hatemedia$label))
+```
+
+
+
+# Paso 2: procesado del dataset
+
+Como primer paso, se van a eliminar que referencien a otros usuarios en los comentarios. Estos son referenciados mediante la "@".
+Por ejemplo "@sialademocracia", "@heraldo". Si no hacemos esto, nos encontraremos en los comentarios "sialademocracia" y "heraldo".
+
+
+```{r}
+#remove references to other posters (marked with @)
+odio_hatemedia$post <- gsub("@\\w+", "", odio_hatemedia$post) 
+```
+
+
+Con la ayuda del paquete textclean, examinamos los 100 primeros comentarios:
+
+```{r}
+check_text(odio_hatemedia[1:100,1])
+```
+
+Salida:
+
+*Suggestion: Consider using `replace_emoticons`
+
+*Suggestion: Consider running `hunspell::hunspell_find` & `hunspell::hunspell_suggest`
+
+*Suggestion: Consider cleaning the raw text or running `add_missing_endmark`
+
+*Suggestion: Consider running `replace_non_ascii`
+
+Eliminamos los emoticonos y los caracteres no ascii:
+
+```{r}
+
+odio_hatemedia <- odio_hatemedia |> 
+  replace_non_ascii()
+
+```
+
+
+
+```{r}
+odio_hatemedia$post <- replace_emoji(odio_hatemedia$post, replacement = "")
+```
+
+
+**Corpus de los textos**
+
+Ya se puede proceder a la creación del objeto corpus con todas los mensajes:
+
+```{r}
+#create corpus
+posts_corpus <- VCorpus(VectorSource(odio_hatemedia$post))
+print(posts_corpus)
+```
+
+
+Limpieza de los textos:
+
+Procesado habitual: eliminar mayúsculas, números ...
+
+```{r}
+system.time({
+
+#To lowercase 
+posts_corpus_clean <- tm_map(posts_corpus, content_transformer(tolower))
+
+#Remove numbers
+posts_corpus_clean <- tm_map(posts_corpus_clean, removeNumbers)
+
+#Remove stopwords
+# check words and languages with ?stopwords
+posts_corpus_clean <- tm_map(posts_corpus_clean, removeWords, stopwords()) 
+
+#Remove punctuation signs
+posts_corpus_clean <- tm_map(posts_corpus_clean, removePunctuation) 
+
+})
+```
+
+(4 min. el dataset completo)
+
+
+Stemming dataset completo:
+
+```{r}
+system.time({
+
+#Carry out the stemming:
+# To apply the wordStem() function to an entire corpus of text documents, the tm package includes
+# the stemDocument() transformation.
+posts_corpus_clean <- tm_map(posts_corpus_clean, stemDocument)
+
+#Finally eliminate unneeded whitespace produced by previous steps
+posts_corpus_clean <- tm_map(posts_corpus_clean, stripWhitespace) 
+
+})
+```
+
+Unos 40-60 s
+
+
+```{r}
+#Check the final result (output omitted for brevity)
+#before cleaning
+i <- 1
+print(as.character(posts_corpus[[i]]))
+#after
+print(as.character(posts_corpus_clean[[i]]))
+```
+
+Como este dataset ya estaba parcialmente procesado, el resultado final es prácticamente igual al estado inicial.
+
+
+
+Finalmente, se procede a la **"tokenización"** de los comentarios:
+
+```{r}
+system.time({
+  
+  posts_dtm <- DocumentTermMatrix(posts_corpus_clean)
+  posts_dtm
+  
+})
+```
+
+[
+
+En este punto eliminar los objetos "corpus". Son casi 3 Gb cada uno y ya no son necesarios. <- con el dataset completo
+
+```{r}
+rm(posts_corpus)
+rm(posts_corpus_clean)
+```
+  
+]
+
+
+Ahora hay que crear los conjuntos de entrenamiento y de test.
+
+
+```{r}
+#Set seed to make the process reproducible
+set.seed(123)
+
+#partitioning data frame into training (75%) and testing (25%) sets
+train_indices <- createDataPartition(odio_hatemedia$label, times=1, p=.75, list=FALSE)
+
+#create training set
+posts_dtm_train <- posts_dtm[train_indices, ]
+
+#create testing set
+posts_dtm_test  <- posts_dtm[-train_indices, ]
+
+#create labels sets
+posts_train_labels <- odio_hatemedia[train_indices, ]$label
+posts_test_labels <- odio_hatemedia[-train_indices, ]$label
+
+#view number of rows in each set
+nrow(posts_dtm_train)  # 
+nrow(posts_dtm_test)   # 
+length(posts_train_labels)  # 
+length(posts_test_labels)   # 
+```
+
+Vamos a comprobar si se mantiene la (des)proporción mensajes no de odio/mensajes de odio:
+
+```{r}
+prop.table(table(posts_train_labels))
+```
+
+```{r}
+prop.table(table(posts_test_labels))
+```
+
+
+Se necesita ahora obtener un listado con las palabras más utilizadas:
+
+
+```{r}
+# Data preparation – creating indicator features for frequent words
+# the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
+posts_freq_words <- findFreqTerms(posts_dtm_train, 100)  #   100 -> ~17000 terms
+                                                          #   500 ->  ~6000
+                                                          #  1000 ->  ~3600 
+print("tonto" %in% posts_freq_words)    
+print("imbecil" %in% posts_freq_words)  # <- FALSE with freq 1000
+print("cabron" %in% posts_freq_words)   # <- FALSE with freq  150
+```
+
+Vamos a probar primero usando los términos que aparecen al menos 1000 veces.
+
+
+Y ahora utilizamos ese listado para limitar el número de columnas/features de los conjuntos de entrenamiento y de test:
+
+```{r}
+ncol(posts_dtm_train)
+#[1] 24951
+posts_dtm_freq_train <- posts_dtm_train[ , posts_freq_words]
+posts_dtm_freq_test <- posts_dtm_test[ , posts_freq_words]
+ncol(posts_dtm_freq_train)
+#[1] 1027
+```
+
+
+
+
+## Paso 3: Entrenamiento del modelo
+
+
+Se ha intentado utilizar la librería caret para obtener los mejores hipérparametros posibles.
+
+No ha sido posible. Con este dataset, los tiempos eran demasiado grandes.
+
+(caret usa la librería kernlab, que parece ser que es muy lenta).
+
+
+Probamos con LibSVM (e1071), y con LiblinearR:
+
+
+### LIBSVM (e1071)
+
+
+Probamos con LIBSVM (e1071)
+
+
+```{r}
+system.time({
+  #train the model e1071
+#  svm_e1071 <- svm(x = posts_dtm_freq_train, y = posts_train_labels, scale = TRUE)     # default values:  kernel = RBF, cost = 1
+#   svm_e1071 <- svm(x = posts_freq_train_df, y = posts_train_labels, kernel = "linear", scale = TRUE)  # default values:  kernel = RBF, cost = 1  <- it takes a lot ...
+})
+  
+# svm_e1071
+```
+
+RBF -> más de una hora corriendo, y no ha terminado ... 
+Lineal -> más de 5 min., y tampoco (se tardan segundos con la librería LiblinearR)
+
+
+```{r}
+# prediction
+# prediction_e1071 <- predict(svm_e1071, post_downsample_test_df)
+```
+
+```{r}
+#Confusion matrix e1071
+# confusionMatrix(reference = as.factor(posts_downsample_test_labels), data = as.factor(prediction_e1071), positive="1", mode = "everything")
+```
+
+
+Se descarta intentar mejorar el modelo LIBSVM con tune. No tiene sentido. 
+Se ha visto que para este tipo de problema, LIBSVM no es muy bueno.
+
+LiblineaR es mucho más eficiente.
+
+
+
+### LiblineaR
+
+
+```{r}
+# dtm to df
+
+posts_freq_train_mat <- as.matrix(posts_dtm_freq_train)
+posts_freq_train_df <- as.data.frame(posts_freq_train_mat)
+
+posts_freq_test_mat <- as.matrix(posts_dtm_freq_test)
+posts_freq_test_df <- as.data.frame(posts_freq_test_mat)
+```
+
+
+
+```{r}
+c <- heuristicC(posts_freq_train_df)
+
+c
+```
+
+c <-  0.8473049  con el dataset completo
+
+c <- 0.8719082   con el dataset 200k
+
+c <- 0.1970407 con el dataset 100k ????
+
+
+
+
+```{r}
+system.time({
+
+  liblinear_svm_model <- LiblineaR(data = posts_freq_train_df, target = posts_train_labels, type = 3)  # C = 1, not the found with heuristicC
+  #liblinear_svm_model <- LiblineaR(data = posts_freq_train_df, target = posts_train_labels, type = 3,  cost = c,)
+
+})
+```
+
+Este modelo tarda 14-15 s en entrenar con el conjunto 100k !!!  (type = 1)(dual)  
+Este modelo tarda 4 s en entrenar con el conjunto 100k !!!  (type = 2)  (primal) 
+Este modelo tarda 5-7 s en entrenar con el conjunto 100k !!!  (type = 3) (dual)
+Este modelo tarda 4 s en entrenar con el conjunto 100k !!! (type = 5) (primal?)
+
+
+"We recommend users
+
+1. Try the default dual-based solver first.
+2. If it is slow, check primal-based solvers.
+
+To choose between using L1 and L2 regularization, we recommend trying L2 first unless
+users need a sparse model."
+
+
+```{r}
+# prediction
+system.time({
+  
+  prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_df)
+
+})
+```
+
+```{r}
+table(as.factor(prediction_liblinear$predictions))
+```
+
+
+
+```{r}
+#Confusion matrix e1071
+confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+```
+
+Resultados:
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction     0     1
+         0 12004  1035
+         1   496  1731
+                                          
+               Accuracy : 0.8997          
+                 95% CI : (0.8948, 0.9044)
+    No Information Rate : 0.8188          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.6343          
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.6258          
+            Specificity : 0.9603          
+         Pos Pred Value : 0.7773          
+         Neg Pred Value : 0.9206          
+              Precision : 0.7773          
+                 Recall : 0.6258          
+                     F1 : 0.6934          
+             Prevalence : 0.1812          
+         Detection Rate : 0.1134          
+   Detection Prevalence : 0.1459          
+      Balanced Accuracy : 0.7931          
+                                          
+       'Positive' Class : 1  
+
+   
+Se obtienen una exactitud y un kappa bastante buenos.
+
+   
+- Intentamos mejorar el modelo usando el coste calculado por  heuristicC:   
+      
+No se mejora el resultado obtenido con coste 1:
+
+             Reference
+Prediction     0     1
+         0 12048  1084
+         1   452  1682
+                                          
+Accuracy : 0.8994 
+Kappa :    0.6278  
+
+
+- Intentamos mejorar el modelo usando pesos, para favorecer la clase minoritaria:
+
+
+```{r}
+# Define class weights
+class_weights <- c("0" = 2, "1" = 5)  # Assign higher weight to the minority class
+```
+
+
+
+```{r}
+system.time({
+
+  liblinear_svm_model <- LiblineaR(data = posts_freq_train_df, target = posts_train_labels, type = 3, cost = c,
+                                   wi = class_weights)
+
+})
+```
+
+
+```{r}
+# prediction
+system.time({
+  
+  prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_df)
+
+})
+```
+
+```{r}
+#Confusion matrix
+confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+```
+
+El mejor kappa (0.635, 0.6269) se obtiene con la relacción 2/5
+
+
+       
+
+El mejor modelo es el tipo 3 (L2-regularized L1-loss support vector classification (dual)), y con un balance de pesos 1 a 3 para la clase positiva (la clase minoritaria, los mensajes de odio en este caso).
+Con este modelo la exactitud apenas se ve afectada, pero el kappa mejora ligeramente.
+
+
+
+
+----------------------------------------------------------------------------------
+
+freq = 100:
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction     0     1
+         0 14127   840
+         1   873  1926
+                                          
+               Accuracy : 0.9036          
+                 95% CI : (0.8991, 0.9079)
+    No Information Rate : 0.8443          
+    P-Value [Acc > NIR] : <2e-16          
+                                          
+                  Kappa : 0.635  
+
+
+
+Probar con otra freq
+
+Probar con librería quateda:
+
+https://tutorials.quanteda.io/basic-operations/workflow/
+
+
