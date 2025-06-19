@@ -53,7 +53,7 @@ if (!complete_dataset) {
   df_no_hate <- odio_hatemedia_raw[odio_hatemedia_raw$label == 0, ]
 
   n  <- nrow(df_no_hate)
-  k  <- 288936      # number of random rows 88936
+  k  <- 88936  # number of random rows: 18936 (quite balanced) 88936 (total 100k, best outcome?)  288936 (total 300k) 
 
   ids <- sample(n,size = k, replace = FALSE)
   df_no_hate_sample <- df_no_hate[ids, ,drop = FALSE]
@@ -281,9 +281,9 @@ Se necesita ahora obtener un listado con las palabras más utilizadas:
 ```{r}
 # Data preparation – creating indicator features for frequent words
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
-posts_freq_words_train <- findFreqTerms(posts_dtm_train, 500)  #   100 -> ~17000 terms
-                                                          #   500 ->  ~6000
-                                                          #  1000 ->  ~3600 
+posts_freq_words_train <- findFreqTerms(posts_dtm_train, 100)  #   100 -> ~17000 terms
+                                                          #   500 ->  ~3700
+                                                          #  1000 ->  ~2100 
 print("tonto" %in% posts_freq_words_train)    
 print("imbecil" %in% posts_freq_words_train)  # <- FALSE with freq 1000
 print("cabron" %in% posts_freq_words_train)   # <- FALSE with freq  150
@@ -323,7 +323,7 @@ Se prueba entonces con LibSVM (e1071), y con LiblinearR:
 ### LIBSVM (e1071)
 
 
-NO Probamos primero con LIBSVM (e1071)
+NO Probamos primero con LIBSVM (e1071). Es muy ineficiente.
 
 
 ```{r}
@@ -396,28 +396,12 @@ rm(posts_freq_test_mat_chunks)
 ```
 
 
-Se intenta obtener el mejor coste con la función heuristicC:
-
-
-```{r}
-c <- heuristicC(posts_freq_train_mat)
-
-c
-```
-
-c <-  0.8473049  con el dataset completo
-
-c <- 0.8719082   con el dataset 200k
-
-c <- 0.1970407 con el dataset 100k ????
-
-
-
+Entrenamiento (coste = 1)
 
 ```{r}
 system.time({
 
-  liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3)  # C = 1, not the found with heuristicC
+  liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3)  # cost = 1
 
 })
 ```
@@ -458,8 +442,28 @@ table(as.factor(prediction_liblinear$predictions))
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
-Con el sub dataset de 300k, se obtiene una exactitud muy alta.
-Kappa es por el contrario bastante mediocre.
+RESULTADOS FINALES:
+
+- Con el sub dataset de 300k:
+
+freq baja (100,200,300) -> sesión R "explota"
+freq intermedia (400) -> sesión R explota
+freq intermedia (500) -> alta exactitud (96%), kappa baja (0.28)
+                         Pesos 1/2 -> 96% y 0.36
+                         Pesos 1/5 -> 95% y 0.38
+freq alta (1000) -> resultados absurdos (0 TP, kappa 0, y los pesos no lo arreglan)
+
+
+- Con el sub dataset de 100k:
+freq baja (100) -> exactitud alta (92.5%) y kappa aceptable (0.58)
+                   **Con pesos 1/2, la exactitud se mantiene (92%), kappa 0.61**
+
+- Con el sub dataset de 30k (que está muy balanceado: 19k no odio vs 11k odio):
+
+freq alta (500)  -> baja exactitud, kappa horrible
+freq baja (100)  -> alta exactitud (83%), muy buen kappa (0.62)
+
+
 
 Confusion Matrix and Statistics
 
@@ -533,6 +537,18 @@ Se obtienen una exactitud y un kappa bastante buenos.
       
 
 ```{r}
+c <- heuristicC(posts_freq_train_mat)
+
+c
+```
+
+c <-  0.8473049  con el dataset completo
+
+c <- 0.8719082   con el dataset 200k
+
+c <- 0.1970407 con el dataset 100k ????
+
+```{r}
 system.time({
   liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3, cost = c)  
 })
@@ -558,7 +574,7 @@ Ni usando el coste calculado por la función heurística, ni usando unos costes 
 
 ```{r}
 # Define class weights
-class_weights <- c("0" = 1, "1" = 5)  # Assign higher weight to the minority class
+class_weights <- c("0" = 1, "1" = 2)  # Assign higher weight to the minority class
 ```
 
 
@@ -590,7 +606,23 @@ confusionMatrix(reference = as.factor(posts_test_labels),
                 mode = "everything")
 ```
 
+Guardamos el modelo:
 
+```{r}
+#save model
+saveRDS(liblinear_svm_model_weights, file="svm_liblinear_100k_freq100_weights1_2.rds")
+
+# Load the model
+#loaded_model <- readRDS("decision_tree_model.rds")
+```
+
+
+kappa:   0.21 - 0.4 <- fair agreement
+         0.41 - 0.6 <- modereate agreement
+         0.61 - 0.8 <- substantial/good agreement
+
+
+- Resultados con freq = 500
 
 Con pesos 1/10:
 
@@ -614,15 +646,68 @@ Confusion Matrix and Statistics
 
           Reference
 Prediction     0     1
-         0 69928  1587
-         1  1870  1179
+         0 69721  1520
+         1  2072  1246
                                           
-               Accuracy : 0.9536          
-                 95% CI : (0.9521, 0.9551)
+               Accuracy : 0.9518          
+                 95% CI : (0.9503, 0.9533)
     No Information Rate : 0.9629          
     P-Value [Acc > NIR] : 1               
                                           
-                  Kappa : 0.3814     
+                  Kappa : 0.3847          
+                                          
+ Mcnemar's Test P-Value : <2e-16          
+                                          
+            Sensitivity : 0.45047         
+            Specificity : 0.97114         
+         Pos Pred Value : 0.37553         
+         Neg Pred Value : 0.97866         
+              Precision : 0.37553         
+                 Recall : 0.45047         
+                     F1 : 0.40960         
+             Prevalence : 0.03710         
+         Detection Rate : 0.01671         
+   Detection Prevalence : 0.04450         
+      Balanced Accuracy : 0.71080         
+                                          
+       'Positive' Class : 1          
+       
+       
+  
+- Resultados con dataset 100k, freq = 100 , pesos 1/2
+
+Accuracy : 0.9225 y kappa 0.61 !!!
+
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction     0     1
+         0 21112   945
+         1   981  1821
+                                          
+               Accuracy : 0.9225          
+                 95% CI : (0.9191, 0.9258)
+    No Information Rate : 0.8887          
+    P-Value [Acc > NIR] : <2e-16          
+                                          
+                  Kappa : 0.6105          
+                                          
+ Mcnemar's Test P-Value : 0.4252          
+                                          
+            Sensitivity : 0.65835         
+            Specificity : 0.95560         
+         Pos Pred Value : 0.64989         
+         Neg Pred Value : 0.95716         
+              Precision : 0.64989         
+                 Recall : 0.65835         
+                     F1 : 0.65409         
+             Prevalence : 0.11127         
+         Detection Rate : 0.07325         
+   Detection Prevalence : 0.11272         
+      Balanced Accuracy : 0.80697         
+                                          
+       'Positive' Class : 1    
   
                   
                   
