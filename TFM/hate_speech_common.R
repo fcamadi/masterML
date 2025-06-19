@@ -154,7 +154,7 @@ train_test_split  <- function(df, dtm, percentage) {
 #                       so the R session does not "explode"                    #             
 #                                                                              #
 #  (Don't tell anybody: I used duckduckgo.ia (mistral) to help                 #
-                        develope this code :)                                  #
+#                       develope this code :)                                  #
 #                                                                              #
 ################################################################################
 creat_mat_in_chunks <- function(dtm, chunk_size) {
