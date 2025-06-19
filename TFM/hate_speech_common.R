@@ -38,6 +38,10 @@ load_libraries <- function() {
   if (!require(caret)) install.packages('caret', dependencies = T)   # data partitioning, confusion matrix
   library(caret)         
   
+  print("Loading tidyverse ...")
+  if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
+  library(tidyverse)   
+  
   # LiblineaR instead of LIBSVM
   #
   # https://www.csie.ntu.edu.tw/~cjlin/liblinear/
@@ -70,7 +74,11 @@ preprocess_posts <- function(df, df_raw) {
     replace_emoticon() 
   print("Removed non ascii and emoticons.")
   
-  df 
+  # Remove rows where the post column has empty or null values
+  result <- with(df, df[!(trimws(post) == "" | is.na(post)), ])
+  print("Removed lines with empty posts.")
+  
+  result
 }
 
 
@@ -138,5 +146,45 @@ train_test_split  <- function(df, dtm, percentage) {
   
   return(list(dtm_train = dtm_train, dtm_test = dtm_test, train_labels = train_labels, test_labels = test_labels))
 }
+
+
+################################################################################
+#                                                                              #
+#  creat_mat_in_chunks: create a huge matrix from a huge DTM in chunks         #
+#                       so the R session does not "explode"                    #             
+#                                                                              #
+#  (Don't tell anybody: I used duckduckgo.ia (mistral) to help                 #
+                        develope this code :)                                  #
+#                                                                              #
+################################################################################
+creat_mat_in_chunks <- function(dtm, chunk_size) {
+  
+  n_docs     <- nrow(dtm)
+  n_chunks   <- ceiling(n_docs / chunk_size)
+  
+  # helper function to get chunk [i] #
+  get_chunk_i <- function(i) {
+    start <- (i - 1) * chunk_size + 1
+    end <- min(i * chunk_size, n_docs)
+    
+    # subset the DocumentTermMatrix
+    sub_dtm <- dtm[start:end, ]
+    
+    # convert to a dense matrix
+    mat <- as.matrix(sub_dtm)
+    rm(sub_dtm) #to free space
+    
+    cat("chunk ", i, "processed. \n") 
+    return(mat)
+  }
+  
+  # i) generate list of chunk‐matrices
+  chunk_list <- lapply(seq_len(n_chunks), get_chunk_i)
+  
+  # ii) bind all together
+  #full_mat <- do.call(rbind, chunk_list)
+  chunk_list
+}
+
 
 
