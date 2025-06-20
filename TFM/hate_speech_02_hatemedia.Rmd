@@ -13,6 +13,17 @@ params:
 
 ```{r}
 complete_dataset <- params$complete 
+
+#if no complete dataset, number of no hate messages to pick from the total dataset
+size <- 288936     # number of random rows: 18936 (quite balanced)
+                  #                        88936 (total 100k, best outcome?)  
+                  #                        288936 (total 300k) 
+
+# number of min. freq (the lower the size, the lower the freq)
+freq <- 200   
+
+# Assign higher weight to the minority class
+class_weights <- c("0" = 1, "1" = 2)  
 ```
 
 
@@ -53,7 +64,7 @@ if (!complete_dataset) {
   df_no_hate <- odio_hatemedia_raw[odio_hatemedia_raw$label == 0, ]
 
   n  <- nrow(df_no_hate)
-  k  <- 88936  # number of random rows: 18936 (quite balanced) 88936 (total 100k, best outcome?)  288936 (total 300k) 
+  k  <- size  # number of random rows: 18936 (quite balanced) 88936 (total 100k, best outcome?)  288936 (total 300k) 
 
   ids <- sample(n,size = k, replace = FALSE)
   df_no_hate_sample <- df_no_hate[ids, ,drop = FALSE]
@@ -262,6 +273,7 @@ posts_dtm_test  <- result$dtm_test
 posts_train_labels <- result$train_labels
 posts_test_labels <- result$test_labels
 
+rm(result)
 ```
 
 
@@ -281,7 +293,7 @@ Se necesita ahora obtener un listado con las palabras más utilizadas:
 ```{r}
 # Data preparation – creating indicator features for frequent words
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
-posts_freq_words_train <- findFreqTerms(posts_dtm_train, 100)  #   100 -> ~17000 terms
+posts_freq_words_train <- findFreqTerms(posts_dtm_train, freq)  #   100 -> ~17000 terms
                                                           #   500 ->  ~3700
                                                           #  1000 ->  ~2100 
 print("tonto" %in% posts_freq_words_train)    
@@ -355,7 +367,7 @@ LiblineaR es muchísimo más eficiente.
 chunk_size <- 10000   
 
 system.time({
-  chunk_list_train <- creat_mat_in_chunks(posts_dtm_freq_train, chunk_size)
+  chunk_list_train <- creat_sparse_mat_in_chunks(posts_dtm_freq_train, chunk_size)
   
   posts_freq_train_mat_chunks <- do.call(rbind, chunk_list_train)
   
@@ -366,7 +378,7 @@ system.time({
 
 ```{r}
 system.time({
-  chunk_list_test <- creat_mat_in_chunks(posts_dtm_freq_test, chunk_size)
+  chunk_list_test <- creat_sparse_mat_in_chunks(posts_dtm_freq_test, chunk_size)
   
   posts_freq_test_mat_chunks <- do.call(rbind, chunk_list_test)
   
@@ -374,17 +386,6 @@ system.time({
 })
 ```
 
-
-
-```{r}
-# dtm -> matrix
-
-#posts_freq_train_mat <- as.matrix(posts_dtm_freq_train)
-#posts_freq_train_df <- as.data.frame(posts_freq_train_mat)
-
-#posts_freq_test_mat <- as.matrix(posts_dtm_freq_test)
-#posts_freq_test_df <- as.data.frame(posts_freq_test_mat)
-```
 
 
 ```{r}
@@ -535,11 +536,26 @@ Se obtienen una exactitud y un kappa bastante buenos.
    
 - Intentamos mejorar el modelo usando el coste calculado por  heuristicC:   
       
-
+      
 ```{r}
-c <- heuristicC(posts_freq_train_mat)
+# posts_freq_train_matrix <- as.matrix(posts_freq_train_mat) 
 
-c
+#-> "Aviso: sparse->dense coercion: allocating vector of size 52.7 GiBError: cannot allocate vector of size 52.7 Gb"
+```
+      
+```{r}
+# For a sparse matrix not possible. And when the sparse matrix is huge, you cannot convert it to a dense matrix
+# (See previous error message)
+
+c <- tryCatch({
+  cost <- heuristicC(posts_freq_train_mat)
+  cost
+}, error = function(err) {
+  # error handler picks up where error was generated
+  print(paste("ERROR: ",err))
+  1 #default cost
+})
+cat("c: ",c)
 ```
 
 c <-  0.8473049  con el dataset completo
@@ -550,7 +566,7 @@ c <- 0.1970407 con el dataset 100k ????
 
 ```{r}
 system.time({
-  liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3, cost = c)  
+  liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3, cost = c+4)  
 })
 ```
 
@@ -570,13 +586,6 @@ Ni usando el coste calculado por la función heurística, ni usando unos costes 
 
 
 - Intentamos mejorar el modelo usando pesos, para favorecer la clase minoritaria:
-
-
-```{r}
-# Define class weights
-class_weights <- c("0" = 1, "1" = 2)  # Assign higher weight to the minority class
-```
-
 
 
 ```{r}
@@ -725,31 +734,157 @@ Con este modelo la exactitud apenas se ve afectada, pero el kappa mejora ligeram
 ----------------------------------------------------------------------------------
 
 
+Prueba 1 - clasificar textos nuevos
 
 
 
-freq = 100:
+```{r}
+# Ejemplo de nuevo texto sin etiquetar
+new_text <- c("@Fulano No eres más imbécil porque no eres más grande",
+              "Tanto va el cántaro a la fuente, que al final se compra un bonobus",
+              "Malditas sean las guerras, y los canallas que las provocan",
+              "Hay que considerar la parte contratante de la parte declarante de los aquí presentes",
+              "Ese equipo es un desgraciado, no tiene ni una jugada clara.",
+              "Grandísima zorra @tututa, ojalá te ahogues en tu propia bilis",
+              "No se puede consentir tanta desgracia",
+              "¡Ay de los vencidos!",
+              "La OTAN es una organización que solo busca la dominación.",
+              "El papa Juan Pablo II es un hombre de la Edad Media que no entiende el mundo moderno, pero también ha sido un líder espiritual influyente",
+              "La hipotenusa de tu caracter más el logaritmo de tu herencia, es una frase absurda",
+              "@ADELE_ #56 Cerrar @ dabalearrozalazorraelabad # 38 Pues si tiene usted alguna prueba de que el fiscal fue el responsable de la filtración, pásesela al Supremo. Porque de momento no tienen ninguna. claro que si campeona ,como no tienen ninguna prueba dictan auto de procesamiento.",
+              "Ayuso es intocable. Ya se cargó al presidente de su partido, y ahora va a por el fiscal general. Nadie se mete con los fraudes fiscales de su novio, nadie.",
+              "@marioelfuncionario #9 Cerrar ¡Bueno, bueno, bueno, los amiguetes empiezan a ir P¿alante! Después de Begoñi, Abalorios (y Koldovarich). Ahora Cabezabuque. Nos vamos a divertir. Y no se olvide del Mozart de Badajoz.")
 
-Confusion Matrix and Statistics
-
-          Reference
-Prediction     0     1
-         0 14127   840
-         1   873  1926
-                                          
-               Accuracy : 0.9036          
-                 95% CI : (0.8991, 0.9079)
-    No Information Rate : 0.8443          
-    P-Value [Acc > NIR] : <2e-16          
-                                          
-                  Kappa : 0.635  
+new_text_df <- data.frame(post=new_text, label=NA)
+```
 
 
+Se preprocesan los nuevos comentarios:
 
-Probar con otra freq
+```{r}
+system.time({
+  new_text_clean_df <- preprocess_posts(new_text_clean_df, new_text_df)
+})
+```
 
-Probar con librería quateda:
+```{r}
+new_text_clean_df
+```
 
-https://tutorials.quanteda.io/basic-operations/workflow/
+Se construye el corpus de los nuevos comentarios:
 
+```{r}
+# Crear un nuevo corpus
+new_corpus <- Corpus(VectorSource(new_text_clean_df$post))
+```
+
+Se procesa/limpia:
+
+```{r}
+system.time({
+  new_corpus_clean <- clean_corpus(new_corpus)
+})
+```
+
+```{r}
+new_corpus_clean
+```
+
+
+Obtenemos el vocabulario del conjunto de entrenamiento:
+
+```{r}
+
+train_vocab <- colnames(liblinear_svm_model_weights$W)
+
+```
+
+Y lo usamos a la hora de construir la DTM del corpus de los datos nuevos:
+
+```{r}
+
+new_dtm <- DocumentTermMatrix(new_corpus_clean,
+                              control = list(dictionary = train_vocab,
+                                             wordLengths = c(2, Inf))
+                              )
+```
+
+
+Nota (O4-Mini):
+
+- dictionary:
+Aquí train_vocab es un vector de cadenas (caracteres) con los términos (palabras) que quieres conservar.
+Cuando se especifica **dictionary = vocab**, se está forzando a tm a ignorar cualquier palabra que no esté en ese diccionario.
+Además, la ordenación de las columnas de la DTM resultante seguirá el orden en que aparecen los términos en vocab.
+Esto es esencial para garantizar que los nuevos documentos se vectoricen con exactamente la misma “forma” (mismas columnas, mismo orden) que los documentos de entrenamiento.
+
+
+
+- wordLengths = c(2, Inf)
+
+Este parámetro filtra los términos según la longitud de caracteres.
+**c(2, Inf)** significa “mantén solo las palabras de longitud mínima 2 caracteres, sin límite máximo”
+Si, por ejemplo, una palabra tuviera solo una letra (a, I, …), quedaría fuera del vocabulario de la DTM.
+Es una forma rápida de eliminar “ruido” (por ejemplo, letras sueltas) que seguramente no aportan señal al modelo.
+
+
+
+
+```{r}
+# Crear una nueva matriz de documentos-términos
+new_matrix <- as.matrix(new_dtm)
+
+#check
+all(colnames(new_matrix) %in% train_vocab)  # should be TRUE
+
+# Convertir la nueva matriz de documentos-términos en una matriz dispersa
+new_sparse_matrix <- as(as(as(new_matrix, "dMatrix"), "generalMatrix"), "RsparseMatrix")
+```
+
+
+Y se realiza la predicción de los textos nuevos:
+
+```{r}
+# Predecir las etiquetas para el nuevo texto
+predictions <- predict(liblinear_svm_model_weights, new_sparse_matrix)
+
+print(predictions$predictions)
+```
+
+Añadimos las predicciones al df de los comentarios nuevos:
+
+```{r}
+new_text_df$label <- predictions$predictions
+new_text_df$label <- factor(new_text_df$label)
+
+new_text_df
+```
+
+Resultados:
+
+Dataset completo:
+
+[1] 1 0 1 1 1   0 0 1 0 0   0 1 0 0
+
+Los mensajes han sido clasificados
+
+TP: 1 5 
+TN: 2 7 9 10 11 13 14
+FP: 3 4 8 (muy gordo este fallo) 12
+FN: 6 (muy gordo este fallo)
+
+
+Dataset 100k:
+
+[1] 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+
+Dataset 300k:
+
+[1] 1 0 0 0 0  0 1 0 0 0  0 0 0 0
+
+TP: 1
+TN: 2 3 4 5 7 9 10 11 13 14
+FP: 7
+FN: 5, 6 (muy gordo este fallo)
 
