@@ -185,6 +185,34 @@ creat_mat_in_chunks <- function(dtm, chunk_size) {
   #full_mat <- do.call(rbind, chunk_list)
   chunk_list
 }
-
-
+# Making sparse matrices, which are incredibly smaller than dense matrices
+creat_sparse_mat_in_chunks <- function(dtm, chunk_size) {
+  
+  n_docs     <- nrow(dtm)
+  n_chunks   <- ceiling(n_docs / chunk_size)
+  
+  # helper function to get chunk [i] #
+  get_chunk_i <- function(i) {
+    start <- (i - 1) * chunk_size + 1
+    end <- min(i * chunk_size, n_docs)
+    
+    # subset the DocumentTermMatrix
+    sub_dtm <- dtm[start:end, ]
+    
+    # convert to a dense matrix
+    mat <- as.matrix(sub_dtm)
+    result <- as(as(as(mat, "dMatrix"), "generalMatrix"), "RsparseMatrix")
+    rm(sub_dtm) #to free space
+    rm(mat)
+    cat("chunk ", i, "processed. \n") 
+    return(result)
+  }
+  
+  # i) generate list of chunk‐matrices
+  chunk_list <- lapply(seq_len(n_chunks), get_chunk_i)
+  
+  # ii) bind all together
+  #full_mat <- do.call(rbind, chunk_list)
+  chunk_list
+}
 
