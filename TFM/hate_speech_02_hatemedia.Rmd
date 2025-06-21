@@ -15,15 +15,15 @@ params:
 complete_dataset <- params$complete 
 
 #if no complete dataset, number of no hate messages to pick from the total dataset
-size <- 288936     # number of random rows: 18936 (quite balanced)
+size <- 488936     # number of random rows: 18936 (quite balanced)
                   #                        88936 (total 100k, best outcome?)  
                   #                        288936 (total 300k) 
 
 # number of min. freq (the lower the size, the lower the freq)
-freq <- 200   
+freq <- 100 # now using sparse matrices, let's try :)   
 
 # Assign higher weight to the minority class
-class_weights <- c("0" = 1, "1" = 2)  
+class_weights <- c("0" = 1, "1" = 10)  
 ```
 
 
@@ -78,6 +78,8 @@ if (!complete_dataset) {
 } else {
   print("Working with the whooole dataset. Be patient!!!")
 }
+
+rm(df_hate,df_no_hate,df_no_hate_sample,odio_hatemedia_sample_k)
 
 ```
 
@@ -160,6 +162,9 @@ odio_hatemedia_raw[2012:2020,1]
 system.time({
   odio_hatemedia <- preprocess_posts(odio_hatemedia, odio_hatemedia_raw)
 })
+
+rm(odio_hatemedia_raw)
+rm(odio_hatemedia_sample_k)
 ```
 
 426.444   0.586 426.994
@@ -169,20 +174,17 @@ system.time({
 Comprobamos el resultado:
 
 ```{r}
-odio_hatemedia[which(odio_hatemedia$post == "pagar euro leer papanata" ), ]
-#odio_hatemedia[match("pagar euro leer papanata",odio_hatemedia$post),]
-```
-
-```{r}
 odio_hatemedia[1996:2004,1]
 ```
 
 ```{r}
 # Number of rows deleted:
-nrow(odio_hatemedia_raw)-nrow(odio_hatemedia)
+obs_removed <- nrow(odio_hatemedia_raw)-nrow(odio_hatemedia)
+
+cat("Se han eliminado ", obs_removed, " líneas al procesar el dataset.")
 ```
 
-Se han eliminado 3404 líneas al procesar el dataset.
+Se han eliminado 3404 líneas al procesar el dataset (el dataset completo).
 
 
 **Corpus de los textos**
@@ -274,6 +276,7 @@ posts_train_labels <- result$train_labels
 posts_test_labels <- result$test_labels
 
 rm(result)
+rm(posts_dtm)
 ```
 
 
@@ -731,11 +734,11 @@ Con este modelo la exactitud apenas se ve afectada, pero el kappa mejora ligeram
 
 
 
-----------------------------------------------------------------------------------
-
+--------------------------------------------------------------------------------
 
 Prueba 1 - clasificar textos nuevos
 
+--------------------------------------------------------------------------------
 
 
 ```{r}
@@ -745,7 +748,7 @@ new_text <- c("@Fulano No eres más imbécil porque no eres más grande",
               "Malditas sean las guerras, y los canallas que las provocan",
               "Hay que considerar la parte contratante de la parte declarante de los aquí presentes",
               "Ese equipo es un desgraciado, no tiene ni una jugada clara.",
-              "Grandísima zorra @tututa, ojalá te ahogues en tu propia bilis",
+              "Eres una grandísima zorra @tututa, ojalá te ahogues en tu propia bilis",
               "No se puede consentir tanta desgracia",
               "¡Ay de los vencidos!",
               "La OTAN es una organización que solo busca la dominación.",
@@ -768,7 +771,7 @@ system.time({
 ```
 
 ```{r}
-new_text_clean_df
+new_text_clean_df[,1]
 ```
 
 Se construye el corpus de los nuevos comentarios:
@@ -818,8 +821,6 @@ Cuando se especifica **dictionary = vocab**, se está forzando a tm a ignorar cu
 Además, la ordenación de las columnas de la DTM resultante seguirá el orden en que aparecen los términos en vocab.
 Esto es esencial para garantizar que los nuevos documentos se vectoricen con exactamente la misma “forma” (mismas columnas, mismo orden) que los documentos de entrenamiento.
 
-
-
 - wordLengths = c(2, Inf)
 
 Este parámetro filtra los términos según la longitud de caracteres.
@@ -828,7 +829,7 @@ Si, por ejemplo, una palabra tuviera solo una letra (a, I, …), quedaría fuera
 Es una forma rápida de eliminar “ruido” (por ejemplo, letras sueltas) que seguramente no aportan señal al modelo.
 
 
-
+Crear matriz a partir de la DTM:
 
 ```{r}
 # Crear una nueva matriz de documentos-términos
@@ -842,7 +843,7 @@ new_sparse_matrix <- as(as(as(new_matrix, "dMatrix"), "generalMatrix"), "Rsparse
 ```
 
 
-Y se realiza la predicción de los textos nuevos:
+Y teniendo la matriz se realiza la predicción de los textos nuevos:
 
 ```{r}
 # Predecir las etiquetas para el nuevo texto
