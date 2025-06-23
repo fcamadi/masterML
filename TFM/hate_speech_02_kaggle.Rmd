@@ -6,7 +6,7 @@ output: word_document
 ---
 
 
-# TFM - Procesar datasets
+# TFM - Procesar dataset kaggle - SVM
 
 
 ```{r}
@@ -27,9 +27,9 @@ load_libraries()
 
 ```{r}
 # import the CSV file
-odio_kaggle_raw <- read.csv(file.path("dataset_03_kaggle.csv"), sep=";")  # -> 1243 obs. (only spanish) of 3 variables
-odio_kaggle_raw <- odio_kaggle_raw[-1]
-```
+odio_kaggle_raw <- read.csv(file.path("dataset_03_kaggle.csv"), sep=";")  
+odio_kaggle_raw <- odio_kaggle_raw[-1]       # -> 11180 obs. (only spanish) of 2 variables
+``` 
 
 
 
@@ -52,6 +52,7 @@ Examinamos el resultado
 
 ```{r}
 table(odio_kaggle_raw$label)
+prop.table(table(odio_kaggle_raw$label))
 ```
 
 Este dataset está desbalanceado, pero no de una manera tan exagerada como los otros.
@@ -92,7 +93,6 @@ odio_kaggle[1:5,1]
 
 ### Corpus
 
-
 Creación del objeto corpus con todas los mensajes:
 
 ```{r}
@@ -112,7 +112,12 @@ system.time({
 })
 ```
 
-(<6 s)
+
+Se examina el corpus y no se aprecia nada raro.
+
+```{r}
+#View(posts_corpus_clean)
+```
 
 
 Finalmente se procede a la **"tokenización"** de los comentarios. Se obtiene una DTM:
@@ -128,59 +133,52 @@ posts_dtm
 
 Ahora hay que crear los conjuntos de entrenamiento y de test.
 
-Dato que este dataset ya viene separado en dos conjuntos así, lo que hacemos es cargar el dataset de test:
+
+Dado que este dataset ya viene separado en dos conjuntos así, lo que hacemos es cargar el dataset de test:
 
 
 ```{r}
 # import the CSV file
-odio_kaggle_test <- read.csv(file.path("dataset_04_kaggle.csv"), sep=";")  # -> 1243 obs. (only spanish) of 3 variables
-odio_kaggle_test <- odio_kaggle_test[-1]
+odio_kaggle_test_raw <- read.csv(file.path("dataset_04_kaggle.csv"), sep=";")  # -> 1243 obs. (only spanish) of 3 variables
+odio_kaggle_test_raw <- odio_kaggle_test_raw[-1]
 ```
 
-[
 
-```{r}
-result <- train_test_split(odio_kaggle, posts_dtm, .75)
-```
+
+Lo procesamos de igual manera que el de entrenamiento:
 
 
 ```{r}
-posts_dtm_train <- result$dtm_train
-posts_dtm_test <- result$dtm_test
-posts_train_labels <- result$train_labels
-posts_test_labels <-  result$test_labels
-```
+#Convert class into a factor
+odio_kaggle_test_raw$label <- factor(odio_kaggle_test_raw$label)
 
+#process df test
+odio_kaggle_test <- preprocess_posts(odio_kaggle_test, odio_kaggle_test_raw)
+```
 
 
 ```{r}
-#Set seed to make the process reproducible
-set.seed(123)
-
-#partitioning data frame into training (75%) and testing (25%) sets
-train_indices <- createDataPartition(odio_kaggle$label, times=1, p=.75, list=FALSE)
-
-#create training set
-posts_dtm_train <- posts_dtm[train_indices, ]
-
-#create testing set
-posts_dtm_test  <- posts_dtm[-train_indices, ]
-
-#create labels sets
-posts_train_labels <- odio_kaggle[train_indices, ]$label
-#posts_train_labels <- as.numeric(as.factor(posts_train_labels))
-
-posts_test_labels <- odio_kaggle[-train_indices, ]$label
-#posts_test_labels <- as.numeric(as.factor(posts_test_labels))
-
-#view number of rows in each set
-nrow(posts_dtm_train)  # 
-nrow(posts_dtm_test)   # 
-length(posts_train_labels)  # 
-length(posts_test_labels)   # 
+#create corpus test
+posts_test_corpus <- VCorpus(VectorSource(odio_kaggle_test$post))
+print(posts_test_corpus)
 ```
 
-]
+Limpieza del corpus de test también:
+
+```{r}
+system.time({
+
+  posts_corpus_test_clean <- clean_corpus(posts_test_corpus)
+
+})
+```
+
+Tokenización:
+
+```{r}
+posts_dtm_test <- DocumentTermMatrix(posts_corpus_test_clean)
+```
+
 
 
 Se necesita ahora obtener un listado con las palabras más utilizadas:
@@ -189,12 +187,12 @@ Se necesita ahora obtener un listado con las palabras más utilizadas:
 ```{r}
 # Data preparation – creating indicator features for frequent words
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
-posts_freq_words <- findFreqTerms(posts_dtm_train, 10)
+posts_freq_words_train <- findFreqTerms(posts_dtm, 50)
 
-#posts_freq_words
-print("tonto" %in% posts_freq_words)    
-print("imbecil" %in% posts_freq_words)  # <- FALSE with freq 1000
-print("cabron" %in% posts_freq_words)   # <- FALSE with freq  150
+posts_freq_words_train
+print("tonto" %in% posts_freq_words_train)    
+print("imbecil" %in% posts_freq_words_train)  # <- FALSE with freq 1000
+print("cabron" %in% posts_freq_words_train)   # <- FALSE with freq  150
 ```
 
    [1] "¿cómo"           "¿por"            "¿que"            "¿qué"            "¿te"             "abajo"           "abierta"         "abr"            
@@ -208,34 +206,39 @@ print("cabron" %in% posts_freq_words)   # <- FALSE with freq  150
  [ reached 'max' / getOption("max.print") -- omitted 344 entries ]
 
 
-Y ahora utilizamos ese listado para limitar el número de columnas/features de los conjuntos de entrenamiento y de test:
+
+
+
+Y ahora utilizamos ese listado para limitar el número de columnas/features tanto del conjuntos de entrenamiento como del de test:
 
 ```{r}
-ncol(posts_dtm_train)
-posts_dtm_freq_train <- posts_dtm_train[ , posts_freq_words]
-posts_dtm_freq_test <- posts_dtm_test[ , posts_freq_words]     
+ncol(posts_dtm)
+posts_dtm_freq_train <- posts_dtm[ , posts_freq_words_train]
 ncol(posts_dtm_freq_train)
 
-```
+ncol(posts_dtm_test)
+posts_dtm_freq_test <- posts_dtm_test[ , posts_freq_words_train]     
+ncol(posts_dtm_freq_test)
 
+```
 
 
 ## Paso 3: Entrenamiento del modelo
 
 
-Tanto caret como LIBSVM (e1071) han probado ser muy poco eficientes a la hora de tratar dataset de estos tamaños.
+Tanto caret como LIBSVM (e1071) han demostrado ser muy poco eficientes a la hora de tratar dataset de estos tamaños.
 
 Utilizamos por tanto LiblineaR también con este dataset.
 
 
 ```{r}
-# dtm -> matrix -> df
+# dtm -> matrix
 
 posts_freq_train_mat <- as.matrix(posts_dtm_freq_train)
-#posts_freq_train_df <- as.data.frame(posts_freq_train_mat)
+#posts_freq_train_mat <- as(as(as(posts_freq_train_mat, "dMatrix"), "generalMatrix"), "RsparseMatrix")
 
 posts_freq_test_mat <- as.matrix(posts_dtm_freq_test)
-#posts_freq_test_df <- as.data.frame(posts_freq_test_mat)
+#posts_freq_test_mat <- as(as(as(posts_freq_test_mat, "dMatrix"), "generalMatrix"), "RsparseMatrix")
 ```
 
 
@@ -243,7 +246,7 @@ posts_freq_test_mat <- as.matrix(posts_dtm_freq_test)
 ```{r}
 system.time({
 
-  liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3)  # C = 1, not the found with heuristicC
+  liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = odio_kaggle$label, type = 3)  # C = 1, not the found with heuristicC
 
 })
   
@@ -262,31 +265,77 @@ system.time({
 
 ```{r}
 #Confusion matrix
-confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
+
+Sin usar spare matrix:
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction   0   1
+         0 736 208
+         1  83 216
+                                          
+               Accuracy : 0.7659          
+                 95% CI : (0.7413, 0.7892)
+    No Information Rate : 0.6589          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.4393          
+                                          
+ Mcnemar's Test P-Value : 3.621e-13       
+                                          
+            Sensitivity : 0.5094          
+            Specificity : 0.8987          
+         Pos Pred Value : 0.7224          
+         Neg Pred Value : 0.7797          
+              Precision : 0.7224          
+                 Recall : 0.5094          
+                     F1 : 0.5975          
+             Prevalence : 0.3411          
+         Detection Rate : 0.1738          
+   Detection Prevalence : 0.2405          
+      Balanced Accuracy : 0.7040          
+                                          
+       'Positive' Class : 1   
+
+
 
 - Intentamos mejorar el modelo usando el coste calculado por la función heurística:
 
 Intentamos obtener un parámetro de coste con la función heuristicC, como aconsejan los creadores de esta librería.
 
 ```{r}
-c <- heuristicC(posts_freq_train_mat)
-c
+# For a sparse matrix not possible. And when the sparse matrix is huge, you cannot convert it to a dense matrix
+
+c <- tryCatch({
+  cost <- heuristicC(posts_freq_train_mat)
+  cost
+}, error = function(err) {
+  # error handler picks up where error was generated
+  print(paste("ERROR: ",err))
+  1 #default cost
+})
+cat("c: ",c)
 ```
+
+
 
 ```{r}
 system.time({
-  liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3,  cost = c) 
+  liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = odio_kaggle$label, type = 3,  cost = c) 
     
   prediction_liblinear_c <- predict(liblinear_svm_model_c, posts_freq_test_mat)
 })
 ```
 ```{r}
-confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear_c$predictions), positive="1", mode = "everything") 
+confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear_c$predictions), positive="1", mode = "everything") 
 ```
 
+Utilizando el coste calculado por la función heurística, el resultado es peor.
+En cambio, eligiendo un coste por encima de 1 (1.5, 2, y 3), se mejora el resultado. Elegimos el mejor coste = 3.
 
-El resultado es algo mejor, tanto en exactitud como en el valor de kappa. Pero se han detectado menos mensajes de odio.
 
 
 - Intentamos mejorar el modelo usando pesos, para favorecer la detección de la clase minoritaria:
@@ -294,14 +343,14 @@ El resultado es algo mejor, tanto en exactitud como en el valor de kappa. Pero s
 
 ```{r}
 # Define class weights
-class_weights <- c("0" = 1, "1" = 3)  # Assign higher weight to the minority class
+class_weights <- c("0" = 2, "1" = 3)  # Assign higher weight to the minority class
 ```
 
 
 ```{r}
 system.time({
 
-  liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3,
+  liblinear_svm_model_weights <- LiblineaR(data = posts_freq_train_mat, target = odio_kaggle$label, type = 3,
                                    wi = class_weights)
 })
 ```
@@ -310,37 +359,18 @@ system.time({
 ```{r}
 # prediction
 system.time({
-  prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
+  prediction_liblinear_weights <- predict(liblinear_svm_model_weights, posts_freq_test_mat)
 })
 ```
 
 ```{r}
 #Confusion matrix
-confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear_weights$predictions), positive="1", mode = "everything")
 ```
 
+Probando diferentes combinaciones del parámetro coste y de los pesos, se obtiene siempre una exactitud que ronda el 76-77% y un kappa del 0.47%.
 
 
 
 
--------------------------------------------------------------------------------------------------------------
 
-
-
-[
-  Este dataset obtenido en kaggle tiene un dataset de test de acompañante. 
-  Utilizaremos el dataset anterior para entrenamiento y validación, y este de test para test ?
-
-  Lo importamos:
-
-```{r}
-# import the CSV file
-odio_kaggle_test <- read.csv(file.path("dataset_04_kaggle.csv"), sep=";")  # -> 1243 obs. (only spanish) of 3 variables
-odio_kaggle_test <- odio_kaggle_test[-1]
-```
-
-
-  Hay que procesarlo de igual manera que el dataset de entrenamiento
-  para poder crear los conjuntos de entrenamiento y test.
-
-]
