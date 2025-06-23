@@ -49,11 +49,8 @@ odio_hatemedia_raw <- odio_hatemedia_raw[-1]     # -> 574272 obs. of 2 variables
 ```
 
 
-Se ha comprobado que este dataset es demasiado grande para el equipo en el que se ejecuta el programa.
-Se ha considerado también aplicar "downsampling". El resultado era un dataset de 22128 observaciones (completamente equilibrado).
-Se ha optado por una solución intermedia: elegir de manera aleatoria un número tal de mensajes "no odio" que sumados 
-a los de odio den un total de 100.000 observaciones.
-
+Se puede elegir si se procesa el dataset al completo, o si se quiere seleccionar uno
+que contenga un subconjunto de los mensajes no de odio, más todos los de odio.
 
 ```{r}
 # Prepare a bit smaller dataset:  200k ?
@@ -82,7 +79,6 @@ if (!complete_dataset) {
 rm(df_hate,df_no_hate,df_no_hate_sample,odio_hatemedia_sample_k)
 
 ```
-
 
 
 Estructura del dataset:
@@ -184,7 +180,6 @@ obs_removed <- nrow(odio_hatemedia_raw)-nrow(odio_hatemedia)
 cat("Se han eliminado ", obs_removed, " líneas al procesar el dataset.")
 ```
 
-Se han eliminado 3404 líneas al procesar el dataset (el dataset completo).
 
 
 **Corpus de los textos**
