@@ -70,13 +70,12 @@ tail(odio_kaggle_raw)
 # Paso 2: procesado del dataset
 
 
-Como primer paso, se van a eliminar que referencien a otros usuarios en los comentarios. 
-Estos son referenciados mediante la "@".
+Como primer paso, se van a eliminar las referencias a otros usuarios en los comentarios. 
 
 También, con ayuda de la librería cleantext examinamos los comentarios y haremos un primer procesado:
 
 ```{r}
-#check_text(odio_kaggle_raw$post)
+#check_text(odio_kaggle_raw$post)  #omitted for brevity
 
 odio_kaggle <- preprocess_posts(odio_kaggle, odio_kaggle_raw)
 ```
@@ -189,7 +188,7 @@ Se necesita ahora obtener un listado con las palabras más utilizadas:
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
 posts_freq_words_train <- findFreqTerms(posts_dtm, 50)
 
-posts_freq_words_train
+#posts_freq_words_train
 print("tonto" %in% posts_freq_words_train)    
 print("imbecil" %in% posts_freq_words_train)  # <- FALSE with freq 1000
 print("cabron" %in% posts_freq_words_train)   # <- FALSE with freq  150
@@ -208,17 +207,16 @@ print("cabron" %in% posts_freq_words_train)   # <- FALSE with freq  150
 
 
 
-
 Y ahora utilizamos ese listado para limitar el número de columnas/features tanto del conjuntos de entrenamiento como del de test:
 
 ```{r}
-ncol(posts_dtm)
+dim(posts_dtm)
 posts_dtm_freq_train <- posts_dtm[ , posts_freq_words_train]
-ncol(posts_dtm_freq_train)
+dim(posts_dtm_freq_train)
 
-ncol(posts_dtm_test)
+dim(posts_dtm_test)
 posts_dtm_freq_test <- posts_dtm_test[ , posts_freq_words_train]     
-ncol(posts_dtm_freq_test)
+dim(posts_dtm_freq_test)
 
 ```
 
@@ -268,43 +266,15 @@ system.time({
 confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
-Sin usar spare matrix:
-
-Confusion Matrix and Statistics
-
-          Reference
-Prediction   0   1
-         0 736 208
-         1  83 216
-                                          
-               Accuracy : 0.7659          
-                 95% CI : (0.7413, 0.7892)
-    No Information Rate : 0.6589          
-    P-Value [Acc > NIR] : < 2.2e-16       
-                                          
-                  Kappa : 0.4393          
-                                          
- Mcnemar's Test P-Value : 3.621e-13       
-                                          
-            Sensitivity : 0.5094          
-            Specificity : 0.8987          
-         Pos Pred Value : 0.7224          
-         Neg Pred Value : 0.7797          
-              Precision : 0.7224          
-                 Recall : 0.5094          
-                     F1 : 0.5975          
-             Prevalence : 0.3411          
-         Detection Rate : 0.1738          
-   Detection Prevalence : 0.2405          
-      Balanced Accuracy : 0.7040          
-                                          
-       'Positive' Class : 1   
+Se obtiene el mismo resultado usando matrices densas y dispersas.
+En este dataset, al ser de un tamaño pequeño, no hay problema en utilizar matrices densas.
+(Y esto permite utilizar la función heurística)
 
 
 
 - Intentamos mejorar el modelo usando el coste calculado por la función heurística:
 
-Intentamos obtener un parámetro de coste con la función heuristicC, como aconsejan los creadores de esta librería.
+Intentamos obtener un valor óptimo de coste con la función heuristicC, como aconsejan los creadores de esta librería.
 
 ```{r}
 # For a sparse matrix not possible. And when the sparse matrix is huge, you cannot convert it to a dense matrix
@@ -313,7 +283,7 @@ c <- tryCatch({
   cost <- heuristicC(posts_freq_train_mat)
   cost
 }, error = function(err) {
-  # error handler picks up where error was generated
+  # error handler
   print(paste("ERROR: ",err))
   1 #default cost
 })
@@ -321,20 +291,20 @@ cat("c: ",c)
 ```
 
 
-
 ```{r}
 system.time({
-  liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = odio_kaggle$label, type = 3,  cost = c) 
+  liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = odio_kaggle$label, type = 3,  cost = 10) 
     
   prediction_liblinear_c <- predict(liblinear_svm_model_c, posts_freq_test_mat)
 })
 ```
+
 ```{r}
 confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear_c$predictions), positive="1", mode = "everything") 
 ```
 
 Utilizando el coste calculado por la función heurística, el resultado es peor.
-En cambio, eligiendo un coste por encima de 1 (1.5, 2, y 3), se mejora el resultado. Elegimos el mejor coste = 3.
+En cambio, eligiendo un coste por encima de 1 (1.5, 2, 3, 5 ..), se mejora el resultado. Elegimos el mejor coste = 10.
 
 
 
@@ -350,25 +320,56 @@ class_weights <- c("0" = 2, "1" = 3)  # Assign higher weight to the minority cla
 ```{r}
 system.time({
 
-  liblinear_svm_model_weights <- LiblineaR(data = posts_freq_train_mat, target = odio_kaggle$label, type = 3,
+  liblinear_svm_model_weights <- LiblineaR(data = posts_freq_train_mat, target = odio_kaggle$label, type = 3, cost = 1,
                                    wi = class_weights)
-})
-```
-
-
-```{r}
-# prediction
-system.time({
+  
   prediction_liblinear_weights <- predict(liblinear_svm_model_weights, posts_freq_test_mat)
 })
 ```
+
 
 ```{r}
 #Confusion matrix
 confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear_weights$predictions), positive="1", mode = "everything")
 ```
 
-Probando diferentes combinaciones del parámetro coste y de los pesos, se obtiene siempre una exactitud que ronda el 76-77% y un kappa del 0.47%.
+- Coste 1, pesos 1/3:
+
+          Reference
+Prediction   0   1
+         0 496  88
+         1 323 336
+                                          
+Accuracy : 0.6693          
+   Kappa : 0.3511          
+      F1 : 0.6205  
+
+
+- Coste 10, pesos 1/3:
+
+          Reference
+Prediction   0   1
+         0 490  83
+         1 329 341
+                                          
+Accuracy : 0.6685          
+   Kappa : 0.3531          
+      F1 : 0.6234 
+
+
+- Coste 1, pesos 2/3:
+
+          Reference
+Prediction   0   1
+         0 666 145
+         1 153 279
+                                          
+Accuracy : 0.7603          
+   Kappa : 0.4691          
+      F1 : 0.6519 
+
+
+Probando diferentes combinaciones del parámetro coste y de los pesos, los mejores valores obtenidos rondan el 76-77% para la exactitud y un kappa del 0.47.
 
 
 
