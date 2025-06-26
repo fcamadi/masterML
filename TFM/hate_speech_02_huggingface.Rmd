@@ -169,7 +169,7 @@ Se necesita ahora obtener un listado con las palabras más utilizadas:
 # Data preparation – creating indicator features for frequent words
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector containing words that appear at least a  minimum number of times
 posts_freq_words_train <- findFreqTerms(posts_dtm_train, 20)  #   10 -> ~3700 terms
-                                                               #  29 -> ~2000
+                                                               #  20 -> ~2000
                                                                #  100 ->  ~450
 print("tonto" %in% posts_freq_words_train)    
 print("imbecil" %in% posts_freq_words_train)  # <- FALSE with freq 1000
@@ -208,10 +208,10 @@ Utilizamos por tanto LiblineaR también con este dataset.
 # dtm -> matrix
 
 posts_freq_train_mat <- as.matrix(posts_dtm_freq_train)
-#posts_freq_train_df <- as.data.frame(posts_freq_train_mat)
+#posts_freq_train_mat <- as(as(as(posts_freq_train_mat, "dMatrix"), "generalMatrix"), "RsparseMatrix")
 
 posts_freq_test_mat <- as.matrix(posts_dtm_freq_test)
-#posts_freq_test_df <- as.data.frame(posts_freq_test_mat)
+#posts_freq_test_mat <- as(as(as(posts_freq_test_mat, "dMatrix"), "generalMatrix"), "RsparseMatrix")
 ```
 
 
@@ -360,11 +360,21 @@ Prediction    0    1
 
    
 - Intentamos mejorar el modelo usando el coste calculado por  heuristicC:   
+
+Intentamos obtener un valor óptimo de coste con la función heuristicC, como aconsejan los creadores de esta librería.
       
 ```{r}
-c <- heuristicC(posts_freq_train_mat)
+# For a sparse matrix not possible. And when the sparse matrix is huge, you cannot convert it to a dense matrix
 
-c
+c <- tryCatch({
+  cost <- heuristicC(posts_freq_train_mat)
+  cost
+}, error = function(err) {
+  # error handler
+  print(paste("ERROR: ",err))
+  1 #default cost
+})
+cat("c: ",c)
 ```
 
 c <- 0.289722      
