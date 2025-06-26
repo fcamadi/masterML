@@ -30,12 +30,8 @@ load_libraries <- function() {
   if (!require(textclean)) install.packages('textclean', dependencies = T)  
   library(textclean)
   
-  print("Loading dplyr ...")
-  if (!require(dplyr)) install.packages('dplyr', dependencies = T)
-  library(dplyr)
-  
   print("Loading caret ...")
-  if (!require(caret)) install.packages('caret', dependencies = T)   # data partitioning, confusion matrix
+  if (!require(caret)) install.packages('caret', dependencies = T) # data partitioning, confusion matrix
   library(caret)         
   
   print("Loading tidyverse ...")
@@ -185,7 +181,16 @@ creat_mat_in_chunks <- function(dtm, chunk_size) {
   #full_mat <- do.call(rbind, chunk_list)
   chunk_list
 }
-# Making sparse matrices, which are incredibly smaller than dense matrices
+
+################################################################################
+#                                                                              #
+#  creat_sparse_mat_in_chunks: create a huge matrix from a huge DTM in chunks  #
+#                       so the R session does not "explode"                    #             
+#                                                                              #
+#  Now using sparse matrices, which are incredibly much smaller than dense     #
+#  matrices. This allows processing much bigger datasets.                      #
+#                                                                              #
+################################################################################
 creat_sparse_mat_in_chunks <- function(dtm, chunk_size) {
   
   n_docs     <- nrow(dtm)
