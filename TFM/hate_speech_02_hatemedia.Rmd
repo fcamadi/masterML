@@ -4,7 +4,7 @@ author: "Fran Camacho"
 date: "2025-06-04"
 output: word_document
 params:
-  complete: FALSE 
+  complete: TRUE 
 ---
 
 
@@ -16,14 +16,14 @@ complete_dataset <- params$complete
 
 #if no complete dataset, number of no hate messages to pick from the total dataset
 size <- 488936     # number of random rows: 18936 (quite balanced)
-                  #                        88936 (total 100k, best outcome?)  
-                  #                        288936 (total 300k) 
+                   #                        88936 (total 100k, best outcome?)  
+                   #                        288936 (total 300k) 
 
 # number of min. freq (the lower the size, the lower the freq)
-freq <- 100 # now using sparse matrices, let's try :)   
+freq <- 100 # now using sparse matrices, let's try with low values :)   
 
 # Assign higher weight to the minority class
-class_weights <- c("0" = 1, "1" = 10)  
+class_weights <- c("0" = 1, "1" = 3)  
 ```
 
 
@@ -53,7 +53,7 @@ Se puede elegir si se procesa el dataset al completo, o si se quiere seleccionar
 que contenga un subconjunto de los mensajes no de odio, más todos los de odio.
 
 ```{r}
-# Prepare a bit smaller dataset:  200k ?
+# Prepare a bit smaller dataset:  100k, 200k ..
 if (!complete_dataset) {
   print("Preparing a smaller dataset")
 
@@ -72,12 +72,11 @@ if (!complete_dataset) {
   #so we don't have to change variable names
   odio_hatemedia_raw <- odio_hatemedia_sample_k
   
+  rm(df_hate,df_no_hate,df_no_hate_sample,odio_hatemedia_sample_k)
+  
 } else {
   print("Working with the whooole dataset. Be patient!!!")
 }
-
-rm(df_hate,df_no_hate,df_no_hate_sample,odio_hatemedia_sample_k)
-
 ```
 
 
@@ -90,8 +89,19 @@ str(odio_hatemedia_raw)
 La columna "label" es de tipo int. Ya que se trata en realidad de una variable categórica 0/1, es conveniente transformarla en un factor:
 
 ```{r}
-#Convert class into a factor
+#Convert labeñ into a factor
 odio_hatemedia_raw$label <- factor(odio_hatemedia_raw$label)
+```
+
+
+Ya sabíamos que se trata de un dataset muy, muy desbalanceado:
+
+```{r}
+table(odio_hatemedia_raw$label)
+```
+
+```{r}
+prop.table(table(odio_hatemedia_raw$label))
 ```
 
 
@@ -107,17 +117,6 @@ Comprobamos:
 ```{r}
 head(odio_hatemedia_raw,)
 ```
-
-Ya sabíamos que se trata de un dataset muy, muy desbalanceado:
-
-```{r}
-table(odio_hatemedia_raw$label)
-```
-
-```{r}
-prop.table(table(odio_hatemedia_raw$label))
-```
-
 
 
 # Paso 2: procesado del dataset
@@ -150,7 +149,7 @@ También, con ayuda de la librería cleantext examinamos los comentarios y harem
 Estado inicial:
 
 ```{r}
-odio_hatemedia_raw[2012:2020,1]
+odio_hatemedia_raw[2012:2016,1]
 ```
 
 ```{r}
@@ -159,8 +158,6 @@ system.time({
   odio_hatemedia <- preprocess_posts(odio_hatemedia, odio_hatemedia_raw)
 })
 
-rm(odio_hatemedia_raw)
-rm(odio_hatemedia_sample_k)
 ```
 
 426.444   0.586 426.994
@@ -170,7 +167,7 @@ rm(odio_hatemedia_sample_k)
 Comprobamos el resultado:
 
 ```{r}
-odio_hatemedia[1996:2004,1]
+odio_hatemedia[1996:2000,1]
 ```
 
 ```{r}
@@ -231,8 +228,8 @@ Finalmente, se procede a la **"tokenización"** de los comentarios:
 system.time({
   
   posts_dtm <- DocumentTermMatrix(posts_corpus_clean)
-  posts_dtm
   
+  posts_dtm
 })
 ```
 
@@ -285,8 +282,8 @@ prop.table(table(posts_train_labels))
 prop.table(table(posts_test_labels))
 ```
 
-Se necesita ahora obtener un listado con las palabras más utilizadas:
 
+Se necesita ahora obtener un listado con las palabras más utilizadas:
 
 ```{r}
 # Data preparation – creating indicator features for frequent words
@@ -405,12 +402,12 @@ system.time({
 })
 ```
 
-
-Este modelo tarda 14-15 s en entrenar con el conjunto 100k !!!  (type = 1)(dual)  
-Este modelo tarda 4 s en entrenar con el conjunto 100k !!!  (type = 2)  (primal) 
-Este modelo tarda 5-7 s en entrenar con el conjunto 100k !!!  (type = 3) (dual)
-Este modelo tarda 4 s en entrenar con el conjunto 100k !!! (type = 5) (primal?)
-
+[
+  Este modelo tarda 14-15 s en entrenar con el conjunto 100k !!!  (type = 1)(dual)  
+  Este modelo tarda 4 s en entrenar con el conjunto 100k !!!  (type = 2)  (primal) 
+  Este modelo tarda 5-7 s en entrenar con el conjunto 100k !!!  (type = 3) (dual)
+  Este modelo tarda 4 s en entrenar con el conjunto 100k !!! (type = 5) (primal?)
+]
 
 "We recommend users
 
@@ -564,7 +561,7 @@ c <- 0.1970407 con el dataset 100k ????
 
 ```{r}
 system.time({
-  liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3, cost = c+4)  
+  liblinear_svm_model_c <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3, cost = c+9)  
 })
 ```
 
@@ -612,6 +609,131 @@ confusionMatrix(reference = as.factor(posts_test_labels),
                 positive="1", 
                 mode = "everything")
 ```
+
+Dataset completo, coste 1, pesos 1/10:
+
+          Reference
+Prediction      0      1
+         0 134957    992
+         1   4994   1774
+                                         
+               Accuracy : 0.9581         
+                 95% CI : (0.957, 0.9591)
+    No Information Rate : 0.9806         
+    P-Value [Acc > NIR] : 1              
+                                         
+                  Kappa : 0.3544         
+                                         
+ Mcnemar's Test P-Value : <2e-16         
+                                         
+            Sensitivity : 0.64136        
+            Specificity : 0.96432        
+         Pos Pred Value : 0.26212        
+         Neg Pred Value : 0.99270        
+              Precision : 0.26212        
+                 Recall : 0.64136        
+                     F1 : 0.37214        
+             Prevalence : 0.01938        
+         Detection Rate : 0.01243        
+   Detection Prevalence : 0.04742        
+      Balanced Accuracy : 0.80284        
+                                         
+       'Positive' Class : 1   
+
+
+Dataset completo, coste 1, pesos 1/5:
+
+          Reference
+Prediction      0      1
+         0 136865   1277
+         1   3086   1489
+                                          
+               Accuracy : 0.9694          
+                 95% CI : (0.9685, 0.9703)
+    No Information Rate : 0.9806          
+    P-Value [Acc > NIR] : 1               
+                                          
+                  Kappa : 0.391           
+                                          
+ Mcnemar's Test P-Value : <2e-16          
+                                          
+            Sensitivity : 0.53832         
+            Specificity : 0.97795         
+         Pos Pred Value : 0.32546         
+         Neg Pred Value : 0.99076         
+              Precision : 0.32546         
+                 Recall : 0.53832         
+                     F1 : 0.40567         
+             Prevalence : 0.01938         
+         Detection Rate : 0.01043         
+   Detection Prevalence : 0.03206         
+      Balanced Accuracy : 0.75814         
+                                          
+       'Positive' Class : 1     
+
+
+
+Dataset completo, coste 1, pesos 1/3:
+
+          Reference
+Prediction      0      1
+         0 138069   1583
+         1   1882   1183
+                                          
+               Accuracy : 0.9757          
+                 95% CI : (0.9749, 0.9765)
+    No Information Rate : 0.9806          
+    P-Value [Acc > NIR] : 1               
+                                          
+                  Kappa : 0.3934          
+                                          
+ Mcnemar's Test P-Value : 4.138e-07       
+                                          
+            Sensitivity : 0.427693        
+            Specificity : 0.986552        
+         Pos Pred Value : 0.385971        
+         Neg Pred Value : 0.988665        
+              Precision : 0.385971        
+                 Recall : 0.427693        
+                     F1 : 0.405762        
+             Prevalence : 0.019381        
+         Detection Rate : 0.008289        
+   Detection Prevalence : 0.021476        
+      Balanced Accuracy : 0.707123        
+                                          
+       'Positive' Class : 1  
+
+
+Dataset completo, coste 1, pesos 1/2:
+
+          Reference
+Prediction      0      1
+         0 138903   1937
+         1   1048    829
+                                          
+               Accuracy : 0.9791          
+                 95% CI : (0.9783, 0.9798)
+    No Information Rate : 0.9806          
+    P-Value [Acc > NIR] : 1               
+                                          
+                  Kappa : 0.3469          
+                                          
+ Mcnemar's Test P-Value : <2e-16          
+                                          
+            Sensitivity : 0.299711        
+            Specificity : 0.992512        
+         Pos Pred Value : 0.441662        
+         Neg Pred Value : 0.986247        
+              Precision : 0.441662        
+                 Recall : 0.299711        
+                     F1 : 0.357097        
+             Prevalence : 0.019381        
+         Detection Rate : 0.005809        
+   Detection Prevalence : 0.013152        
+      Balanced Accuracy : 0.646111        
+                                          
+       'Positive' Class : 1   
+
 
 Guardamos el modelo:
 
