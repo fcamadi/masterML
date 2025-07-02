@@ -1,0 +1,793 @@
+---
+title: "hate_speech_02_all_datasets"
+author: "Fran Camacho"
+date: "2025-06-19"
+output: word_document
+params:
+  complete: FALSE 
+  crossValidation: TRUE
+  gridSearch: TRUE
+---
+
+
+# TFM - Procesar todos los datasets - SVM - Muestra de 100k observaciones ("algo más balanceado")
+
+
+Cuando se clasifiquen los datasets sin etiquetar, se comparará los dos modelos. El entrenado con el dataset completo, y este.
+
+
+Variables que configuran la manera en la que se ejecuta el proceso:
+
+```{r}
+complete_dataset <- params$complete 
+crossValidation <- params$crossValidation
+gridSearch <- params$gridSearch
+  
+#if no complete dataset, number of no hate messages to pick from the total dataset
+size <- 78000     # 77432 number of random rows of no hate messages 
+
+# number of min. freq (the lower the size, the lower the freq)
+freq <- 100 # now using sparse matrices, let's try :)   
+
+# Assign higher weight to the minority class
+class_weights <- c("0" = 1, "1" = 2)  
+
+random_seed <- 123  # 123, 9, 900 <- it has no influence in the results
+```
+
+
+Módulo con funciones comunes:
+
+```{r}
+source('hate_speech_common.R')
+```
+
+
+Carga de paquetes que son necesarios para diversas funciones.
+
+```{r}
+load_libraries()    
+```
+
+
+
+## Cargar datasets
+
+
+```{r}
+# import the CSV files
+
+odio_hatemedia_raw <- read.csv(file.path("dataset_01_hatemedia.csv"), sep=";")  
+odio_hatemedia_raw <- odio_hatemedia_raw[-1]     # -> 574272 obs. of 2 variables
+
+odio_huggingface_raw <- read.csv(file.path("dataset_02_huggingface.csv"), sep=";")  
+odio_huggingface_raw <- odio_huggingface_raw[-1]     # -> ~29855 obs. of 2 variables
+
+odio_kaggle_raw <- read.csv(file.path("dataset_03_kaggle.csv"), sep=";") 
+odio_kaggle_raw <- odio_kaggle_raw[-1]             # -> ~11180 obs. (only spanish) of 2 variables
+
+odio_kaggle_test_raw <- read.csv(file.path("dataset_04_kaggle.csv"), sep=";") 
+odio_kaggle_test_raw <- odio_kaggle_test_raw[-1]    # -> 1243 obs. (only spanish) of 2 variables
+```
+
+
+El dataset de hatemedia es algo diferente. Procedemos a eliminar las "," para evitar problemas.
+
+```{r}
+# Replace all "," in this dataset. If not, after processing it we get lines of only one "huge word"
+odio_hatemedia_raw$post <- gsub(',',' ',odio_hatemedia_raw$post)
+```
+
+
+Ahora ya se puede crear un dataset con todos los datasets disponibles:
+
+```{r}
+hate_raw <- rbind(odio_hatemedia_raw, odio_huggingface_raw, odio_kaggle_raw, odio_kaggle_test_raw)
+
+dim(hate_raw)
+```
+
+Tenemos ahora un dataset de 616550 observaciones.
+
+Eliminar los otros datasets y variables que ya no son necesarios:
+
+```{r}
+l_rm = ls(pattern = "^odio_")
+rm(list=l_rm)
+l_rm = ls(pattern = "^df_")
+rm(list=l_rm)
+```
+
+
+Comprobar proporción de los mensajes en este dataset:
+
+```{r}
+table(hate_raw$label)
+```
+
+```{r}
+prop.table(table(hate_raw$label))
+```
+
+
+Con el dataset de Hatemedia, se obtuvieron muy buenos resultados cuando se seleccionarion 100k observaciones.
+Vamos a realizar el mismo proceso aquí: del total de observaciones, vamos a seleccionar todos los mensajes de odio,
+y añadir mensajes no de odio hasta llegar a las 100k observaciones (aproximadamente, al realizar el preprocesado, 
+seguramente algunas sean eliminadas por estar vacías).
+
+Como disponemos de 22568 mensajes de odio, vamos a seleccionar de manera aleatoria el siguiente número de mensajes de no odio:
+
+```{r}
+no_hate_n <- 100000 - 22568
+cat("Number of no hate messages to be selected: ",no_hate_n,"\n")
+```
+
+
+
+```{r}
+set.seed(random_seed)  # idea: repeat the process with different seeds,
+                       # to see the influence of randomly chosen rows <- no influence seen
+
+# Prepare a bit smaller dataset:  100k
+if (!complete_dataset) {
+  print("Preparing a smaller dataset")
+
+  df_hate <- hate_raw[hate_raw$label == 1, ]
+  df_no_hate <- hate_raw[hate_raw$label == 0, ]
+
+  n  <- nrow(df_no_hate)
+  k  <- size  # number of random rows with no hate messages
+
+  ids <- sample(n,size = k, replace = FALSE)
+  df_no_hate_sample <- df_no_hate[ids, ,drop = FALSE]
+
+  # join sample dataset with no hate obs. with hate obs.
+  hate_raw_sample_k <- rbind(df_no_hate_sample, df_hate)
+
+  #so we don't have to change variable names
+  hate_raw <- hate_raw_sample_k
+  
+  rm(df_hate,df_no_hate,df_no_hate_sample,hate_raw_sample_k)
+  
+} else {
+  print("Working with the whooole dataset. Be patient!!!")
+}
+```
+
+
+
+Comprobar proporción de los mensajes en este dataset después del "downsampling":
+
+```{r}
+table(hate_raw$label)
+```
+
+```{r}
+prop.table(table(hate_raw$label))
+```
+
+El dataset sigue estando desbalanceado, pero en bastante menor grado.
+
+
+Estructura del dataset:
+
+```{r}
+str(hate_raw)
+```
+
+```{r}
+head(hate_raw)
+tail(hate_raw)
+```
+
+
+
+## Procesar el dataset
+
+La columna "label" es de tipo int. Ya que se trata en realidad de una variable categórica 0/1, es conveniente transformarla en un factor:
+
+```{r}
+#Convert class into a factor
+hate_raw$label <- factor(hate_raw$label)
+```
+
+
+Procesamos los comentarios de la manera habitual (eliminar referencias a otros lectores, eliminar emoticonos ..):
+
+```{r}
+#check_text(hate_raw$post)
+system.time({
+  hate <- preprocess_posts(hate, hate_raw)
+})
+
+```
+
+
+Durante este proceso puede suceder que algunos comentarios queden vacíos. Los eliminamos en ese caso:
+
+```{r}
+# Number of rows deleted:
+obs_removed <- nrow(hate_raw)-nrow(hate)
+
+cat("Se han eliminado ", obs_removed, " líneas al procesar el dataset.\n")
+
+rm(hate_raw)
+```
+
+
+
+**Corpus de los textos**
+
+Ya se puede proceder a la creación del objeto corpus con todas los mensajes:
+
+```{r}
+#create corpus
+system.time({
+  posts_corpus <- VCorpus(VectorSource(hate$post))
+})
+
+print(posts_corpus)
+```
+
+
+Limpieza de los textos del corpus:
+
+Procesado habitual: eliminar mayúsculas, números ...
+
+```{r}
+system.time({
+
+  posts_corpus_clean <- clean_corpus(posts_corpus)
+
+})
+```
+
+
+Finalmente, se procede a la **"tokenización"** de los comentarios:
+
+```{r}
+system.time({
+  
+  posts_dtm <- DocumentTermMatrix(posts_corpus_clean)
+
+})
+
+posts_dtm
+```
+
+
+[
+
+En este punto eliminar los objetos "corpus". Ya no son necesarios.
+
+```{r}
+rm(posts_corpus)
+rm(posts_corpus_clean)
+```
+  
+]
+
+
+Ahora hay que crear los conjuntos de entrenamiento y de test.
+
+
+```{r}
+#Set seed to make the process reproducible   123
+set.seed(random_seed)
+
+result <- train_test_split(hate, posts_dtm, 0.75)
+
+#create training set
+posts_dtm_train <-  result$dtm_train 
+
+#create testing set
+posts_dtm_test  <- result$dtm_test
+
+#create labels sets
+posts_train_labels <- result$train_labels
+posts_test_labels <- result$test_labels
+
+rm(result)
+rm(posts_dtm)
+```
+
+
+Vamos a comprobar si se mantiene la (des)proporción mensajes no de odio/mensajes de odio:
+
+```{r}
+prop.table(table(posts_train_labels))
+```
+
+```{r}
+prop.table(table(posts_test_labels))
+```
+
+
+Se necesita ahora obtener el listado de las palabras más utilizadas:
+
+
+```{r}
+# Data preparation – creating indicator features for frequent words
+# the function findFreqTerms() in the tm package takes a DTM and returns a character vector
+# containing words that appear at least a  minimum number of times
+posts_freq_words_train <- findFreqTerms(posts_dtm_train, freq)  #   100 -> ~4700 terms
+
+print("tonto" %in% posts_freq_words_train)    
+print("imbecil" %in% posts_freq_words_train)  
+print("cabron" %in% posts_freq_words_train) 
+```
+
+
+Y ahora utilizamos ese listado para limitar el número de columnas/features tanto del conjuntos de entrenamiento como del de test:
+
+```{r}
+dim(posts_dtm_train)
+posts_dtm_freq_train <- posts_dtm_train[ , posts_freq_words_train]
+dim(posts_dtm_freq_train)
+
+dim(posts_dtm_test)
+posts_dtm_freq_test <- posts_dtm_test[ , posts_freq_words_train]     
+dim(posts_dtm_freq_test)
+```
+
+
+
+## Paso 3: Entrenamiento del modelo
+
+
+### LiblineaR
+
+Necesitamos convertir las DTMs en matrices para poder entrenar el modelo.
+Dado el tamaño del dataset,y las limitaciones físicas del equipo en el que se realiza este proceso,
+se procesa en lotes las DTMs, y posteriormente se juntan las matrices para obtener la matriz total.
+
+
+```{r}
+chunk_size <- 10000   
+
+system.time({
+  chunk_list_train <- creat_sparse_mat_in_chunks(posts_dtm_freq_train, chunk_size)
+  
+  posts_freq_train_mat_chunks <- do.call(rbind, chunk_list_train)
+  
+  rm(chunk_list_train)
+})
+```
+
+
+```{r}
+system.time({
+  chunk_list_test <- creat_sparse_mat_in_chunks(posts_dtm_freq_test, chunk_size)
+  
+  posts_freq_test_mat_chunks <- do.call(rbind, chunk_list_test)
+  
+  rm(chunk_list_test)
+})
+```
+
+
+```{r}
+posts_freq_train_mat <- posts_freq_train_mat_chunks
+rm(posts_freq_train_mat_chunks)
+
+posts_freq_test_mat <- posts_freq_test_mat_chunks
+rm(posts_freq_test_mat_chunks)
+```
+
+
+Entrenamiento:
+
+```{r}
+system.time({
+
+  liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3)  # cost = 1
+
+})
+
+```
+
+
+Predicción:
+
+```{r}
+# prediction
+system.time({
+  
+  prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
+
+})
+```
+
+```{r}
+table(as.factor(prediction_liblinear$predictions))
+```
+
+
+Evaluación del resultado:
+
+```{r}
+# confusion matrix
+confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+```
+
+          Reference
+Prediction     0     1
+         0 18380  1536
+         1  1012  4105
+                                          
+               Accuracy : 0.8982          
+                 95% CI : (0.8944, 0.9019)
+    No Information Rate : 0.7747          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.6985          
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.7277          
+            Specificity : 0.9478          
+         Pos Pred Value : 0.8022          
+         Neg Pred Value : 0.9229          
+              Precision : 0.8022          
+                 Recall : 0.7277          
+                     F1 : 0.7632          
+             Prevalence : 0.2253          
+         Detection Rate : 0.1640          
+   Detection Prevalence : 0.2044          
+      Balanced Accuracy : 0.8378   
+
+
+Cuando se tiene un dataset desbalanceado, pero en una proporción como esta (3 a 1 a favor de los mensajes no de odio), 
+se obtiene un resultado más que aceptable. Una exactitud rozando el 90%, y un kappa rozando el 0.7, me parecen más que buenos.
+
+
+Nota:
+Al estar utilizando matrices dispersas para poder manejar un dataset de este tamaño, no podemos utilizar la función heuristica de LiblineaR
+para calcular un coste.
+De todas maneras, después de bastantes pruebas, se ha visto que los pesos ayudan a mejorar el resultado mucho más que utilizar un coste
+distinto de 1.
+
+
+- Mejora del modelo usando pesos
+
+
+Entrenamiento:
+
+```{r}
+system.time({
+
+  liblinear_svm_model_weights <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
+                                           type = 3,
+                                           wi = class_weights)
+})
+```
+
+
+Predicción:
+
+```{r}
+# prediction
+system.time({
+  
+  prediction_liblinear_weights <- predict(liblinear_svm_model_weights, posts_freq_test_mat)
+
+})
+```
+
+
+Evaluación del resultado:
+
+```{r}
+#Confusion matrix
+confusionMatrix(reference = as.factor(posts_test_labels), 
+                data = as.factor(prediction_liblinear_weights$predictions), 
+                positive="1", 
+                mode = "everything")
+```
+
+Resultados:
+
+Con pesos 1/3 no se mejora el resultado:
+
+          Reference
+Prediction     0     1
+         0 17582   995
+         1  1799  4646
+                                          
+               Accuracy : 0.8883          
+                 95% CI : (0.8844, 0.8922)
+    No Information Rate : 0.7746          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.6956          
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.8236          
+            Specificity : 0.9072          
+         Pos Pred Value : 0.7209          
+         Neg Pred Value : 0.9464          
+              Precision : 0.7209          
+                 Recall : 0.8236          
+                     F1 : 0.7688          
+             Prevalence : 0.2254          
+         Detection Rate : 0.1857          
+   Detection Prevalence : 0.2576          
+      Balanced Accuracy : 0.8654          
+
+
+Con 1/5 es peor todavía:
+
+          Reference
+Prediction     0     1
+         0 17062   813
+         1  2319  4828
+                                          
+               Accuracy : 0.8748          
+                 95% CI : (0.8707, 0.8789)
+    No Information Rate : 0.7746          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.6726          
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.8559          
+            Specificity : 0.8803          
+         Pos Pred Value : 0.6755          
+         Neg Pred Value : 0.9545          
+              Precision : 0.6755          
+                 Recall : 0.8559          
+                     F1 : 0.7551          
+             Prevalence : 0.2254          
+         Detection Rate : 0.1930          
+   Detection Prevalence : 0.2856          
+      Balanced Accuracy : 0.8681     
+      
+      
+Con pesos 1/2 se mejora kappa ligeramente:
+
+          Reference
+Prediction     0     1
+         0 17967  1180
+         1  1425  4461
+                                          
+               Accuracy : 0.8959          
+                 95% CI : (0.8921, 0.8997)
+    No Information Rate : 0.7747          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.7065          
+                                          
+ Mcnemar's Test P-Value : 1.747e-06       
+                                          
+            Sensitivity : 0.7908          
+            Specificity : 0.9265          
+         Pos Pred Value : 0.7579          
+         Neg Pred Value : 0.9384          
+              Precision : 0.7579          
+                 Recall : 0.7908          
+                     F1 : 0.7740          
+             Prevalence : 0.2253          
+         Detection Rate : 0.1782          
+   Detection Prevalence : 0.2351          
+      Balanced Accuracy : 0.8587  
+
+
+-------------------------------------------------------------------------------
+
+Vamos a intentar encontrar el mejor tipo y el mejor coste mediante validación cruzada.
+(En principio no es recomenable, ya esta librería utiliza como métrica la exactitud, y esta
+métrica no es adecuada con datasets no balanceados).
+
+
+```{r}
+# Center and scale data
+#s=scale(posts_freq_train_mat,center=TRUE,scale=TRUE)
+
+#Error: sparse->dense coercion: allocating vector of size 57.7 GiB Error: cannot allocate vector of size 57.7 Gb
+
+```
+
+#Aviso: sparse->dense coercion: allocating vector of size 2.6 GiB
+
+```{r}
+#dim(s)
+```
+
+
+```{r}
+crossValidation <- FALSE
+```
+
+```{r}
+# Find the best model with the best cost parameter via 10-fold cross-validations
+#
+system.time({
+  
+if (crossValidation) {
+  
+    print("Trying cross validation")
+  
+    tryTypes <- c(1,2,3,5)       
+    tryCosts <- c(0.1,1,10,100)
+    
+    bestType <- NA
+    bestCost <- NA
+    bestAcc <- 0
+
+    for(ty in tryTypes){
+      cat("Results for type = ",ty,"\n",sep="")
+	    for(co in tryCosts){
+		    acc=LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type=ty, cost=co, bias=1, cross=10, verbose=FALSE)
+		    cat("Results for C=",co," : ",acc," accuracy.\n",sep="")
+        
+		    if(acc>bestAcc){
+			    bestCost <- co
+			    bestAcc <- acc
+			    bestType <- ty
+		    }
+	    }
+    }
+
+  }
+  
+})
+
+
+```
+
+
+[1] "Trying cross validation"
+Results for type = 1
+Results for C=0.1 : 0.8913648 accuracy.
+Results for C=1 : 0.888809 accuracy.
+Results for C=10 : 0.8868789 accuracy.
+Results for C=100 : 0.8806091 accuracy.
+Results for type = 2
+Results for C=0.1 : 0.8906726 accuracy.
+Results for C=1 : 0.8914979 accuracy.
+Results for C=10 : 0.8908324 accuracy.
+Results for C=100 : 0.8909255 accuracy.
+Results for type = 3
+Results for C=0.1 : 0.8930687 accuracy.
+Results for C=1 : 0.8951054 accuracy.
+Results for C=10 : 0.8917376 accuracy.
+Results for C=100 : 0.8881301 accuracy.
+Results for type = 5
+Results for C=0.1 : 0.88821 accuracy.
+Results for C=1 : 0.8899804 accuracy.
+Results for C=10 : 0.8864396 accuracy.
+Results for C=100 : 0.8861334 accuracy.
+   user  system elapsed 
+525.389   0.190 525.730 
+
+
+Nota:
+
+Tarda horas con la regresión lineal.
+Los 4 tipos de SVM: menos de 10 minutos para los 4.
+
+```{r}
+if (crossValidation) {
+  
+  print("Cross validation result: ")
+  
+  cat("Best model type is:",bestType,"\n")
+  cat("Best cost is:",bestCost,"\n")
+  cat("Best accuracy is:",bestAcc,"\n")
+
+}
+```
+
+[1] "Cross validation result: "
+Best model type is: 3 
+Best cost is: 1 
+Best accuracy is: 0.8951054 
+
+Después de las prueba que se han ido haciendo, el resultado no es sorprendente: type 3 y coste 1.
+
+
+
+```{r}
+gridSearch <- FALSE
+```
+
+```{r}
+# Find the best model combining type, cost, bias, and weights
+#
+system.time({
+  
+  if (gridSearch) {
+  
+    print("Doing grid search")
+  
+    tryTypes <- c(1,2,3,5)       
+    tryCosts <- c(0.1,1,10,100)
+    biasList <- c(-1,1,10)
+    weightsList <- list(c(1,2),c(1,3),c(1,5),c(1,10))
+
+    bestType <- NA
+    bestCost <- NA
+    bestBias <- NA
+    bestWeights <- NA
+    
+    bestAcc <- 0
+    bestKappa <- 0
+    
+    #
+    for(ty in tryTypes) {
+      cat("Results for type = ",ty,"\n",sep="")
+	    for(co in tryCosts) {
+        for(bi in biasList) {
+          for(w in weightsList) {
+            w <- setNames(w, c("0","1"))
+		        liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
+		                                         type = ty, cost = co, 
+		                                         bias = bi, 
+		                                         wi = w)
+		        prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
+		        cm <- confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+		        acc <-  cm$overall[1]
+		        kap <- cm$overall[2]
+		        cat("Results for C = ",co," bias = ",bi," weights = ",w,": ",acc," accuracy, ",kap," kappa.\n", sep="")
+        
+		        if(kap>bestKappa){
+		          bestType <- ty
+			        bestCost <- co
+			        bestBias <- bi
+			        bestWeights <- w
+			        bestAcc <- acc
+			        bestKappa <- kap
+		        }
+          }
+        }
+	    }
+    }
+  }
+  
+})
+```
+
+```{r}
+if (gridSearch) {
+  
+  print("gridSearch result: ")
+  
+  cat("Best model type is:",bestType,"\n")
+  cat("Best cost is:",bestCost,"\n")
+  cat("Best bias is:",bestBias,"\n")
+  cat("Best weights are:",bestWeights,"\n")
+  cat("Best accuracy is:",bestAcc,"\n")
+  cat("Best kappa is:",bestKappa,"\n")
+
+}
+```
+
+
+[1] "gridSearch result: "
+Best model type is: 2 
+Best cost is: 10 
+Best bias is: 10 
+Best weights are: 1 2 
+Best accuracy is: 0.8982428 
+Best kappa is: 0.7103011 
+
+
+El mejor resultado obtenido es prácticamente igual al que ya teníamos con type 3 y pesos 1/2.
+Al ser este otro modelo más "sencillo" (coste y bias son los valores por defecto), y la diferencia tan pequeña,
+nos quedamos con ese otro modelo.
+
+
+
+-------------------------------------------------------------------------------
+
+
+Prueba con textos nuevos no etiquetados
+
+
+
+
+
+
+
