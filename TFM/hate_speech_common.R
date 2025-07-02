@@ -150,7 +150,7 @@ train_test_split  <- function(df, dtm, percentage) {
 #                       so the R session does not "explode"                    #             
 #                                                                              #
 #  (Don't tell anybody: I used duckduckgo.ia (mistral) to help                 #
-#                       develope this code :)                                  #
+#                       develop this code :)                                   #
 #                                                                              #
 ################################################################################
 creat_mat_in_chunks <- function(dtm, chunk_size) {
@@ -204,7 +204,7 @@ creat_sparse_mat_in_chunks <- function(dtm, chunk_size) {
     # subset the DocumentTermMatrix
     sub_dtm <- dtm[start:end, ]
     
-    # convert to a dense matrix
+    # convert to a sparse matrix
     mat <- as.matrix(sub_dtm)
     result <- as(as(as(mat, "dMatrix"), "generalMatrix"), "RsparseMatrix")
     rm(sub_dtm) #to free space
