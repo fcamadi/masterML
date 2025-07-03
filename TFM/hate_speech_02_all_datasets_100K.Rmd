@@ -5,12 +5,12 @@ date: "2025-06-19"
 output: word_document
 params:
   complete: FALSE 
-  crossValidation: TRUE
-  gridSearch: TRUE
+  crossValidation: FALSE
+  gridSearch: FALSE
 ---
 
 
-# TFM - Procesar todos los datasets - SVM - Muestra de 100k observaciones ("algo más balanceado")
+# TFM - Procesar dataset total - SVM - Muestra de 100k observaciones ("algo más balanceado")
 
 
 Cuando se clasifiquen los datasets sin etiquetar, se comparará los dos modelos. El entrenado con el dataset completo, y este.
