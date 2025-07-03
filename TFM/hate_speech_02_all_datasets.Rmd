@@ -4,22 +4,20 @@ author: "Fran Camacho"
 date: "2025-06-19"
 output: word_document
 params:
-  complete: FALSE 
+  crossValidation: TRUE
+  gridSearch: TRUE
 ---
 
 
-# TFM - Procesar todos los datasets - SVM
+# TFM - Procesar dataset total - SVM
 
 
 Variables que configuran la manera en la que se ejecuta el proceso:
 
 ```{r}
 complete_dataset <- params$complete 
-
-#if no complete dataset, number of no hate messages to pick from the total dataset
-size <- 488936     # number of random rows: 18936 (quite balanced)
-                  #                        88936 (total 100k, best outcome?)  
-                  #                        288936 (total 300k) 
+crossValidation <- params$crossValidation
+gridSearch <- params$gridSearch
 
 # number of min. freq (the lower the size, the lower the freq)
 freq <- 100 # now using sparse matrices, let's try :)   
@@ -426,81 +424,134 @@ Prediction      0      1
                      F1 : 0.47483
 
 
-Con pesos 1/20 no se mejora el resultado. Tampoco 1/2, 1/3.
+Con pesos 1/20 no se mejora el resultado. 
 
 
-
-
--------------------------------------------------------------------------------
-
-Vamos a intentar encontrar el mejor tipo y el mejor coste mediante validación cruzada.
-(En principio no es recomenable, ya esta librería utiliza como métrica la exactitud, y esta
-métrica no es adecuada con datasets no balanceados).
-
-
-```{r}
-# Center and scale data
-#s=scale(posts_freq_train_mat,center=TRUE,scale=TRUE)
-
-#Error: sparse->dense coercion: allocating vector of size 57.7 GiBError: cannot allocate vector of size 57.7 Gb
-```
-
-
+Validación cruzada de LiblineaR:
 
 ```{r}
 # Find the best model with the best cost parameter via 10-fold cross-validations
 #
-#tryTypes=c(0,1,2,3,5)       # 0 -> logistic regression (just to compare)
-#tryCosts=c(0.001, 0.1, 1, 10, 100)
-#bestCost=NA
-#bestAcc=0
-#bestType=NA
-#
-#for(ty in tryTypes){
-#	for(co in tryCosts){
-#		acc=LiblineaR(data = posts_freq_train_mat,target = posts_train_labels, type=ty, cost=co, bias=1, cross=10, verbose=TRUE)
-#		cat("Results for C=",co," : ",acc," accuracy.\n",sep="")
-#		if(acc>bestAcc){
-#			bestCost=co
-#			bestAcc=acc
-#			bestType=ty
-#		}
-#	}
-#}
+system.time({
+  
+if (crossValidation) {
+  
+    print("Trying cross validation")
+  
+    tryTypes <- c(1,2,3,5)       
+    tryCosts <- c(0.1,1,10,100)
+    
+    bestType <- NA
+    bestCost <- NA
+    bestAcc <- 0
+
+    for(ty in tryTypes){
+      cat("Results for type = ",ty,"\n",sep="")
+	    for(co in tryCosts){
+		    acc=LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type=ty, cost=co, bias=1, cross=10, verbose=FALSE)
+		    cat("Results for C=",co," : ",acc," accuracy.\n",sep="")
+        
+		    if(acc>bestAcc){
+			    bestCost <- co
+			    bestAcc <- acc
+			    bestType <- ty
+		    }
+	    }
+    }
+
+  }
+  
+})
+```
+
+Mejor resultado:
+
+```{r}
+if (crossValidation) {
+  
+  print("Cross validation result: ")
+  
+  cat("Best model type is:",bestType,"\n")
+  cat("Best cost is:",bestCost,"\n")
+  cat("Best accuracy is:",bestAcc,"\n")
+
+}
 ```
 
 
-ARGUMENTS SETUP
-PROBLEM SETUP
-allocSize: 16956003
-FILL DATA STRUCTURE
-SETUP CHECK
-CROSS VAL
-iter  1 act 1.958e+02 pre 1.754e+02 delta 2.014e+00 f 2.869e+02 |g| 3.466e+02 CG   3
-iter  2 act 2.064e+01 pre 1.736e+01 delta 2.014e+00 f 9.105e+01 |g| 8.213e+01 CG   2
-iter  3 act 5.646e+00 pre 7.207e+00 delta 2.014e+00 f 7.040e+01 |g| 2.815e+01 CG   4
-iter  4 act 3.382e+00 pre 3.234e+00 delta 2.014e+00 f 6.476e+01 |g| 1.348e+01 CG   4
-...
-/#nonzeros/#features = 14651/16846
-FREE SPACE
-FREED SPACE
-Results for C=100 : 0.9670812 accuracy.
+Búsqueda en rejilla:
 
 
 ```{r}
-cat("Best model type is:",bestType,"\n")
-cat("Best cost is:",bestCost,"\n")
-cat("Best accuracy is:",bestAcc,"\n")
+# Find the best model combining type, cost, and weights
+#
+system.time({
+  
+  if (gridSearch) {
+  
+    print("Doing grid search")
+  
+    tryTypes <- c(1,2,3,5)       
+    tryCosts <- c(0.1,1,10,100)
+    biasList <- c(-1,1,10)
+    weightsList <- list(c(1,2),c(1,3),c(1,5),c(1,10))
+
+    bestType <- NA
+    bestCost <- NA
+    bestWeights <- NA
+    bestAcc <- 0
+    bestKappa <- 0
+    
+    
+    for(ty in tryTypes) {
+      cat("Results for type = ",ty,"\n",sep="")
+	    for(co in tryCosts) {
+          for(w in weightsList) {
+            w <- setNames(w, c("0","1"))
+		        liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
+		                                         type = ty, cost = co, 
+		                                         wi = w)
+		        prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
+		        cm <- confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+		        acc <-  cm$overall[1]
+		        kap <- cm$overall[2]
+		        cat("Results for C = ",co," weights = ",w,": ",acc," accuracy, ",kap," kappa.\n", sep="")
+        
+		        if(kap>bestKappa){
+		          bestType <- ty
+			        bestCost <- co
+			        bestWeights <- w
+			        bestAcc <- acc
+			        bestKappa <- kap
+		        }
+          }
+	    }
+    }
+  }
+  
+})
 ```
 
-Después de 2 horas ... lo que ya había visto yo: el mejor resultado es con type=3 (y coste=1)
 
-Best model type is: 3 
-Best cost is: 1 
-Best accuracy is: 0.9692297 
+Mejor resultado:
 
+```{r}
+if (gridSearch) {
+  
+  print("gridSearch result: ")
+  
+  cat("Best model type is:",bestType,"\n")
+  cat("Best cost is:",bestCost,"\n")
+  cat("Best weights are:",bestWeights,"\n")
+  cat("Best accuracy is:",bestAcc,"\n")
+  cat("Best kappa is:",bestKappa,"\n")
+
+}
+```
 
 -------------------------------------------------------------------------------
+
+
 
 
 Prueba con textos nuevos no etiquetados
