@@ -1,0 +1,67 @@
+---
+title: "hate_speech_03_not_labelled"
+author: "Fran Camacho"
+date: "2025-07-08"
+output: word_document
+---
+
+
+
+# TFM - Clasificación de comentarios no etiquetados
+
+
+En esta carpeta "posts" se encuentran los comentarios de lectores escritos en diversas noticias
+de El Mundo del mes de junio de 2025. Se trata de noticias de politica nacional de España principalmente,
+pero también hay noticias de política internacional, de deportes, o relativas a televisión.
+
+
+
+### 1 - Leer los CSVs
+
+
+Leemos los ficheros con los comentarios de los lectores:
+
+
+```{r}
+# Set the directory containing the CSV files
+directory <- "./posts"
+
+# List all CSV files in the directory
+csv_files <- list.files(path = directory, pattern = "*.csv", full.names = TRUE)
+
+# Read all CSV files into a list of data frames
+#csv_data_list <- lapply(csv_files, read.csv)
+csv_data_list <- lapply(csv_files, function(file) read.csv(file, sep = "|", header = FALSE))
+
+# Combine all data frames into a single data frame
+posts_elmundo_juni25 <- as.data.frame(do.call(rbind, csv_data_list))
+```
+
+```{r}
+head(posts_elmundo_juni25)
+```
+
+Renombrar nombres de variables:
+
+```{r}
+colnames(posts_elmundo_juni25) <- c("author","post")
+```
+
+
+Eliminar columna autor (y añadir columna )
+
+
+```{r}
+posts_elmundo_juni25$label <- NA
+posts_elmundo_juni25 <- posts_elmundo_juni25[,-1]
+```
+
+
+```{r}
+head(posts_elmundo_juni25)
+tail(posts_elmundo_juni25)
+```
+
+
+
+
