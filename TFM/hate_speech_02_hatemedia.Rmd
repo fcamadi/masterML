@@ -4,7 +4,7 @@ author: "Fran Camacho"
 date: "2025-06-04"
 output: word_document
 params:
-  complete: TRUE 
+  complete: FALSE 
 ---
 
 
@@ -15,7 +15,7 @@ params:
 complete_dataset <- params$complete 
 
 #if no complete dataset, number of no hate messages to pick from the total dataset
-size <- 488936     # number of random rows: 18936 (quite balanced)
+size <- 88936      # number of random rows: 18936 (quite balanced)
                    #                        88936 (total 100k, best outcome?)  
                    #                        288936 (total 300k) 
 
@@ -23,7 +23,7 @@ size <- 488936     # number of random rows: 18936 (quite balanced)
 freq <- 100 # now using sparse matrices, let's try with low values :)   
 
 # Assign higher weight to the minority class
-class_weights <- c("0" = 1, "1" = 3)  
+class_weights <- c("0" = 1, "1" = 2)  
 ```
 
 
@@ -451,7 +451,7 @@ freq alta (1000) -> resultados absurdos (0 TP, kappa 0, y los pesos no lo arregl
 
 
 - Con el sub dataset de 100k:
-freq baja (100) -> exactitud alta (92.5%) y kappa aceptable (0.58)
+freq baja (100) -> exactitud alta (92.5-92.8%) y kappa aceptable (0.58-0.59)
                    **Con pesos 1/2, la exactitud se mantiene (92%), kappa 0.61**
 
 - Con el sub dataset de 30k (que está muy balanceado: 19k no odio vs 11k odio):
@@ -459,74 +459,8 @@ freq baja (100) -> exactitud alta (92.5%) y kappa aceptable (0.58)
 freq alta (500)  -> baja exactitud, kappa horrible
 freq baja (100)  -> alta exactitud (83%), muy buen kappa (0.62)
 
-
-
-Confusion Matrix and Statistics
-
-          Reference
-Prediction     0     1
-         0 71430  2235
-         1   368   531
-                                          
-               Accuracy : 0.9651          
-                 95% CI : (0.9637, 0.9664)
-    No Information Rate : 0.9629          
-    P-Value [Acc > NIR] : 0.0007463       
-                                          
-                  Kappa : 0.2766          
-                                          
- Mcnemar's Test P-Value : < 2.2e-16       
-                                          
-            Sensitivity : 0.191974        
-            Specificity : 0.994875        
-         Pos Pred Value : 0.590656        
-         Neg Pred Value : 0.969660        
-              Precision : 0.590656        
-                 Recall : 0.191974        
-                     F1 : 0.289768        
-             Prevalence : 0.037096        
-         Detection Rate : 0.007121        
-   Detection Prevalence : 0.012057        
-      Balanced Accuracy : 0.593424        
-                                          
-       'Positive' Class : 1 
-
-
-
-Resultados:
-
-Confusion Matrix and Statistics
-
-          Reference
-Prediction     0     1
-         0 12004  1035
-         1   496  1731
-                                          
-               Accuracy : 0.8997          
-                 95% CI : (0.8948, 0.9044)
-    No Information Rate : 0.8188          
-    P-Value [Acc > NIR] : < 2.2e-16       
-                                          
-                  Kappa : 0.6343          
-                                          
- Mcnemar's Test P-Value : < 2.2e-16       
-                                          
-            Sensitivity : 0.6258          
-            Specificity : 0.9603          
-         Pos Pred Value : 0.7773          
-         Neg Pred Value : 0.9206          
-              Precision : 0.7773          
-                 Recall : 0.6258          
-                     F1 : 0.6934          
-             Prevalence : 0.1812          
-         Detection Rate : 0.1134          
-   Detection Prevalence : 0.1459          
-      Balanced Accuracy : 0.7931          
-                                          
-       'Positive' Class : 1  
-
    
-Se obtienen una exactitud y un kappa bastante buenos.
+En algunos casos se obtienen una exactitud y un kappa bastante buenos.
 
    
 - Intentamos mejorar el modelo usando el coste calculado por  heuristicC:   
@@ -577,7 +511,11 @@ system.time({
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear_c$predictions), positive="1", mode = "everything")
 ```
 
+Dataset completo:
 Ni usando el coste calculado por la función heurística, ni usando unos costes mayores (c+1, c+10), se mejora el resultado con coste = 1.
+
+Dataset 100k:
+Lo mismo.
 
 
 - Intentamos mejorar el modelo usando pesos, para favorecer la clase minoritaria:
@@ -802,14 +740,16 @@ Prediction     0     1
        'Positive' Class : 1          
        
        
+El mejor modelo es el tipo 3 (L2-regularized L1-loss support vector classification (dual)), y con un balance de pesos 1 a 3 para la clase positiva (la clase minoritaria, los mensajes de odio en este caso).
+Con este modelo la exactitud apenas se ve afectada, pero el kappa mejora ligeramente.  
+  
   
 - Resultados con dataset 100k, freq = 100 , pesos 1/2
 
 Accuracy : 0.9225 y kappa 0.61 !!!
 
 
-Confusion Matrix and Statistics
-
+1) 
           Reference
 Prediction     0     1
          0 21112   945
@@ -836,17 +776,38 @@ Prediction     0     1
    Detection Prevalence : 0.11272         
       Balanced Accuracy : 0.80697         
                                           
-       'Positive' Class : 1    
-  
+2)
+          Reference
+Prediction     0     1
+         0 21145   947
+         1   954  1819
+                                          
+               Accuracy : 0.9235          
+                 95% CI : (0.9202, 0.9268)
+    No Information Rate : 0.8888          
+    P-Value [Acc > NIR] : <2e-16          
+                                          
+                  Kappa : 0.6138          
+                                          
+ Mcnemar's Test P-Value : 0.8905          
+                                          
+            Sensitivity : 0.65763         
+            Specificity : 0.95683         
+         Pos Pred Value : 0.65597         
+         Neg Pred Value : 0.95713         
+              Precision : 0.65597         
+                 Recall : 0.65763         
+                     F1 : 0.65680         
+             Prevalence : 0.11124         
+         Detection Rate : 0.07316         
+   Detection Prevalence : 0.11152         
+      Balanced Accuracy : 0.80723         
+                                          
+       'Positive' Class : 1                     
                   
                   
                   
-                  
-El mejor kappa (0.635, 0.6269) se obtiene con la relacción 2/5
 
-
-El mejor modelo es el tipo 3 (L2-regularized L1-loss support vector classification (dual)), y con un balance de pesos 1 a 3 para la clase positiva (la clase minoritaria, los mensajes de odio en este caso).
-Con este modelo la exactitud apenas se ve afectada, pero el kappa mejora ligeramente.
 
 
 
