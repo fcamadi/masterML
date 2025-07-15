@@ -266,10 +266,10 @@ system.time({
 confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
-Coeficiente de correlacción de Mathews:
+Coeficiente de correlacción de Matthews:
 
 ```{r}
-# mcc -> Mathews correlation coefficient
+# mcc -> Matthews correlation coefficient
 mcc(as.factor(odio_kaggle_test$label), as.factor(prediction_liblinear$predictions))
 ```
 
@@ -342,10 +342,10 @@ system.time({
 confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear_weights$predictions), positive="1", mode = "everything")
 ```
 
-Coeficiente de correlacción de Mathews:
+Coeficiente de correlacción de Matthews:
 
 ```{r}
-# mcc -> Mathews correlation coefficient
+# mcc -> Matthews correlation coefficient
 mcc(as.factor(odio_kaggle_test$label), as.factor(prediction_liblinear_weights$predictions))
 ```
 

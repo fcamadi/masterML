@@ -251,6 +251,15 @@ system.time({
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
+Coeficiente de correlacción de Mathews:
+
+```{r}
+# mcc -> Mathews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear$predictions))
+```
+
+
+
 Resultados:
 
 **freq = 100**
@@ -389,7 +398,7 @@ No se mejora el resultado obtenido con coste 1:
 
 ```{r}
 # Define class weights
-class_weights <- c("0" = 1, "1" = 3)  # Assign higher weight to the minority class
+class_weights <- c("0" = 2, "1" = 3)  # Assign higher weight to the minority class
 ```
 
 
@@ -397,7 +406,7 @@ class_weights <- c("0" = 1, "1" = 3)  # Assign higher weight to the minority cla
 ```{r}
 system.time({
 
-  liblinear_svm_model_weights <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3, cost = 1,
+  liblinear_svm_model_weights <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, type = 3, cost = c,
                                    wi = class_weights)
 
   prediction_liblinear_weights <- predict(liblinear_svm_model_weights, posts_freq_test_mat)
@@ -409,6 +418,15 @@ system.time({
 #Confusion matrix
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear_weights$predictions), positive="1", mode = "everything")
 ```
+
+Coeficiente de correlacción de Mathews:
+
+```{r}
+# mcc -> Mathews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear_weights$predictions))
+```
+
+
 
 - freq 20, coste =  1, pesos 1/3
 
