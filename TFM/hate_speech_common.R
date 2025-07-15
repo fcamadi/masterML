@@ -37,7 +37,7 @@ load_libraries <- function() {
   
   print("Loading mltools ...")
   if (!require(mltools)) install.packages('mltools', dependencies = T) 
-  # mcc -> Mathews correlation coefficient
+  # mcc -> Matthews correlation coefficient
   library(mltools)
   
   print("Loading tidyverse ...")
