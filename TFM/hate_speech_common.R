@@ -31,8 +31,14 @@ load_libraries <- function() {
   library(textclean)
   
   print("Loading caret ...")
-  if (!require(caret)) install.packages('caret', dependencies = T) # data partitioning, confusion matrix
+  if (!require(caret)) install.packages('caret', dependencies = T) 
+  # data partitioning, confusion matrix
   library(caret)         
+  
+  print("Loading mltools ...")
+  if (!require(mltools)) install.packages('mltools', dependencies = T) 
+  # mcc -> Mathews correlation coefficient
+  library(mltools)
   
   print("Loading tidyverse ...")
   if (!require(tidyverse)) install.packages('tidyverse', dependencies = T)
