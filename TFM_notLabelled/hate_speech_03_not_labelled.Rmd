@@ -65,3 +65,29 @@ tail(posts_elmundo_juni25)
 
 
 
+
+- Cargamos los modelos:
+
+Modelo 100k:
+
+```{r}
+#save model
+#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+
+# Load the model
+svm_liblinear_all_datasets_100k_freq100_weights_1_2 <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+```
+
+
+Modelo 600k:
+
+```{r}
+#save model
+#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_freq100_weights_1_3.rds")
+
+# Load the model
+svm_liblinear_all_datasets_freq100_weights_1_3 <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rds")
+```
+
+
+
