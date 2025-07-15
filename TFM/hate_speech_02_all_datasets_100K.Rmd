@@ -345,6 +345,7 @@ se procesa en lotes las DTMs, y posteriormente se juntan las matrices para obten
 ```{r}
 chunk_size <- 10000   
 
+
 system.time({
   chunk_list_train <- creat_sparse_mat_in_chunks(posts_dtm_freq_train, chunk_size)
   
@@ -409,6 +410,17 @@ Evaluación del resultado:
 # confusion matrix
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
+
+Coeficiente de correlacción de Mathews:
+
+```{r}
+# mcc -> Mathews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear$predictions))
+```
+
+
+
+
 
           Reference
 Prediction     0     1
@@ -484,6 +496,16 @@ confusionMatrix(reference = as.factor(posts_test_labels),
                 positive="1", 
                 mode = "everything")
 ```
+
+Coeficiente de correlacción de Mathews:
+
+```{r}
+# mcc -> Mathews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear_weights$predictions))
+```
+
+
+
 
 Resultados:
 
@@ -574,6 +596,19 @@ Prediction     0     1
       Balanced Accuracy : 0.8587  
 
 
+
+
+- Guardamos el modelo:
+
+```{r}
+#save model
+saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+
+# Load the model
+#loaded_model <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+```
+
+
 -------------------------------------------------------------------------------
 
 Vamos a intentar encontrar el mejor tipo y el mejor coste mediante validación cruzada.
@@ -595,10 +630,6 @@ métrica no es adecuada con datasets no balanceados).
 #dim(s)
 ```
 
-
-```{r}
-crossValidation <- FALSE
-```
 
 ```{r}
 # Find the best model with the best cost parameter via 10-fold cross-validations
@@ -687,11 +718,6 @@ Best accuracy is: 0.8951054
 
 Después de las prueba que se han ido haciendo, el resultado no es sorprendente: type 3 y coste 1.
 
-
-
-```{r}
-gridSearch <- FALSE
-```
 
 ```{r}
 # Find the best model combining type, cost, bias, and weights
