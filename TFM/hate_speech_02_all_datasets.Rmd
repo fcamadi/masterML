@@ -4,8 +4,8 @@ author: "Fran Camacho"
 date: "2025-06-19"
 output: word_document
 params:
-  crossValidation: TRUE
-  gridSearch: TRUE
+  crossValidation: FALSE
+  gridSearch: FALSE
 ---
 
 
@@ -341,6 +341,14 @@ Evaluación del resultado:
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
+Coeficiente de correlacción de Matthews:
+
+```{r}
+# mcc -> Matthews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear$predictions))
+```
+
+
 Se obtiene un resultado bastante aceptable.
 Kappa podría ser mejor, ciertamente. Se intentará encontrar alguna relación de pesos que mejore kappa.
 
@@ -353,7 +361,7 @@ distinto de 1.
 
 
 
-- Mejora del modelo
+- Mejora del modelo usando pesos
 
 
 Entrenamiento:
@@ -390,6 +398,16 @@ confusionMatrix(reference = as.factor(posts_test_labels),
                 mode = "everything")
 ```
 
+Coeficiente de correlacción de Matthews:
+
+```{r}
+# mcc -> Matthews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear_weights$predictions))
+```
+
+
+
+
 Resultados:
 
 freq = 100
@@ -425,6 +443,20 @@ Prediction      0      1
 
 
 Con pesos 1/20 no se mejora el resultado. 
+
+
+- Guardamos el modelo:
+
+```{r}
+#save model
+saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_freq100_weights_1_3.rds")
+
+# Load the model
+#loaded_model <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rds")
+```
+
+
+-------------------------------------------------------------------------------
 
 
 Validación cruzada de LiblineaR:
