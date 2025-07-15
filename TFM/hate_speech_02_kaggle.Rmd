@@ -266,6 +266,14 @@ system.time({
 confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
+Coeficiente de correlacción de Mathews:
+
+```{r}
+# mcc -> Mathews correlation coefficient
+mcc(as.factor(odio_kaggle_test$label), as.factor(prediction_liblinear$predictions))
+```
+
+
 Se obtiene el mismo resultado usando matrices densas y dispersas.
 En este dataset, al ser de un tamaño pequeño, no hay problema en utilizar matrices densas.
 (Y esto permite utilizar la función heurística)
@@ -303,6 +311,7 @@ system.time({
 confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear_c$predictions), positive="1", mode = "everything") 
 ```
 
+
 Utilizando el coste calculado por la función heurística, el resultado es peor.
 En cambio, eligiendo un coste por encima de 1 (1.5, 2, 3, 5 ..), se mejora el resultado. Elegimos el mejor coste = 10.
 
@@ -332,6 +341,15 @@ system.time({
 #Confusion matrix
 confusionMatrix(reference = as.factor(odio_kaggle_test$label), data = as.factor(prediction_liblinear_weights$predictions), positive="1", mode = "everything")
 ```
+
+Coeficiente de correlacción de Mathews:
+
+```{r}
+# mcc -> Mathews correlation coefficient
+mcc(as.factor(odio_kaggle_test$label), as.factor(prediction_liblinear_weights$predictions))
+```
+
+
 
 - Coste 1, pesos 1/3:
 
