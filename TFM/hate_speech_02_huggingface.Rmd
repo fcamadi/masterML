@@ -251,10 +251,10 @@ system.time({
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
-Coeficiente de correlacción de Mathews:
+Coeficiente de correlacción de Matthews:
 
 ```{r}
-# mcc -> Mathews correlation coefficient
+# mcc -> Matthews correlation coefficient
 mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear$predictions))
 ```
 
@@ -419,10 +419,10 @@ system.time({
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear_weights$predictions), positive="1", mode = "everything")
 ```
 
-Coeficiente de correlacción de Mathews:
+Coeficiente de correlacción de Matthews:
 
 ```{r}
-# mcc -> Mathews correlation coefficient
+# mcc -> Matthews correlation coefficient
 mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear_weights$predictions))
 ```
 
