@@ -438,6 +438,14 @@ table(as.factor(prediction_liblinear$predictions))
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
+Coeficiente de correlacción de Matthews:
+
+```{r}
+# mcc -> Matthews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear$predictions))
+```
+
+
 RESULTADOS FINALES:
 
 - Con el sub dataset de 300k:
@@ -547,6 +555,14 @@ confusionMatrix(reference = as.factor(posts_test_labels),
                 positive="1", 
                 mode = "everything")
 ```
+
+Coeficiente de correlacción de Matthews:
+
+```{r}
+# mcc -> Matthews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear_weights$predictions))
+```
+
 
 Dataset completo, coste 1, pesos 1/10:
 
@@ -677,7 +693,7 @@ Guardamos el modelo:
 
 ```{r}
 #save model
-saveRDS(liblinear_svm_model_weights, file="svm_liblinear_100k_freq100_weights1_2.rds")
+#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_100k_freq100_weights1_2.rds")
 
 # Load the model
 #loaded_model <- readRDS("decision_tree_model.rds")
