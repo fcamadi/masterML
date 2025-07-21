@@ -15,8 +15,22 @@ de El Mundo del mes de junio de 2025. Se trata de noticias de politica nacional 
 pero también hay noticias de política internacional, de deportes, o relativas a televisión.
 
 
+```{r}
+print(getwd())
+```
+
 
 ### 1 - Leer los CSVs
+
+
+```{r}
+source('hate_speech_03_common.R')
+```
+
+
+```{r}
+load_libraries()
+```
 
 
 Leemos los ficheros con los comentarios de los lectores:
@@ -34,39 +48,64 @@ csv_files <- list.files(path = directory, pattern = "*.csv", full.names = TRUE)
 csv_data_list <- lapply(csv_files, function(file) read.csv(file, sep = "|", header = FALSE))
 
 # Combine all data frames into a single data frame
-posts_elmundo_juni25 <- as.data.frame(do.call(rbind, csv_data_list))
+posts_elmundo_June25 <- as.data.frame(do.call(rbind, csv_data_list))
 ```
+
+
+```{ r}
+#Test
+
+total_rows <- 0
+
+for (file in csv_files) {
+  df_name <- sub("\\.[^.]*$", "", basename(file))
+  print(df_name)
+    
+  df <- read.csv(file, sep = "|", header = FALSE)
+  # Assign the data frame to a variable with the name of the file (without extension)
+  assign(df_name, df, envir = .GlobalEnv)
+  total_rows <- total_rows + nrow(df)
+}
+cat("Total rows: ",total_rows)
+```
+
+
 
 ```{r}
-head(posts_elmundo_juni25)
+head(posts_elmundo_June25)
 ```
 
-Renombrar nombres de variables:
+
+```{ r}
+write.table(posts_elmundo_June25, "posts_elmundo_June25.csv", sep = "|")
+```
+
+
+Renombrar variables:
 
 ```{r}
-colnames(posts_elmundo_juni25) <- c("author","post")
+colnames(posts_elmundo_June25) <- c("author","post")
 ```
 
 
-Eliminar columna autor (y añadir columna )
+Eliminar columna autor (y añadir columna label)
 
 
 ```{r}
-posts_elmundo_juni25$label <- NA
-posts_elmundo_juni25 <- posts_elmundo_juni25[,-1]
+posts_elmundo_June25$label <- NA
+posts_elmundo_June25 <- posts_elmundo_June25[,-1]
 ```
+
 
 
 ```{r}
-head(posts_elmundo_juni25)
-tail(posts_elmundo_juni25)
+head(posts_elmundo_June25)
+tail(posts_elmundo_June25)
 ```
 
 
+### 2 - Carga de los modelos
 
-
-
-- Cargamos los modelos:
 
 Modelo 100k:
 
@@ -75,7 +114,7 @@ Modelo 100k:
 #saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
 
 # Load the model
-svm_liblinear_all_datasets_100k_freq100_weights_1_2 <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+svm_liblinear_100k <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
 ```
 
 
@@ -86,8 +125,216 @@ Modelo 600k:
 #saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_freq100_weights_1_3.rds")
 
 # Load the model
-svm_liblinear_all_datasets_freq100_weights_1_3 <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rds")
+svm_liblinear_600k <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rds")
 ```
+
+
+### 3 - Clasificación de los comentarios nuevos
+
+
+1 - Elegimos la mitad de los comentarios de manera aleatoria
+
+Seleccionamos 2000 comentarios de los casi 3000, y con esos 2000 comentarios creamos 2 dataframes.
+
+```{r}
+set.seed(10)
+
+# number of rows to select from the total (2960)
+n <- 2000  
+
+# Randomly select rows
+posts_2000 <- posts_elmundo_June25[sample(nrow(posts_elmundo_June25),n), ]
+
+n <- 1000
+# subset1
+indices <- sample(nrow(posts_2000), n)
+
+# first subset
+subset1 <- posts_2000[indices, ]
+
+# subset2
+subset2 <- posts_2000[-indices, ]
+
+```
+
+
+Revisamos a mano el dataset*:
+
+*debido al mal formateado de los comentarios (comillas que se abren y no se cierran por ejemplo)
+
+```{r}
+write.table(subset1, "subset1.csv", sep = "|")
+```
+
+```{r}
+write.table(subset2, "subset2.csv", sep = "|")
+```
+
+Volvemos a leerlo:
+
+```{r}
+subset1 <- read.csv("subset1.csv", sep = "|", header = TRUE)
+
+subset1 <- subset1[-1]
+colnames(subset1) <- c("post","label")
+```
+
+
+
+2 - Clasificar mensajes del primer dataframe con los dos modelos. Evaluar el resultado.
+
+
+```{r}
+train_vocab_100k <- colnames(svm_liblinear_100k$W)
+
+subset1_sparse_matrix_100k <- process_unlabelled_posts(subset1, train_vocab_100k)
+```
+
+```{r}
+train_vocab_600k <- colnames(svm_liblinear_600k$W)
+
+subset1_sparse_matrix_600k <- process_unlabelled_posts(subset1, train_vocab_600k)
+```
+
+
+Clasificar los comentarios del subconjunto 1:
+
+```{r}
+predictions_100k <- predict(svm_liblinear_100k, subset1_sparse_matrix_100k)
+print(predictions_100k$predictions)
+```
+
+```{r}
+predictions_600k <- predict(svm_liblinear_600k, subset1_sparse_matrix_600k)
+print(predictions_600k$predictions)
+```
+
+```{r}
+subset1$label_100k <- predictions_100k$predictions
+subset1$label_600k <- predictions_600k$predictions
+```
+
+
+```{r}
+table(subset1$label_100k)
+prop.table(table(subset1$label_100k))
+```
+
+
+```{r}
+table(subset1$label_600k)
+prop.table(table(subset1$label_600k))
+```
+
+A simple vista, considero bastante extraño (y muy mala señal) que ambos modelos hayan predicho tantos positivos/comentarios de odio.
+(Y eso que conozco El Mundo -y a sus lectores- desde hace muchísimo tiempo).
+
+He pensado examinar los comentarios, clasificarlos yo, y comparar mi valoración con los resultados de ambos modelos.
+
+Para ello primero exporto el resultado:
+
+
+
+```{r}
+write.table(subset1, "result_classification_SVM_100k_and_600k.csv", sep = "|")
+```
+
+He clasificado yo los 1000 comentarios.
+
+
+(Voy por el 866)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+Volvemos a leer el csv. Y comparamos mi evaluación con las predicciones de los dos modelos:
+
+
+```{r}
+result1_1000 <-  read.csv2("result_classification_SVM_100k_and_600k.csv", sep = "")
+result1_200 <- result1_1000[1:200,]
+```
+
+
+Matriz de confusión modelo 100k:
+
+```{r}
+#Confusion matrix
+confusionMatrix(reference = as.factor(result1_200$label), 
+                data = as.factor(result1_200$label_100k), 
+                positive="1", 
+                mode = "everything")
+```
+
+
+Matriz de confusión modelo 600k:
+
+```{r}
+#Confusion matrix
+confusionMatrix(reference = as.factor(result1_200$label), 
+                data = as.factor(result1_200$label_600k), 
+                positive="1", 
+                mode = "everything")
+```
+
+
+Los resultados -siempre teniendo en cuenta que he sido yo mismo quien ha valorado los 200 comentarios elegidos aleatoriamente-,
+no tienen nada que ver con los resultados obtenidos con los conjuntos de test ...
+
+:O
+
+
+
+Hacer la curva ROC de estos dos modelos.
+
+
+
+
+
+
+
+
+
+
+
+3 - Corregir/mejorar los datasets y volver a entrenar los modelos
+
+
+
+
+
+4 - Clasificar la mitad de los mensajes que quedan
+
+
+
+
+
+5 - Comparar los resultados de 2 y 4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
