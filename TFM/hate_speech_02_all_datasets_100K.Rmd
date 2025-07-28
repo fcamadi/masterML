@@ -27,7 +27,7 @@ gridSearch <- params$gridSearch
 size <- 78000     # 77432 number of random rows of no hate messages 
 
 # number of min. freq (the lower the size, the lower the freq)
-freq <- 100 # now using sparse matrices, let's try :)   
+freq <- 50 # now using sparse matrices, let's try :)   
 
 # Assign higher weight to the minority class
 class_weights <- c("0" = 1, "1" = 2)  
@@ -103,9 +103,6 @@ Comprobar proporción de los mensajes en este dataset:
 
 ```{r}
 table(hate_raw$label)
-```
-
-```{r}
 prop.table(table(hate_raw$label))
 ```
 
@@ -160,11 +157,9 @@ Comprobar proporción de los mensajes en este dataset después del "downsampling
 
 ```{r}
 table(hate_raw$label)
-```
-
-```{r}
 prop.table(table(hate_raw$label))
 ```
+
 
 El dataset sigue estando desbalanceado, pero en bastante menor grado.
 
@@ -236,9 +231,7 @@ Procesado habitual: eliminar mayúsculas, números ...
 
 ```{r}
 system.time({
-
   posts_corpus_clean <- clean_corpus(posts_corpus)
-
 })
 ```
 
@@ -247,9 +240,7 @@ Finalmente, se procede a la **"tokenización"** de los comentarios:
 
 ```{r}
 system.time({
-  
   posts_dtm <- DocumentTermMatrix(posts_corpus_clean)
-
 })
 
 posts_dtm
@@ -296,11 +287,9 @@ Vamos a comprobar si se mantiene la (des)proporción mensajes no de odio/mensaje
 
 ```{r}
 prop.table(table(posts_train_labels))
-```
-
-```{r}
 prop.table(table(posts_test_labels))
 ```
+
 
 
 Se necesita ahora obtener el listado de las palabras más utilizadas:
@@ -311,6 +300,7 @@ Se necesita ahora obtener el listado de las palabras más utilizadas:
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector
 # containing words that appear at least a  minimum number of times
 posts_freq_words_train <- findFreqTerms(posts_dtm_train, freq)  #   100 -> ~4700 terms
+                                                                #    50 -> ~7500 terms
 
 print("tonto" %in% posts_freq_words_train)    
 print("imbecil" %in% posts_freq_words_train)  
@@ -411,16 +401,7 @@ Evaluación del resultado:
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
-Coeficiente de correlacción de Matthews:
-
-```{r}
-# mcc -> Matthews correlation coefficient
-mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear$predictions))
-```
-
-
-
-
+freq = 100:
 
           Reference
 Prediction     0     1
@@ -449,8 +430,59 @@ Prediction     0     1
       Balanced Accuracy : 0.8378   
 
 
+freq = 50:
+
+          Reference
+Prediction     0     1
+         0 18328  1359
+         1  1064  4282
+                                          
+               Accuracy : 0.9032          
+                 95% CI : (0.8995, 0.9068)
+    No Information Rate : 0.7747          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.7175          
+                                          
+ Mcnemar's Test P-Value : 2.334e-09       
+                                          
+            Sensitivity : 0.7591          
+            Specificity : 0.9451          
+         Pos Pred Value : 0.8010          
+         Neg Pred Value : 0.9310          
+              Precision : 0.8010          
+                 Recall : 0.7591          
+                     F1 : 0.7795          
+             Prevalence : 0.2253          
+         Detection Rate : 0.1711          
+   Detection Prevalence : 0.2136          
+      Balanced Accuracy : 0.8521  
+
+
+Coeficiente de correlacción de Matthews:
+
+```{r}
+# mcc -> Matthews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear$predictions))
+```
+
+
+freq = 100:
+
+[1] 0.6993241
+
+freq = 50:
+
+[1] 0.717946
+
+
+
+
 Cuando se tiene un dataset desbalanceado, pero en una proporción como esta (3 a 1 a favor de los mensajes no de odio), 
 se obtiene un resultado más que aceptable. Una exactitud rozando el 90%, y un kappa rozando el 0.7, me parecen más que buenos.
+
+En una prueba posterior (después de intentar clasificar los comentarios nuevos), bajando la frecuencia mínima a 50, se mejoran todavía 
+más los resultados.
 
 
 Nota:
@@ -496,6 +528,67 @@ confusionMatrix(reference = as.factor(posts_test_labels),
                 positive="1", 
                 mode = "everything")
 ```
+
+Resultado con freq = 100
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction     0     1
+         0 17967  1180
+         1  1425  4461
+                                          
+               Accuracy : 0.8959          
+                 95% CI : (0.8921, 0.8997)
+    No Information Rate : 0.7747          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.7065          
+                                          
+ Mcnemar's Test P-Value : 1.747e-06       
+                                          
+            Sensitivity : 0.7908          
+            Specificity : 0.9265          
+         Pos Pred Value : 0.7579          
+         Neg Pred Value : 0.9384          
+              Precision : 0.7579          
+                 Recall : 0.7908          
+                     F1 : 0.7740          
+             Prevalence : 0.2253          
+         Detection Rate : 0.1782          
+   Detection Prevalence : 0.2351          
+      Balanced Accuracy : 0.8587          
+                                          
+  
+freq = 50:  
+  
+          Reference
+Prediction     0     1
+         0 17936  1006
+         1  1456  4635
+                                          
+               Accuracy : 0.9016          
+                 95% CI : (0.8979, 0.9053)
+    No Information Rate : 0.7747          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.726           
+                                          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.8217          
+            Specificity : 0.9249          
+         Pos Pred Value : 0.7610          
+         Neg Pred Value : 0.9469          
+              Precision : 0.7610          
+                 Recall : 0.8217          
+                     F1 : 0.7901          
+             Prevalence : 0.2253          
+         Detection Rate : 0.1852          
+   Detection Prevalence : 0.2433          
+      Balanced Accuracy : 0.8733   
+   
+
 
 Coeficiente de correlacción de Matthews:
 
@@ -602,7 +695,8 @@ Prediction     0     1
 
 ```{r}
 #save model
-saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq50_weights_1_2.rds")
 
 # Load the model
 #loaded_model <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
@@ -791,6 +885,8 @@ if (gridSearch) {
 ```
 
 
+freq = 100:
+
 [1] "gridSearch result: "
 Best model type is: 2 
 Best cost is: 10 
@@ -800,11 +896,105 @@ Best accuracy is: 0.8982428
 Best kappa is: 0.7103011 
 
 
+freq = 50:
+
+[1] "gridSearch result: "
+Best model type is: 2 
+Best cost is: 0.1 
+Best bias is: 10 
+Best weights are: 1 2 
+Best accuracy is: 0.9068829 
+Best kappa is: 0.7353977 
+
+
+freq = 100:
+
 El mejor resultado obtenido es prácticamente igual al que ya teníamos con type 3 y pesos 1/2.
 Al ser este otro modelo más "sencillo" (coste y bias son los valores por defecto), y la diferencia tan pequeña,
 nos quedamos con ese otro modelo.
 
+freq = 50:
 
+Dado el resultado tan espectacular obtenido, lo guardamos, y probamos a clasificar con él los comentarios nuevos.
+
+
+```{r}
+#save model
+saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds")
+
+# Load the model
+#loaded_model <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+```
+
+Sacamos la matriz de confusión:
+
+Entrenamiento
+
+```{r}
+system.time({
+
+  liblinear_svm_model_best <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
+                                           type = bestType,
+                                           cost = bestCost,
+                                           bias = bestBias,
+                                           wi = bestWeights)
+})
+```
+
+
+Predicción:
+
+```{r}
+# prediction
+system.time({
+  
+  prediction_liblinear_best <- predict(liblinear_svm_model_best, posts_freq_test_mat)
+
+})
+```
+
+
+Evaluación del resultado:
+
+```{r}
+#Confusion matrix
+confusionMatrix(reference = as.factor(posts_test_labels), 
+                data = as.factor(prediction_liblinear_best$predictions), 
+                positive="1", 
+                mode = "everything")
+```
+
+Confusion Matrix and Statistics
+
+          Reference
+Prediction     0     1
+         0 18163  1102
+         1  1229  4539
+                                          
+               Accuracy : 0.9069          
+                 95% CI : (0.9032, 0.9105)
+    No Information Rate : 0.7747          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.7354          
+                                          
+ Mcnemar's Test P-Value : 0.009061        
+                                          
+            Sensitivity : 0.8046          
+            Specificity : 0.9366          
+         Pos Pred Value : 0.7869          
+         Neg Pred Value : 0.9428          
+              Precision : 0.7869          
+                 Recall : 0.8046          
+                     F1 : 0.7957          
+             Prevalence : 0.2253          
+         Detection Rate : 0.1813          
+   Detection Prevalence : 0.2304          
+      Balanced Accuracy : 0.8706          
+                                          
+       'Positive' Class : 1   
+       
+       
 
 -------------------------------------------------------------------------------
 
