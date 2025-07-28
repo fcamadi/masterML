@@ -7,10 +7,11 @@ output: word_document
 
 
 
-# TFM - Clasificación de comentarios no etiquetados
+# TFM - Clasificación de comentarios no etiquetados (2)
 
+-- Solo comentarios de los lectores de El Mundo --
 
-En esta carpeta "posts" se encuentran los comentarios de lectores escritos en diversas noticias
+En la carpeta "posts" se encuentran los comentarios de lectores escritos en diversas noticias
 de El Mundo del mes de junio de 2025. Se trata de noticias de politica nacional de España principalmente,
 pero también hay noticias de política internacional, de deportes, o relativas a televisión.
 
@@ -20,7 +21,7 @@ print(getwd())
 ```
 
 
-### 1 - Leer los CSVs
+## 1 - Leer los CSVs
 
 
 ```{r}
@@ -49,11 +50,13 @@ csv_data_list <- lapply(csv_files, function(file) read.csv(file, sep = "|", head
 
 # Combine all data frames into a single data frame
 posts_elmundo_June25 <- as.data.frame(do.call(rbind, csv_data_list))
+
+cat("Number of posts by readers: ",nrow(posts_elmundo_June25))
 ```
 
 
 ```{ r}
-#Test
+#Another way
 
 total_rows <- 0
 
@@ -75,12 +78,6 @@ cat("Total rows: ",total_rows)
 head(posts_elmundo_June25)
 ```
 
-
-```{ r}
-write.table(posts_elmundo_June25, "posts_elmundo_June25.csv", sep = "|")
-```
-
-
 Renombrar variables:
 
 ```{r}
@@ -97,6 +94,10 @@ posts_elmundo_June25 <- posts_elmundo_June25[,-1]
 ```
 
 
+```{r}
+#write.table(posts_elmundo_June25, "posts_elmundo_June25.csv", sep = "|")
+```
+
 
 ```{r}
 head(posts_elmundo_June25)
@@ -104,46 +105,22 @@ tail(posts_elmundo_June25)
 ```
 
 
-### 2 - Carga de los modelos
-
-
-Modelo 100k:
-
-```{r}
-#save model
-#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
-
-# Load the model
-svm_liblinear_100k <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
-```
-
-
-Modelo 600k:
-
-```{r}
-#save model
-#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_freq100_weights_1_3.rds")
-
-# Load the model
-svm_liblinear_600k <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rds")
-```
-
-
-### 3 - Clasificación de los comentarios nuevos
-
-
-1 - Elegimos la mitad de los comentarios de manera aleatoria
-
-Seleccionamos 2000 comentarios de los casi 3000, y con esos 2000 comentarios creamos 2 dataframes.
+Seleccionamos 2000 comentarios de los más de 3000, y con esos 2000 comentarios creamos 2 dataframes. Este será el conjunto de entrenamiento.
+(La idea original era entrenar con solo 1000 comentarios. Pero dados los primeros resultados -fichero hate_speech_03_not_labelled_too_many_positives.Rmd-, 
+he decidido entrenar el SVM con los 2000).
+Del resto de comentarios, elegiremos 500 para realizar la evaluación.
 
 ```{r}
 set.seed(10)
 
-# number of rows to select from the total (2960)
+# number of rows to select from the total (3391)
 n <- 2000  
 
+indices_2000 <- sample(nrow(posts_elmundo_June25), n)
+
 # Randomly select rows
-posts_2000 <- posts_elmundo_June25[sample(nrow(posts_elmundo_June25),n), ]
+posts_2000 <- posts_elmundo_June25[indices_2000, ]
+posts_test <- posts_elmundo_June25[-indices_2000, ]
 
 n <- 1000
 # subset1
@@ -158,161 +135,408 @@ subset2 <- posts_2000[-indices, ]
 ```
 
 
-Revisamos a mano el dataset*:
-
-*debido al mal formateado de los comentarios (comillas que se abren y no se cierran por ejemplo)
-
-```{r}
-write.table(subset1, "subset1.csv", sep = "|")
-```
-
-```{r}
-write.table(subset2, "subset2.csv", sep = "|")
-```
-
-Volvemos a leerlo:
-
-```{r}
-subset1 <- read.csv("subset1.csv", sep = "|", header = TRUE)
-
-subset1 <- subset1[-1]
-colnames(subset1) <- c("post","label")
-```
-
-
-
-2 - Clasificar mensajes del primer dataframe con los dos modelos. Evaluar el resultado.
+Guardamos los dos datasets como csvs para poder revisarlos y etiquetarlos:
 
 
 ```{r}
-train_vocab_100k <- colnames(svm_liblinear_100k$W)
+#write.table(subset1, "subset1.csv", sep = "|")
+#write.table(subset2, "subset2.csv", sep = "|")
+```
 
-subset1_sparse_matrix_100k <- process_unlabelled_posts(subset1, train_vocab_100k)
+
+Volvemos a leerlos ya etiquetados:
+(Incluyendo los últimos 500 etiquetados)
+
+```{r}
+subset1_labelled <- read.csv("subset1_labelled.csv", sep = "|", header = TRUE)
+subset2_labelled <- read.csv("subset2_labelled.csv", sep = "|", header = TRUE)
+subset3_labelled <- read.csv("subset3_labelled.csv", sep = "|", header = TRUE)
+```
+
+Los juntamos:
+
+```{r}
+posts_training_raw <- rbind(subset1_labelled, subset2_labelled, subset3_labelled)
+rm(subset1, subset2, subset1_labelled, subset2_labelled)
+```
+
+
+Elegimos un subconjunto de 500 comentarios como hemos dicho para la evaluación:
+
+```{r}
+set.seed(10)
+
+# number of rows to select from the total (400)
+n <- 500  
+
+indices_500 <- sample(nrow(posts_test), n)
+
+posts_test <- posts_test[indices_500, ]
+
+#We add 500 more posts to the training set
+training_500 <- posts_test[-indices_500, ]
+```
+
+
+Los guardamos para revisarlos y evaluarlos a mano:
+
+```{r}
+#save posts to evaluate models
+#write.table(posts_test, "posts_test.csv", sep = "|")
+
+#and the 500 more posts for training
+#write.table(posts_test, "subset3_500.csv", sep = "|")
+```
+
+
+Los leemos igualmente ya etiquetados:
+
+```{r}
+posts_test_raw <- read.csv("posts_test_labelled.csv", sep = "|", header = TRUE)
+```
+
+
+Vamos a ver la proporción mensajes no de odio/mensajes de odio:
+
+```{r}
+prop.table(table(posts_training_raw$label))
 ```
 
 ```{r}
-train_vocab_600k <- colnames(svm_liblinear_600k$W)
-
-subset1_sparse_matrix_600k <- process_unlabelled_posts(subset1, train_vocab_600k)
+prop.table(table(posts_test_raw$label))
 ```
 
+Bastante desbalancedados, como todos los anteriores.
 
-Clasificar los comentarios del subconjunto 1:
+
+## 2 - Preparar los datasets
+
+
+La columna "label" es de tipo int. Ya que se trata en realidad de una variable categórica 0/1, es conveniente transformarla en un factor:
 
 ```{r}
-predictions_100k <- predict(svm_liblinear_100k, subset1_sparse_matrix_100k)
-print(predictions_100k$predictions)
+#Convert class into a factor
+posts_training_raw$label <- factor(posts_training_raw$label)
+
+# also test dataset
+posts_test_raw$label <- factor(posts_test_raw$label)
 ```
+
+
+Procesamos los comentarios de la manera habitual (eliminar referencias a otros lectores, eliminar emoticonos ..):
 
 ```{r}
-predictions_600k <- predict(svm_liblinear_600k, subset1_sparse_matrix_600k)
-print(predictions_600k$predictions)
+system.time({
+  posts_training <- preprocess_posts(posts_training, posts_training_raw)
+  
+  # additional cleaning for posts from El Mundo
+  posts_training$post <- gsub("#\\d+ Cerrar", "", posts_training$post) 
+  posts_training$post <- gsub("# \\d+", "", posts_training$post) 
+})
 ```
+
+También el dataset de test:
 
 ```{r}
-subset1$label_100k <- predictions_100k$predictions
-subset1$label_600k <- predictions_600k$predictions
+# Also the test dataset
+system.time({
+  posts_test <- preprocess_posts(posts_test, posts_test_raw)
+  
+  # additional cleaning for posts from El Mundo
+  posts_test$post <- gsub("#\\d+ Cerrar", "", posts_test$post) 
+  posts_test$post <- gsub("# \\d+", "", posts_test$post) 
+})
 ```
+
+**Corpus de los textos**
+
+Ya se puede proceder a la creación del objeto corpus con todas los mensajes:
+
+```{r}
+#create corpus
+system.time({
+  posts_corpus_training <- VCorpus(VectorSource(posts_training$post))
+})
+
+print(posts_corpus_training)
+```
+
+
+También para el dataset de test:
+
+```{r}
+#create corpus for test dataset
+system.time({
+  posts_corpus_test <- VCorpus(VectorSource(posts_test$post))
+})
+
+print(posts_corpus_test)
+```
+
+
+
+Limpieza de los textos del corpus:
+
+Procesado habitual: eliminar mayúsculas, números ...
+
+```{r}
+system.time({
+
+  posts_corpus_clean <- clean_corpus(posts_corpus_training)
+
+})
+```
+
+También para el conjunto de test:
+
+```{r}
+system.time({
+
+  posts_corpus_test_clean <- clean_corpus(posts_corpus_test)
+
+})
+```
+
+
+
+**"Tokenización"**
+
+Finalmente, se procede a la tokenización de los comentarios:
+
+```{r}
+system.time({
+  posts_dtm_train <- DocumentTermMatrix(posts_corpus_clean)
+})
+
+posts_dtm_train
+```
+
+
+
+Se necesita ahora obtener el listado de las palabras más utilizadas:
 
 
 ```{r}
-table(subset1$label_100k)
-prop.table(table(subset1$label_100k))
+freq <- 10
+
+# Data preparation – creating indicator features for frequent words
+# the function findFreqTerms() in the tm package takes a DTM and returns a character vector
+# containing words that appear at least a  minimum number of times
+posts_freq_words_train <- findFreqTerms(posts_dtm_train, freq)  #   10 -> 1031 terms  -> Kappa : 0.2535    1242 (2500 posts)
+                                                                #   20 -> 519 terms   -> Kappa : 0.0634  
+                                                                #   50 -> 193 terms   -> Kappa : 0
+                                                                #  100 -> 96 terms    -> Kappa : 0
+
 ```
 
+Nota:
+Eligiendo frecuencias mínimas altas, se obtienen resultados descartables (Kappa muy malo, o incluso 0).
+Esto indica claramente que se necesita aumentar el tamaño del conjunto de entrenamiento.
+(Lo que no deja de ser lógico, dada la complejidad del problema).
+
+
+Para crear la DTM del conjunto de test, se necesita el mismo vocabulario del conjunto de entrenamiento:
 
 ```{r}
-table(subset1$label_600k)
-prop.table(table(subset1$label_600k))
+
+train_vocab <- posts_freq_words_train
+
+posts_dtm_freq_test <- DocumentTermMatrix(posts_corpus_test_clean,
+                                     control = list(dictionary = train_vocab,
+                                               wordLengths = c(3, Inf))
+                                    )
+
+posts_dtm_freq_test
 ```
 
-A simple vista, considero bastante extraño (y muy mala señal) que ambos modelos hayan predicho tantos positivos/comentarios de odio.
-(Y eso que conozco El Mundo -y a sus lectores- desde hace muchísimo tiempo).
 
-He pensado examinar los comentarios, clasificarlos yo, y comparar mi valoración con los resultados de ambos modelos.
-
-Para ello primero exporto el resultado:
-
-
+Y ahora utilizamos ese listado para limitar el número de columnas/features tanto del conjuntos de entrenamiento como del de test:
+(El de test ya ha sido creado con el número correcto de columnas/features)
 
 ```{r}
-write.table(subset1, "result_classification_SVM_100k_and_600k.csv", sep = "|")
+dim(posts_dtm_train)
+posts_dtm_freq_train <- posts_dtm_train[ , posts_freq_words_train]
+dim(posts_dtm_freq_train)
+
+#dim(posts_dtm_test)
+#posts_dtm_freq_test <- posts_dtm_test[ , posts_freq_words_train]     
+dim(posts_dtm_freq_test)
 ```
 
-He clasificado yo los 1000 comentarios.
 
 
-(Voy por el 866)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!
+## 3 - Entrenamiento de SVM LiblineaR
 
-
-Volvemos a leer el csv. Y comparamos mi evaluación con las predicciones de los dos modelos:
-
+Preparar matrices:
 
 ```{r}
-result1_1000 <-  read.csv2("result_classification_SVM_100k_and_600k.csv", sep = "")
-result1_200 <- result1_1000[1:200,]
+# dtm -> matrix
+    
+posts_freq_train_mat <- as.matrix(posts_dtm_freq_train)
+posts_freq_train_mat <- as(as(posts_freq_train_mat, "generalMatrix"), "RsparseMatrix")
+
+posts_freq_test_mat <- as.matrix(posts_dtm_freq_test)
+posts_freq_test_mat <- as(as(posts_freq_test_mat, "generalMatrix"), "RsparseMatrix")
+
 ```
 
 
-Matriz de confusión modelo 100k:
+Entrenar el modelo:
+
+```{r}
+system.time({
+
+  liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_training$label, type = 3)  # C = 1, not the found with heuristicC
+
+})
+```
+
+
+Predicción:
+
+```{r}
+# prediction
+system.time({
+  prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
+})
+```
+
+
+Evaluación:
 
 ```{r}
 #Confusion matrix
-confusionMatrix(reference = as.factor(result1_200$label), 
-                data = as.factor(result1_200$label_100k), 
-                positive="1", 
-                mode = "everything")
+confusionMatrix(reference = as.factor(posts_test$label), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
+**2000 posts:**
 
-Matriz de confusión modelo 600k:
+Confusion Matrix and Statistics
+
+          Reference
+Prediction   0   1
+         0 418  31
+         1  35  16
+                                          
+               Accuracy : 0.868           
+                 95% CI : (0.8351, 0.8964)
+    No Information Rate : 0.906           
+    P-Value [Acc > NIR] : 0.9978          
+                                          
+                  Kappa : 0.2535          
+                                          
+ Mcnemar's Test P-Value : 0.7119          
+                                          
+            Sensitivity : 0.3404          
+            Specificity : 0.9227          
+         Pos Pred Value : 0.3137          
+         Neg Pred Value : 0.9310          
+              Precision : 0.3137          
+                 Recall : 0.3404          
+                     F1 : 0.3265          
+             Prevalence : 0.0940          
+         Detection Rate : 0.0320          
+   Detection Prevalence : 0.1020          
+      Balanced Accuracy : 0.6316          
+                                          
+       'Positive' Class : 1 
+       
+Se obtiene un resultado solo aceptable (pero mucho más razonable que entrenando solo con los datasets encontrados en internet).
+
+**2500 posts:**
+
+          Reference
+Prediction   0   1
+         0 435  23
+         1  18  24
+                                          
+               Accuracy : 0.918           
+                 95% CI : (0.8904, 0.9405)
+    No Information Rate : 0.906           
+    P-Value [Acc > NIR] : 0.2013          
+                                          
+                  Kappa : 0.4945          
+                                          
+ Mcnemar's Test P-Value : 0.5322          
+                                          
+            Sensitivity : 0.5106          
+            Specificity : 0.9603          
+         Pos Pred Value : 0.5714          
+         Neg Pred Value : 0.9498          
+              Precision : 0.5714          
+                 Recall : 0.5106          
+                     F1 : 0.5393          
+             Prevalence : 0.0940          
+         Detection Rate : 0.0480          
+   Detection Prevalence : 0.0840          
+      Balanced Accuracy : 0.7355  
+      
+      
+Incrementando el conjunto de entrenamiento de 2000 a 2500 observaciones, se aprecia una notable mejoría en los resultados.
+Se dobla kappa del 0.25 a casi 0.5
+      
+
+- Intentamos mejorar el modelo usando pesos, para favorecer la clase minoritaria:
+
+Usamos una función de búsqueda en rejilla, para intentar encontrar no solo los mejores pesos, sino también el coste y el bias.
+(Y el tipo de SVM de LiblineaR).
+
 
 ```{r}
-#Confusion matrix
-confusionMatrix(reference = as.factor(result1_200$label), 
-                data = as.factor(result1_200$label_600k), 
-                positive="1", 
-                mode = "everything")
+gridSearch <- TRUE
+
+
+# Find the best model combining type, cost, bias, and weights
+#
+system.time({
+  
+  if (gridSearch) {
+
+    tryTypes <- c(1,2,3,5)       
+    tryCosts <- c(0.1,1,10,100)
+    tryBias <- c(-1,1,10)
+    tryWeights <- list(c(1,2),c(1,3),c(1,5),c(1,10))
+
+    grid_search_result <- grid_search(posts_freq_train_mat, posts_training$label, posts_test$label,
+                                  tryTypes, tryCosts, tryBias, tryWeights)
+  }
+  
+})
+
 ```
 
 
-Los resultados -siempre teniendo en cuenta que he sido yo mismo quien ha valorado los 200 comentarios elegidos aleatoriamente-,
-no tienen nada que ver con los resultados obtenidos con los conjuntos de test ...
+```{r}
+if (gridSearch) {
+  print(grid_search_result)
+}
+```
 
-:O
-
-
-
-Hacer la curva ROC de estos dos modelos.
-
-
-
+En esta ocasión, el mejor resultado se obtiene con type 1.
+Con 2500 comentarios/observaciones en el conjunto de entrenamiento, se obtiene una exactitud del 92% y un kappa de 0.56,
+resultado creo que más que aceptable.
 
 
 
+**Con 2000 observaciones:**
+
+Con estos parámetros se mejora kappa de 0.25 a 0.29:
+
+[1] "gridSearch result: "
+Best model type is: 3 
+Best cost is: 0.1 
+Best bias is: 10 
+Best weights are: 1 5 
+Best accuracy is: 0.842 
+Best kappa is: 0.2943909 
+
+El resultado sigue siendo muy mejorable.
+Claramente se necesita aumentar el conjunto de entrenamiento.
 
 
 
-
-
-3 - Corregir/mejorar los datasets y volver a entrenar los modelos
-
-
-
-
-
-4 - Clasificar la mitad de los mensajes que quedan
-
-
-
-
-
-5 - Comparar los resultados de 2 y 4
-
-
-
+Efectivamente, aumentando el conjunto de entrenamiento de 2000 a 2500, los resultados han mejorado de manera notable.
 
 
 
