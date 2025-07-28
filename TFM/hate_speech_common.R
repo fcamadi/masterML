@@ -67,6 +67,7 @@ preprocess_posts <- function(df, df_raw) {
   
   #remove references to other users
   df_raw$post <- gsub("@\\w+", "", df_raw$post) 
+  df_raw$post <- gsub("@ \\w+", "", df_raw$post) 
   print("Removed references to users (@).")
   
   #remove non ascii characters and emoticons using textclean
@@ -180,11 +181,9 @@ creat_mat_in_chunks <- function(dtm, chunk_size) {
     return(mat)
   }
   
-  # i) generate list of chunk‐matrices
+  # generate list of chunk‐matrices
   chunk_list <- lapply(seq_len(n_chunks), get_chunk_i)
-  
-  # ii) bind all together
-  #full_mat <- do.call(rbind, chunk_list)
+  # return it
   chunk_list
 }
 
@@ -219,11 +218,73 @@ creat_sparse_mat_in_chunks <- function(dtm, chunk_size) {
     return(result)
   }
   
-  # i) generate list of chunk‐matrices
+  # generate list of chunk‐matrices
   chunk_list <- lapply(seq_len(n_chunks), get_chunk_i)
-  
-  # ii) bind all together
-  #full_mat <- do.call(rbind, chunk_list)
+  # return it
   chunk_list
 }
+
+
+################################################################################
+#                                                                              #
+#  grid_search:  grid search function using types (1,2,3,5), cost, bias,       #  
+#                and weights                                                   #
+#                                                                              #
+################################################################################
+grid_search <- function(posts_freq_train_mat, training_labels, test_labels,
+                        tryTypes, tryCosts, tryBias, tryWeights) {
+  
+  
+  if (all(tryTypes %in% c(1,2,3,5))) {
+    print("Doing grid search ...")  
+  } else {
+    print("Wrong type parameter. Allowed values to use SVM: 1,2,3,5")
+    return()
+  }
+  
+  
+  
+  bestType <- NA
+  bestCost <- NA
+  bestBias <- NA
+  bestWeights <- NA
+  
+  bestAcc <- 0
+  bestKappa <- 0
+  
+  #
+  for(ty in tryTypes) {
+    cat("Results for type = ",ty,"\n",sep="")
+    for(co in tryCosts) {
+      for(bi in tryBias) {
+        for(w in tryWeights) {
+          w <- setNames(w, c("0","1"))
+          liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = training_labels, 
+                                           type = ty, cost = co, 
+                                           bias = bi, 
+                                           wi = w)
+          prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
+          cm <- confusionMatrix(reference = as.factor(test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
+          acc <- cm$overall[1]
+          kap <- cm$overall[2]
+          cat("Results for C = ",co," bias = ",bi," weights = ",w,": ",acc," accuracy, ",kap," kappa.\n", sep="")
+          
+          if(kap>bestKappa){
+            bestType <- ty
+            bestCost <- co
+            bestBias <- bi
+            bestWeights <- w
+            bestAcc <- acc
+            bestKappa <- kap
+          }
+        }
+      }
+    }
+  }
+  
+  print("Grid search finished.")
+  result <- list(bestType = bestType, bestCost = bestCost, bestBias = bestBias, bestWeights = bestWeights, cm = cm)
+  result
+}
+
 
