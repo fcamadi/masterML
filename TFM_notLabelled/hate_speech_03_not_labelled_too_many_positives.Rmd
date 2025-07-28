@@ -7,8 +7,9 @@ output: word_document
 
 
 
-# TFM - Clasificación de comentarios no etiquetados
+# TFM - Clasificación de comentarios no etiquetados (1)
 
+-- Utilizando solamente los datasets encontrados en internet --
 
 En esta carpeta "posts" se encuentran los comentarios de lectores escritos en diversas noticias
 de El Mundo del mes de junio de 2025. Se trata de noticias de politica nacional de España principalmente,
@@ -129,12 +130,24 @@ svm_liblinear_600k <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rd
 ```
 
 
+Modelo "mejor" (type 2, cost 0.1, bias 10, weights 1/2):  
+
+
+```{r}
+#save model
+#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+
+# Load the model
+svm_liblinear_100k_best <- readRDS("svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds")
+```
+
+
 ### 3 - Clasificación de los comentarios nuevos
 
 
 1 - Elegimos la mitad de los comentarios de manera aleatoria
 
-Seleccionamos 2000 comentarios de los casi 3000, y con esos 2000 comentarios creamos 2 dataframes.
+Seleccionamos 2000 comentarios de los casi 3000 (con esos 2000 comentarios creamos 2 dataframes).
 
 ```{r}
 set.seed(10)
@@ -175,6 +188,12 @@ subset1_sparse_matrix_600k <- process_unlabelled_posts(subset1, train_vocab_600k
 ```
 
 
+```{r}
+train_vocab_100k_best <- colnames(svm_liblinear_100k_best$W)
+
+subset1_sparse_matrix_100k_best <- process_unlabelled_posts(subset1, train_vocab_100k_best)
+```
+
 
 Clasificar los comentarios del subconjunto 1:
 
@@ -193,8 +212,16 @@ predictions_600k <- predict(svm_liblinear_600k, subset1_sparse_matrix_600k)
 ```
 
 ```{r}
+
+predictions_100k_best <- predict(svm_liblinear_100k_best, subset1_sparse_matrix_100k_best)
+
+#print(predictions_100k$predictions)
+```
+
+```{r}
 subset1$label_100k <- predictions_100k$predictions
 subset1$label_600k <- predictions_600k$predictions
+subset1$label_100k_best <- predictions_100k_best$predictions
 ```
 
 
@@ -214,28 +241,33 @@ prop.table(table(subset1$label_600k))
 ```
 
 
+```{r}
+table(subset1$label_100k_best)
+prop.table(table(subset1$label_100k_best))
+```
+
 A simple vista, considero bastante extraño (y muy mala señal) que ambos modelos hayan predicho tantos positivos/comentarios de odio.
 (Y eso que conozco El Mundo -y a sus lectores- desde hace muchísimo tiempo).
 
 He pensado examinar los comentarios, clasificarlos yo, y comparar mi valoración con los resultados de ambos modelos.
 
-Para ello primero exporto el resultado:
 
-
-
-```{r}
-#write.table(subset1, "subset1_classification_SVM_100k_and_600k.csv", sep = "|")
-```
 
 
 Realizamos la clasificación de los comentarios (columna "label"), y volvemos a leer el csv.
-Comparamos mi evaluación con las predicciones de los dos modelos:
+Comparamos mi evaluación con las predicciones de los 3 modelos:
 
 
 ```{r}
 result1_1000 <- read.csv2("subset1_classification_SVM_100k_and_600k.csv", sep = "|", header = TRUE)
 ```
 
+
+```{r}
+result1_1000$label_100k_best <- subset1$label_100k_best
+
+write.table(result1_1000, "subset1_classification_SVM_100k_600k_and_100kbest.csv", sep = "|")
+```
 
 
 ### Evaluación de los modelos
@@ -260,6 +292,18 @@ confusionMatrix(reference = as.factor(result1_1000$label),
                 positive="1", 
                 mode = "everything")
 ```
+
+Matriz de confusión modelo 100k "mejor":
+
+```{r}
+#Confusion matrix
+confusionMatrix(reference = as.factor(result1_1000$label), 
+                data = as.factor(result1_1000$label_100k_best), 
+                positive="1", 
+                mode = "everything")
+```
+
+
 
 Los resultados son muy muy malos. Curiosamente, el modelo que parecía mejor entrenado (el de 100k observaciones),
 obtiene unos resultados terribles, todavía peores que el modelo que fue entrenado con el dataset completo (que obtiene al menos un kappa de 0.2). 
