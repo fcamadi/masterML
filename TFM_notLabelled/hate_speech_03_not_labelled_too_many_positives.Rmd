@@ -108,7 +108,7 @@ tail(posts_elmundo_June25)
 ### 2 - Carga de los modelos
 
 
-Modelo 100k:
+- Modelo 100k:
 
 ```{r}
 #save model
@@ -119,7 +119,7 @@ svm_liblinear_100k <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1
 ```
 
 
-Modelo 600k:
+- Modelo 600k:
 
 ```{r}
 #save model
@@ -130,15 +130,16 @@ svm_liblinear_600k <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rd
 ```
 
 
-Modelo "mejor" (type 2, cost 0.1, bias 10, weights 1/2):  
-
+- Modelo "mejor" (dataset 28k, type 3, cost 0.1, bias 10, weights 1/2):  
 
 ```{r}
 #save model
 #saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
 
 # Load the model
-svm_liblinear_100k_best <- readRDS("svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds")
+#svm_liblinear_100k_best <- readRDS("svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds") -> kappa = 0.0671
+svm_liblinear_28k_best <- readRDS("svm_liblinear_all_datasets_28k_freq20_cost01_bias10_weights_1_2.rds")
+
 ```
 
 
@@ -189,9 +190,9 @@ subset1_sparse_matrix_600k <- process_unlabelled_posts(subset1, train_vocab_600k
 
 
 ```{r}
-train_vocab_100k_best <- colnames(svm_liblinear_100k_best$W)
+train_vocab_28k_best <- colnames(svm_liblinear_28k_best$W)
 
-subset1_sparse_matrix_100k_best <- process_unlabelled_posts(subset1, train_vocab_100k_best)
+subset1_sparse_matrix_28k_best <- process_unlabelled_posts(subset1, train_vocab_28k_best)
 ```
 
 
@@ -213,7 +214,7 @@ predictions_600k <- predict(svm_liblinear_600k, subset1_sparse_matrix_600k)
 
 ```{r}
 
-predictions_100k_best <- predict(svm_liblinear_100k_best, subset1_sparse_matrix_100k_best)
+predictions_28k_best <- predict(svm_liblinear_28k_best, subset1_sparse_matrix_28k_best)
 
 #print(predictions_100k$predictions)
 ```
@@ -221,7 +222,7 @@ predictions_100k_best <- predict(svm_liblinear_100k_best, subset1_sparse_matrix_
 ```{r}
 subset1$label_100k <- predictions_100k$predictions
 subset1$label_600k <- predictions_600k$predictions
-subset1$label_100k_best <- predictions_100k_best$predictions
+subset1$label_28k_best <- predictions_28k_best$predictions
 ```
 
 
@@ -242,8 +243,8 @@ prop.table(table(subset1$label_600k))
 
 
 ```{r}
-table(subset1$label_100k_best)
-prop.table(table(subset1$label_100k_best))
+table(subset1$label_28k_best)
+prop.table(table(subset1$label_28k_best))
 ```
 
 A simple vista, considero bastante extraño (y muy mala señal) que ambos modelos hayan predicho tantos positivos/comentarios de odio.
@@ -264,9 +265,9 @@ result1_1000 <- read.csv2("subset1_classification_SVM_100k_and_600k.csv", sep = 
 
 
 ```{r}
-result1_1000$label_100k_best <- subset1$label_100k_best
+result1_1000$label_28k_best <- subset1$label_28k_best
 
-write.table(result1_1000, "subset1_classification_SVM_100k_600k_and_100kbest.csv", sep = "|")
+write.table(result1_1000, "subset1_classification_SVM_100k_600k_and_28kbest.csv", sep = "|")
 ```
 
 
@@ -298,7 +299,7 @@ Matriz de confusión modelo 100k "mejor":
 ```{r}
 #Confusion matrix
 confusionMatrix(reference = as.factor(result1_1000$label), 
-                data = as.factor(result1_1000$label_100k_best), 
+                data = as.factor(result1_1000$label_28k_best), 
                 positive="1", 
                 mode = "everything")
 ```
@@ -313,7 +314,7 @@ Posibles motivos:
 
 - Los comentarios de los lectores de estas noticias, son demasiado diferentes a los contenidos en los datasets encontrados (Hatemedia, HuggingFace y Kaggle)
 
-- La manera de entrenar los modelos ha hecho que se haya producido un sobreajuste
+- La manera de entrenar los modelos ha hecho que se haya producido un sobreajuste (?)
 
 
 Posibles soluciones:

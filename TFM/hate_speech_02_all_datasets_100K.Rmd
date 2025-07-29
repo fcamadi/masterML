@@ -6,7 +6,7 @@ output: word_document
 params:
   complete: FALSE 
   crossValidation: FALSE
-  gridSearch: FALSE
+  gridSearch: TRUE
 ---
 
 
@@ -24,10 +24,10 @@ crossValidation <- params$crossValidation
 gridSearch <- params$gridSearch
   
 #if no complete dataset, number of no hate messages to pick from the total dataset
-size <- 78000     # 77432 number of random rows of no hate messages 
+size <- 28000     # 77432 number of random rows of no hate messages 
 
 # number of min. freq (the lower the size, the lower the freq)
-freq <- 50 # now using sparse matrices, let's try :)   
+freq <- 20 # smaller size -> smaller min. freq 
 
 # Assign higher weight to the minority class
 class_weights <- c("0" = 1, "1" = 2)  
@@ -283,6 +283,13 @@ rm(posts_dtm)
 ```
 
 
+100k, freq=100:
+train dtm nrows:  75102 
+ test dtm nrows:  25033 
+length of train labels:  75102 
+ length of test labels:  25033 
+ 
+
 Vamos a comprobar si se mantiene la (des)proporción mensajes no de odio/mensajes de odio:
 
 ```{r}
@@ -290,6 +297,13 @@ prop.table(table(posts_train_labels))
 prop.table(table(posts_test_labels))
 ```
 
+100k, freq=100:
+posts_train_labels
+        0         1 
+0.7746398 0.2253602 
+posts_test_labels
+        0         1 
+0.7746575 0.2253425 
 
 
 Se necesita ahora obtener el listado de las palabras más utilizadas:
@@ -401,7 +415,7 @@ Evaluación del resultado:
 confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
-freq = 100:
+100k, freq = 100:
 
           Reference
 Prediction     0     1
@@ -430,7 +444,7 @@ Prediction     0     1
       Balanced Accuracy : 0.8378   
 
 
-freq = 50:
+100k, freq = 50:
 
           Reference
 Prediction     0     1
@@ -696,7 +710,8 @@ Prediction     0     1
 ```{r}
 #save model
 #saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
-saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq50_weights_1_2.rds")
+#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq50_weights_1_2.rds")
+saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_28k_freq20_weights_1_2.rds")
 
 # Load the model
 #loaded_model <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
@@ -810,79 +825,88 @@ Best model type is: 3
 Best cost is: 1 
 Best accuracy is: 0.8951054 
 
-Después de las prueba que se han ido haciendo, el resultado no es sorprendente: type 3 y coste 1.
+Después de las prueba que he ido haciendo, el resultado no es sorprendente: type 3 y coste 1.
 
 
 ```{r}
+
 # Find the best model combining type, cost, bias, and weights
 #
 system.time({
   
   if (gridSearch) {
   
-    print("Doing grid search")
-  
     tryTypes <- c(1,2,3,5)       
     tryCosts <- c(0.1,1,10,100)
-    biasList <- c(-1,1,10)
-    weightsList <- list(c(1,2),c(1,3),c(1,5),c(1,10))
-
-    bestType <- NA
-    bestCost <- NA
-    bestBias <- NA
-    bestWeights <- NA
-    
-    bestAcc <- 0
-    bestKappa <- 0
-    
-    #
-    for(ty in tryTypes) {
-      cat("Results for type = ",ty,"\n",sep="")
-	    for(co in tryCosts) {
-        for(bi in biasList) {
-          for(w in weightsList) {
-            w <- setNames(w, c("0","1"))
-		        liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
-		                                         type = ty, cost = co, 
-		                                         bias = bi, 
-		                                         wi = w)
-		        prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
-		        cm <- confusionMatrix(reference = as.factor(posts_test_labels), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
-		        acc <-  cm$overall[1]
-		        kap <- cm$overall[2]
-		        cat("Results for C = ",co," bias = ",bi," weights = ",w,": ",acc," accuracy, ",kap," kappa.\n", sep="")
-        
-		        if(kap>bestKappa){
-		          bestType <- ty
-			        bestCost <- co
-			        bestBias <- bi
-			        bestWeights <- w
-			        bestAcc <- acc
-			        bestKappa <- kap
-		        }
-          }
-        }
-	    }
-    }
+    tryBias <- c(-1,1,10)
+    tryWeights <- list(c(1,2),c(1,3),c(1,5),c(1,10))
+ 
+    grid_search_result <- grid_search(posts_freq_train_mat, posts_train_labels, posts_test_labels,
+                                  tryTypes, tryCosts, tryBias, tryWeights)   
   }
   
 })
 ```
 
+
+Mostrar mejor resultado:
+
 ```{r}
 if (gridSearch) {
-  
-  print("gridSearch result: ")
-  
-  cat("Best model type is:",bestType,"\n")
-  cat("Best cost is:",bestCost,"\n")
-  cat("Best bias is:",bestBias,"\n")
-  cat("Best weights are:",bestWeights,"\n")
-  cat("Best accuracy is:",bestAcc,"\n")
-  cat("Best kappa is:",bestKappa,"\n")
-
+  print(grid_search_result)
 }
 ```
+
+**Este modelo es aparentemente demasiado bueno para no guardarlo**
+
+Entrenamiento:
+
+```{r}
+system.time({
+
+  liblinear_svm_model_best <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
+                                           type = grid_search_result$bestType,
+                                           cost = grid_search_result$bestCost,
+                                           bias = grid_search_result$bestBias,
+                                           wi = grid_search_result$bestWeights)
+})
+```
+
+Predicción:
+
+```{r}
+# prediction
+system.time({
+  
+  prediction_liblinear_best <- predict(liblinear_svm_model_best, posts_freq_test_mat)
+
+})
+```
+
+Evaluación del resultado:
+
+```{r}
+#Confusion matrix
+confusionMatrix(reference = as.factor(posts_test_labels), 
+                data = as.factor(prediction_liblinear_best$predictions), 
+                positive="1", 
+                mode = "everything")
+```
+
+Guardado:
+
+```{r}
+#Save model
+saveRDS(liblinear_svm_model_best, file="svm_liblinear_all_datasets_28k_freq20_cost01_bias10_weights_1_2.rds")
+```
+
+
+
+
+
+------------------------------------------------------------------------------
+
+Algunos resultados anteriores (también bastante buenos):
 
 
 freq = 100:
@@ -920,51 +944,17 @@ Dado el resultado tan espectacular obtenido, lo guardamos, y probamos a clasific
 
 ```{r}
 #save model
-saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds")
+#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds")
 
 # Load the model
 #loaded_model <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
 ```
 
-Sacamos la matriz de confusión:
-
-Entrenamiento
-
-```{r}
-system.time({
-
-  liblinear_svm_model_best <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
-                                           type = bestType,
-                                           cost = bestCost,
-                                           bias = bestBias,
-                                           wi = bestWeights)
-})
-```
 
 
-Predicción:
-
-```{r}
-# prediction
-system.time({
-  
-  prediction_liblinear_best <- predict(liblinear_svm_model_best, posts_freq_test_mat)
-
-})
-```
 
 
-Evaluación del resultado:
-
-```{r}
-#Confusion matrix
-confusionMatrix(reference = as.factor(posts_test_labels), 
-                data = as.factor(prediction_liblinear_best$predictions), 
-                positive="1", 
-                mode = "everything")
-```
-
-Confusion Matrix and Statistics
+100k, freq=50:
 
           Reference
 Prediction     0     1
@@ -996,10 +986,7 @@ Prediction     0     1
        
        
 
--------------------------------------------------------------------------------
 
-
-Prueba con textos nuevos no etiquetados
 
 
 
