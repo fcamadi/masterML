@@ -15,6 +15,10 @@ La función de este primer hate_speech_01.Rmd es explorar esos datasets sobre le
 y producir a partir de ellos unos .csv lo más uniformes posibles.
 
 
+```{r}
+print(getwd())
+```
+
 
 ### 1 - Dataset obtenido del proyecto "Hatemedia"
 
@@ -76,18 +80,6 @@ Y parece que los mensajes de odio están todos al final del dataset:
 [991] 564199 564200 564201 564202 564203 564204 564205 564206 564207 564208
  [ reached 'max' / getOption("max.print") -- omitted 10064 entries ]
  
-
-*En el TFM "Comparativa de modelos de aprendizaje profundo para la detección de odio en
-castellano en medios de información social." (08/02/2023)
-
-de Carlos Simón Gallego (estudiante del "Máster Universitario en Inteligencia Artificial" de UNIR),
-
-se puede encontrar:
-
-"Tras el trabajo comparativo, encontramos que el dataset original resulta inservible
-debido al problema del desbalanceo de clases, ocasionando que todos los modelos acaben
-prediciendo únicamente la clase dominante, obteniendo un 98% de accuracy pero un 0% de
-recall para la clase minoritaria."
 
 
 Renombramos las variables. Todos los datasets tendrán estos nombres:
