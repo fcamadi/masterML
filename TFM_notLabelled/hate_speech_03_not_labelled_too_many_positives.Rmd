@@ -74,7 +74,7 @@ cat("Total rows: ",total_rows)
 
 
 ```{r}
-head(posts_elmundo_June25)
+#head(posts_elmundo_June25)
 ```
 
 
@@ -100,23 +100,12 @@ posts_elmundo_June25 <- posts_elmundo_June25[,-1]
 
 
 ```{r}
-head(posts_elmundo_June25)
-tail(posts_elmundo_June25)
+#head(posts_elmundo_June25)
+#tail(posts_elmundo_June25)
 ```
 
 
 ### 2 - Carga de los modelos
-
-
-- Modelo 100k:
-
-```{r}
-#save model
-#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
-
-# Load the model
-svm_liblinear_100k <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
-```
 
 
 - Modelo 600k:
@@ -130,6 +119,17 @@ svm_liblinear_600k <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rd
 ```
 
 
+- Modelo 100k:
+
+```{r}
+#save model
+#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+
+# Load the model
+svm_liblinear_100k <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+```
+
+
 - Modelo "mejor" (dataset 28k, type 3, cost 0.1, bias 10, weights 1/2):  
 
 ```{r}
@@ -138,7 +138,7 @@ svm_liblinear_600k <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rd
 
 # Load the model
 #svm_liblinear_100k_best <- readRDS("svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds") -> kappa = 0.0671
-svm_liblinear_28k_best <- readRDS("svm_liblinear_all_datasets_28k_freq20_cost01_bias10_weights_1_2.rds")
+svm_liblinear_50k_best <- readRDS("svm_liblinear_all_datasets_50k_freq20_cost01_bias10_weights_1_2.rds")
 
 ```
 
@@ -173,14 +173,7 @@ subset2 <- posts_2000[-indices, ]
 
 
 
-2 - Clasificar dichos mensajes con los dos modelos. Evaluar el resultado.
-
-
-```{r}
-train_vocab_100k <- colnames(svm_liblinear_100k$W)
-
-subset1_sparse_matrix_100k <- process_unlabelled_posts(subset1, train_vocab_100k)
-```
+2 - Clasificar dichos mensajes con los modelos. Evaluar el resultado.
 
 ```{r}
 train_vocab_600k <- colnames(svm_liblinear_600k$W)
@@ -190,20 +183,21 @@ subset1_sparse_matrix_600k <- process_unlabelled_posts(subset1, train_vocab_600k
 
 
 ```{r}
-train_vocab_28k_best <- colnames(svm_liblinear_28k_best$W)
+train_vocab_100k <- colnames(svm_liblinear_100k$W)
 
-subset1_sparse_matrix_28k_best <- process_unlabelled_posts(subset1, train_vocab_28k_best)
+subset1_sparse_matrix_100k <- process_unlabelled_posts(subset1, train_vocab_100k)
+```
+
+
+```{r}
+train_vocab_50k_best <- colnames(svm_liblinear_50k_best$W)
+
+subset1_sparse_matrix_50k_best <- process_unlabelled_posts(subset1, train_vocab_50k_best)
 ```
 
 
 Clasificar los comentarios del subconjunto 1:
 
-```{r}
-
-predictions_100k <- predict(svm_liblinear_100k, subset1_sparse_matrix_100k)
-
-#print(predictions_100k$predictions)
-```
 
 ```{r}
 
@@ -214,7 +208,14 @@ predictions_600k <- predict(svm_liblinear_600k, subset1_sparse_matrix_600k)
 
 ```{r}
 
-predictions_28k_best <- predict(svm_liblinear_28k_best, subset1_sparse_matrix_28k_best)
+predictions_100k <- predict(svm_liblinear_100k, subset1_sparse_matrix_100k)
+
+#print(predictions_100k$predictions)
+```
+
+```{r}
+
+predictions_50k_best <- predict(svm_liblinear_50k_best, subset1_sparse_matrix_50k_best)
 
 #print(predictions_100k$predictions)
 ```
@@ -222,19 +223,13 @@ predictions_28k_best <- predict(svm_liblinear_28k_best, subset1_sparse_matrix_28
 ```{r}
 subset1$label_100k <- predictions_100k$predictions
 subset1$label_600k <- predictions_600k$predictions
-subset1$label_28k_best <- predictions_28k_best$predictions
+subset1$label_50k_best <- predictions_50k_best$predictions
 ```
 
 
 ```{r}
-subset1[1:100,]
+#subset1[1:10,]
 ```
-
-```{r}
-table(subset1$label_100k)
-prop.table(table(subset1$label_100k))
-```
-
 
 ```{r}
 table(subset1$label_600k)
@@ -243,8 +238,14 @@ prop.table(table(subset1$label_600k))
 
 
 ```{r}
-table(subset1$label_28k_best)
-prop.table(table(subset1$label_28k_best))
+table(subset1$label_100k)
+prop.table(table(subset1$label_100k))
+```
+
+
+```{r}
+table(subset1$label_50k_best)
+prop.table(table(subset1$label_50k_best))
 ```
 
 A simple vista, considero bastante extraño (y muy mala señal) que ambos modelos hayan predicho tantos positivos/comentarios de odio.
@@ -265,23 +266,13 @@ result1_1000 <- read.csv2("subset1_classification_SVM_100k_and_600k.csv", sep = 
 
 
 ```{r}
-result1_1000$label_28k_best <- subset1$label_28k_best
+result1_1000$label_50k_best <- subset1$label_50k_best
 
-write.table(result1_1000, "subset1_classification_SVM_100k_600k_and_28kbest.csv", sep = "|")
+write.table(result1_1000, "subset1_classification_SVM_100k_600k_and_50kbest.csv", sep = "|")
 ```
 
 
 ### Evaluación de los modelos
-
-Matriz de confusión modelo 100k:
-
-```{r}
-#Confusion matrix
-confusionMatrix(reference = as.factor(result1_1000$label), 
-                data = as.factor(result1_1000$label_100k), 
-                positive="1", 
-                mode = "everything")
-```
 
 
 Matriz de confusión modelo 600k:
@@ -294,12 +285,24 @@ confusionMatrix(reference = as.factor(result1_1000$label),
                 mode = "everything")
 ```
 
-Matriz de confusión modelo 100k "mejor":
+
+Matriz de confusión modelo 100k:
 
 ```{r}
 #Confusion matrix
 confusionMatrix(reference = as.factor(result1_1000$label), 
-                data = as.factor(result1_1000$label_28k_best), 
+                data = as.factor(result1_1000$label_100k), 
+                positive="1", 
+                mode = "everything")
+```
+
+
+Matriz de confusión modelo 50k "mejor":
+
+```{r}
+#Confusion matrix
+confusionMatrix(reference = as.factor(result1_1000$label), 
+                data = as.factor(result1_1000$label_50k_best), 
                 positive="1", 
                 mode = "everything")
 ```
