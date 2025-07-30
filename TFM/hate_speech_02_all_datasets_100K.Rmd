@@ -6,7 +6,7 @@ output: word_document
 params:
   complete: FALSE 
   crossValidation: FALSE
-  gridSearch: TRUE
+  gridSearch: FALSE
 ---
 
 
@@ -857,6 +857,52 @@ if (gridSearch) {
 }
 ```
 
+dataset 28k:
+
+$bestType
+[1] 3
+
+$bestCost
+[1] 0.1
+
+$bestBias
+[1] 10
+
+$bestWeights
+0 1 
+1 2 
+
+$cm
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    0    1
+         0 6167  582
+         1  796 5059
+                                          
+               Accuracy : 0.8907          
+                 95% CI : (0.8851, 0.8961)
+    No Information Rate : 0.5524          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.7797          
+                                          
+ Mcnemar's Test P-Value : 9.584e-09       
+                                          
+            Sensitivity : 0.8968          
+            Specificity : 0.8857          
+         Pos Pred Value : 0.8640          
+         Neg Pred Value : 0.9138          
+              Precision : 0.8640          
+                 Recall : 0.8968          
+                     F1 : 0.8801          
+             Prevalence : 0.4476          
+         Detection Rate : 0.4014          
+   Detection Prevalence : 0.4645          
+      Balanced Accuracy : 0.8913          
+                                          
+       'Positive' Class : 1    
+
 **Este modelo es aparentemente demasiado bueno para no guardarlo**
 
 Entrenamiento:
@@ -891,6 +937,13 @@ confusionMatrix(reference = as.factor(posts_test_labels),
                 data = as.factor(prediction_liblinear_best$predictions), 
                 positive="1", 
                 mode = "everything")
+```
+
+Coeficiente de correlacción de Matthews:
+
+```{r}
+# mcc -> Matthews correlation coefficient
+mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear_best$predictions))
 ```
 
 Guardado:
