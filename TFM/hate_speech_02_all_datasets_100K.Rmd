@@ -711,7 +711,7 @@ Prediction     0     1
 #save model
 #saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
 #saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq50_weights_1_2.rds")
-saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_28k_freq20_weights_1_2.rds")
+saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_50k_freq20_weights_1_2.rds")
 
 # Load the model
 #loaded_model <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
@@ -897,7 +897,7 @@ Guardado:
 
 ```{r}
 #Save model
-saveRDS(liblinear_svm_model_best, file="svm_liblinear_all_datasets_28k_freq20_cost01_bias10_weights_1_2.rds")
+saveRDS(liblinear_svm_model_best, file="svm_liblinear_all_datasets_50k_freq20_cost01_bias10_weights_1_2.rds")
 ```
 
 
