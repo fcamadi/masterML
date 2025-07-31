@@ -374,9 +374,7 @@ Evaluación del resultado:
 confusionMatrix(reference = as.factor(posts_test$label), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
 ```
 
-freq = 100
-
-Confusion Matrix and Statistics
+freq = 100:
 
           Reference
 Prediction   0   1
@@ -404,10 +402,39 @@ Prediction   0   1
    Detection Prevalence : 0.0240         
       Balanced Accuracy : 0.5572         
                                          
-       'Positive' Class : 1  
+
+freq = 50:
+
+          Reference
+Prediction   0   1
+         0 444  39
+         1   9   8
+                                          
+               Accuracy : 0.904           
+                 95% CI : (0.8747, 0.9284)
+    No Information Rate : 0.906           
+    P-Value [Acc > NIR] : 0.5985          
+                                          
+                  Kappa : 0.2106          
+                                          
+ Mcnemar's Test P-Value : 2.842e-05       
+                                          
+            Sensitivity : 0.1702          
+            Specificity : 0.9801          
+         Pos Pred Value : 0.4706          
+         Neg Pred Value : 0.9193          
+              Precision : 0.4706          
+                 Recall : 0.1702          
+                     F1 : 0.2500          
+             Prevalence : 0.0940          
+         Detection Rate : 0.0160          
+   Detection Prevalence : 0.0340          
+      Balanced Accuracy : 0.5752 
        
 
+
 - Mejora del modelo usando pesos
+
 
 
 ```{r}
@@ -485,7 +512,7 @@ Prediction   0   1
 
 
 ```{r}
-gridSearch <- TRUE
+gridSearch <- FALSE
 
 # Find the best model combining type, cost, bias, and weights
 #
@@ -493,110 +520,75 @@ system.time({
   
   if (gridSearch) {
   
-    print("Doing grid search")
-  
     tryTypes <- c(2,3)       
     tryCosts <- c(1,10)
-    biasList <- c(1,10)
-    weightsList <- list(c(1,2),c(1,3),c(1,5))
-
-    bestType <- NA
-    bestCost <- NA
-    bestBias <- NA
-    bestWeights <- NA
-    
-    bestAcc <- 0
-    bestKappa <- 0
-    
-    #
-    for(ty in tryTypes) {
-      cat("Results for type = ",ty,"\n",sep="")
-	    for(co in tryCosts) {
-        for(bi in biasList) {
-          for(w in weightsList) {
-            w <- setNames(w, c("0","1"))
-		        liblinear_svm_model <- LiblineaR(data = posts_freq_train_mat, target = hate$label, 
-		                                         type = ty, cost = co, 
-		                                         bias = bi, 
-		                                         wi = w)
-		        prediction_liblinear <- predict(liblinear_svm_model, posts_freq_test_mat)
-		        cm <- confusionMatrix(reference = as.factor(posts_test$label), data = as.factor(prediction_liblinear$predictions), positive="1", mode = "everything")
-		        acc <- cm$overall[1]
-		        kap <- cm$overall[2]
-		        cat("Results for C = ",co," bias = ",bi," weights = ",w,": ",acc," accuracy, ",kap," kappa.\n", sep="")
-        
-		        if(kap>bestKappa){
-		          bestType <- ty
-			        bestCost <- co
-			        bestBias <- bi
-			        bestWeights <- w
-			        bestAcc <- acc
-			        bestKappa <- kap
-		        }
-          }
-        }
-	    }
-    }
+    tryBias <- c(1,10)
+    tryWeights <- list(c(1,2),c(1,3),c(1,5))
+ 
+    grid_search_result <- grid_search(posts_freq_train_mat, hate$label, posts_test$label,
+                                  tryTypes, tryCosts, tryBias, tryWeights)   
   }
   
 })
 ```
-[1] "Doing grid search"
-Results for type = 3
-Results for C = 0.1 bias = -1 weights = 12: 0.838 accuracy, 0.07534247 kappa.
-Results for C = 0.1 bias = -1 weights = 13: 0.83 accuracy, 0.1684276 kappa.
-Results for C = 0.1 bias = -1 weights = 15: 0.804 accuracy, 0.2105687 kappa.
-Results for C = 0.1 bias = -1 weights = 110: 0.754 accuracy, 0.2187103 kappa.
-Results for C = 0.1 bias = 1 weights = 12: 0.886 accuracy, 0.1212383 kappa.
-Results for C = 0.1 bias = 1 weights = 13: 0.862 accuracy, 0.1659414 kappa.
-Results for C = 0.1 bias = 1 weights = 15: 0.846 accuracy, 0.2219707 kappa.
-Results for C = 0.1 bias = 1 weights = 110: 0.794 accuracy, 0.2704969 kappa.
-Results for C = 0.1 bias = 10 weights = 12: 0.886 accuracy, 0.1212383 kappa.
-Results for C = 0.1 bias = 10 weights = 13: 0.864 accuracy, 0.1860187 kappa.
-Results for C = 0.1 bias = 10 weights = 15: 0.846 accuracy, 0.2219707 kappa.
-Results for C = 0.1 bias = 10 weights = 110: 0.788 accuracy, 0.2535422 kappa.
-Results for C = 1 bias = -1 weights = 12: 0.83 accuracy, 0.1119933 kappa.
-Results for C = 1 bias = -1 weights = 13: 0.812 accuracy, 0.1417406 kappa.
-Results for C = 1 bias = -1 weights = 15: 0.806 accuracy, 0.2237019 kappa.
-Results for C = 1 bias = -1 weights = 110: 0.748 accuracy, 0.169676 kappa.
-Results for C = 1 bias = 1 weights = 12: 0.862 accuracy, 0.0948683 kappa.
-Results for C = 1 bias = 1 weights = 13: 0.854 accuracy, 0.2241966 kappa.
-Results for C = 1 bias = 1 weights = 15: 0.846 accuracy, 0.269893 kappa.
-Results for C = 1 bias = 1 weights = 110: 0.786 accuracy, 0.2150822 kappa.
-Results for C = 1 bias = 10 weights = 12: 0.862 accuracy, 0.0948683 kappa.
-Results for C = 1 bias = 10 weights = 13: 0.854 accuracy, 0.237359 kappa.
-**Results for C = 1 bias = 10 weights = 15: 0.85 accuracy, 0.2888569 kappa.**
-Results for C = 1 bias = 10 weights = 110: 0.796 accuracy, 0.2381465 kappa.
-Results for C = 10 bias = -1 weights = 12: 0.822 accuracy, 0.1152378 kappa.
-Results for C = 10 bias = -1 weights = 13: 0.818 accuracy, 0.1752465 kappa.
-Results for C = 10 bias = -1 weights = 15: 0.8 accuracy, 0.2048599 kappa.
-Results for C = 10 bias = -1 weights = 110: 0.776 accuracy, 0.2021656 kappa.
-Results for C = 10 bias = 1 weights = 12: 0.872 accuracy, 0.2029094 kappa.
-Results for C = 10 bias = 1 weights = 13: 0.862 accuracy, 0.2791475 kappa.
-Results for C = 10 bias = 1 weights = 15: 0.834 accuracy, 0.2692633 kappa.
-Results for C = 10 bias = 1 weights = 110: 0.796 accuracy, 0.2093759 kappa.
-Results for C = 10 bias = 10 weights = 12: 0.844 accuracy, 0.1781515 kappa.
-Results for C = 10 bias = 10 weights = 13: 0.904 accuracy, 0.1418151 kappa.
-Results for C = 10 bias = 10 weights = 15: 0.86 accuracy, 0.1934369 kappa.
-Results for C = 10 bias = 10 weights = 110: 0.796 accuracy, 0.2093759 kappa.
-    user   system  elapsed 
-1720.146    5.740 1725.977 
 
+type=3:
+Results for C = 1 bias = 1 weights = 13: 0.898 accuracy, 0.3953907 kappa.
+
+PERO: 
+
+Mejor resultado:
 
 ```{r}
 if (gridSearch) {
-  
-  print("gridSearch result: ")
-  
-  cat("Best model type is:",bestType,"\n")
-  cat("Best cost is:",bestCost,"\n")
-  cat("Best bias is:",bestBias,"\n")
-  cat("Best weights are:",bestWeights,"\n")
-  cat("Best accuracy is:",bestAcc,"\n")
-  cat("Best kappa is:",bestKappa,"\n")
-
+  print(grid_search_result)
 }
 ```
+$bestType
+[1] 3
+
+$bestCost
+[1] 1
+
+$bestBias
+[1] 1
+
+$bestWeights
+0 1 
+1 3 
+
+$cm
+Confusion Matrix and Statistics
+
+          Reference
+Prediction   0   1
+         0 441  31
+         1  12  16
+                                          
+               Accuracy : 0.914           
+                 95% CI : (0.8859, 0.9371)
+    No Information Rate : 0.906           
+    P-Value [Acc > NIR] : 0.301047        
+                                          
+                  Kappa : 0.3834          
+                                          
+ Mcnemar's Test P-Value : 0.006052        
+                                          
+            Sensitivity : 0.3404          
+            Specificity : 0.9735          
+         Pos Pred Value : 0.5714          
+         Neg Pred Value : 0.9343          
+              Precision : 0.5714          
+                 Recall : 0.3404          
+                     F1 : 0.4267          
+             Prevalence : 0.0940          
+         Detection Rate : 0.0320          
+   Detection Prevalence : 0.0560          
+      Balanced Accuracy : 0.6570          
+                                          
+       'Positive' Class : 1        
+       
+       
 
 freq = 100:
 
@@ -623,31 +615,6 @@ Best weights are: 1 3
 
 
 
-
-```{r}
-system.time({
-
-  # training
-  best_liblinear_svm_model_weights <- LiblineaR(data = posts_freq_train_mat, target = hate$label, 
-                                                type = bestType,
-                                                cost = bestCost,
-                                                bias = bestBias,
-                                                wi = bestWeights)
-})
-```
-
-
-```{r}
-# prediction
-best_prediction_liblinear_weights <- predict(best_liblinear_svm_model_weights, posts_freq_test_mat)
-
-#Confusion matrix
-confusionMatrix(reference = as.factor(posts_test$label), 
-                  data = as.factor(best_prediction_liblinear_weights$predictions), 
-                  positive="1", 
-                  mode = "everything")
-
-```
 
 freq = 100:
 
