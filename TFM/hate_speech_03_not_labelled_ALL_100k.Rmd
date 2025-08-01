@@ -154,18 +154,12 @@ prop.table(table(hate_raw$label))
 ```
 
 
-Ahora añadimos los 2000 mensajes de El Mundo obtenidos en junio 2025:
+Ahora añadimos los 2500 mensajes de El Mundo obtenidos en junio 2025:
 
 ```{r}
 subset1_labelled <- read.csv("subset1_labelled.csv", sep = "|", header = TRUE)
 subset2_labelled <- read.csv("subset2_labelled.csv", sep = "|", header = TRUE)
-```
-
-
-Añadimos 500 más comentarios clasificados:
-
-```{r}
-subset3_labelled <- read.csv("subset3_labelled.csv", sep = "|", header = TRUE)
+subset3_labelled <- read.csv("subset3_labelled.csv", sep = "|", header = TRUE) # comment this line to test with 2000 posts
 ```
 
 
@@ -173,8 +167,8 @@ subset3_labelled <- read.csv("subset3_labelled.csv", sep = "|", header = TRUE)
 Ahora ya se puede crear un dataset TOTAL con todos los datasets disponibles:
 
 ```{r}
+#hate_raw <- rbind(subset1_labelled, hate_raw, subset2_labelled) # uncomment to test with 2000 posts
 hate_raw <- rbind(subset1_labelled, hate_raw, subset2_labelled, subset3_labelled)
-
 dim(hate_raw)
 ```
 
