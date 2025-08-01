@@ -1,0 +1,6 @@
+
+Nombre original:
+
+dataset_completo_caracteristicas_ampliadas_todas_combinaciones_v1_textoProcesado.csv
+
+
