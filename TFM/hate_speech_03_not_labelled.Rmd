@@ -148,9 +148,9 @@ Volvemos a leerlos ya etiquetados:
 (Incluyendo los últimos 500 etiquetados)
 
 ```{r}
-subset1_labelled <- read.csv("subset1_labelled.csv", sep = "|", header = TRUE)
-subset2_labelled <- read.csv("subset2_labelled.csv", sep = "|", header = TRUE)
-subset3_labelled <- read.csv("subset3_labelled.csv", sep = "|", header = TRUE)
+subset1_labelled <- read.csv("labelled_datasets/subset1_labelled.csv", sep = "|", header = TRUE)
+subset2_labelled <- read.csv("labelled_datasets/subset2_labelled.csv", sep = "|", header = TRUE)
+subset3_labelled <- read.csv("labelled_datasets/subset3_labelled.csv", sep = "|", header = TRUE)
 ```
 
 Los juntamos:

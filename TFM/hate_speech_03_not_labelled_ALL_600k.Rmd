@@ -61,14 +61,14 @@ odio_hatemedia_raw$post <- gsub(',',' ',odio_hatemedia_raw$post)
 
 
 ```{r}
-subset1_labelled <- read.csv("subset1_labelled.csv", sep = "|", header = TRUE)
-subset2_labelled <- read.csv("subset2_labelled.csv", sep = "|", header = TRUE)
+subset1_labelled <- read.csv("labelled_datasets/subset1_labelled.csv", sep = "|", header = TRUE)
+subset2_labelled <- read.csv("labelled_datasets/subset2_labelled.csv", sep = "|", header = TRUE)
 ```
 
 Añadimos 500 más comentarios clasificados:
 
 ```{r}
-subset3_labelled <- read.csv("subset3_labelled.csv", sep = "|", header = TRUE)
+subset3_labelled <- read.csv("labelled_datasets/subset3_labelled.csv", sep = "|", header = TRUE)
 ```
 
 
@@ -92,7 +92,7 @@ dim(hate_raw)
 También leemos los comentarios de test igualmente ya etiquetados:
 
 ```{r}
-posts_test_raw <- read.csv("posts_test_labelled.csv", sep = "|", header = TRUE)
+posts_test_raw <- read.csv("labelled_datasets/posts_test_labelled.csv", sep = "|", header = TRUE)
 ```
 
 
