@@ -27,7 +27,7 @@ load_libraries()
 
 ```{r}
 # import the CSV file
-odio_huggingface_raw <- read.csv(file.path("dataset_02_huggingface.csv"), sep=";")  
+odio_huggingface_raw <- read.csv(file.path("source_datasets/dataset_02_huggingface.csv"), sep=";")  
 odio_huggingface_raw <- odio_huggingface_raw[-1]     # -> ~29000 obs. of 2 variables
 ```
 

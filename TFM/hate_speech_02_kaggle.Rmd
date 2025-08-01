@@ -27,7 +27,7 @@ load_libraries()
 
 ```{r}
 # import the CSV file
-odio_kaggle_raw <- read.csv(file.path("dataset_03_kaggle.csv"), sep=";")  
+odio_kaggle_raw <- read.csv(file.path("source_datasets/dataset_03_kaggle.csv"), sep=";")  
 odio_kaggle_raw <- odio_kaggle_raw[-1]       # -> 11180 obs. (only spanish) of 2 variables
 ``` 
 
