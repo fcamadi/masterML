@@ -39,7 +39,7 @@ Este dataset está ya parcialmente procesado (eliminadas "stopwords" ...)
 
 ```{r}
 # import the hatemedia csv file
-odio_hatemedia_raw <- read.csv(file.path("dataset_completo_v1.csv"), sep=";")  # -> 574272 obs. of 22 variables
+odio_hatemedia_raw <- read.csv(file.path("source_datasets/dataset_completo_v1.csv"), sep=";")  # -> 574272 obs. of 22 variables
 
 # In a linux console: 
 # head -n 200001 dataset_completo_v1.csv > dataset_200k.csv 
@@ -93,7 +93,7 @@ Finalmente exportamos el dataset a un csv para tenerlo guardado.
 
 ```{r}
 #export dataset to a file
-write.csv2(odio_hatemedia_raw, "dataset_01_hatemedia.csv")
+write.csv2(odio_hatemedia_raw, "source_datasets/dataset_01_hatemedia.csv")
 ```
 
 [
@@ -161,7 +161,7 @@ En principio los consideramos todos.
 
 ```{r}
 # import the CSV file
-odio_huggingface_raw <- read.csv(file.path("es_hf_102024.csv"))  # -> 29855 obs. of 7 variables
+odio_huggingface_raw <- read.csv(file.path("source_datasets/es_hf_102024.csv"))  # -> 29855 obs. of 7 variables
 ```
 
 Estructura:
@@ -211,7 +211,7 @@ Lo escribimos también en un fichero:
 
 ```{r}
 #export dataset to a file
-write.csv2(odio_huggingface_raw, "dataset_02_huggingface.csv")
+write.csv2(odio_huggingface_raw, "source_datasets/dataset_02_huggingface.csv")
 ```
 
 
@@ -233,7 +233,7 @@ Leer fichero csv:
 
 ```{r}
 # import the CSV file
-odio_kaggle_raw <- read.csv(file.path("MultiLanguageTrainDataset.csv"))  # -> 219981 obs. (all languages) of 4 variables
+odio_kaggle_raw <- read.csv(file.path("source_datasets/MultiLanguageTrainDataset.csv"))  # -> 219981 obs. (all languages) of 4 variables
 ```
 
 Estructura:
@@ -283,7 +283,7 @@ Lo escribimos también en un fichero:
 
 ```{r}
 #export dataset to a file
-write.csv2(odio_kaggle_raw_ES, "dataset_03_kaggle.csv")
+write.csv2(odio_kaggle_raw_ES, "source_datasets/dataset_03_kaggle.csv")
 ```
 
 
@@ -297,7 +297,7 @@ Luego se harán 3 grupos:  entrenamiento, validación, y test.
 
 ```{r}
 # import the CSV file
-odio_kaggle_raw_Test_ES <- read.csv(file.path("Spain_test.csv"))  # -> 1243 obs. (only spanish) of 3 variables
+odio_kaggle_raw_Test_ES <- read.csv(file.path("source_datasets/Spain_test.csv"))  # -> 1243 obs. (only spanish) of 3 variables
 ```
 
 Estructura:
@@ -329,7 +329,7 @@ Lo escribimos también en un fichero:
 
 ```{r}
 #export dataset to a file
-write.csv2(odio_kaggle_raw_Test_ES, "dataset_04_kaggle.csv")
+write.csv2(odio_kaggle_raw_Test_ES, "source_datasets/dataset_04_kaggle.csv")
 ```
 
 
