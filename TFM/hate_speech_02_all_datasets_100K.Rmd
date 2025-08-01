@@ -6,7 +6,7 @@ output: word_document
 params:
   complete: FALSE 
   crossValidation: FALSE
-  gridSearch: TRUE
+  gridSearch: FALSE
 ---
 
 
@@ -57,16 +57,16 @@ load_libraries()
 ```{r}
 # import the CSV files
 
-odio_hatemedia_raw <- read.csv(file.path("dataset_01_hatemedia.csv"), sep=";")  
+odio_hatemedia_raw <- read.csv(file.path("source_datasets/dataset_01_hatemedia.csv"), sep=";")  
 odio_hatemedia_raw <- odio_hatemedia_raw[-1]     # -> 574272 obs. of 2 variables
 
-odio_huggingface_raw <- read.csv(file.path("dataset_02_huggingface.csv"), sep=";")  
+odio_huggingface_raw <- read.csv(file.path("source_datasets/dataset_02_huggingface.csv"), sep=";")  
 odio_huggingface_raw <- odio_huggingface_raw[-1]     # -> ~29855 obs. of 2 variables
 
-odio_kaggle_raw <- read.csv(file.path("dataset_03_kaggle.csv"), sep=";") 
+odio_kaggle_raw <- read.csv(file.path("source_datasets/dataset_03_kaggle.csv"), sep=";") 
 odio_kaggle_raw <- odio_kaggle_raw[-1]             # -> ~11180 obs. (only spanish) of 2 variables
 
-odio_kaggle_test_raw <- read.csv(file.path("dataset_04_kaggle.csv"), sep=";") 
+odio_kaggle_test_raw <- read.csv(file.path("source_datasets/dataset_04_kaggle.csv"), sep=";") 
 odio_kaggle_test_raw <- odio_kaggle_test_raw[-1]    # -> 1243 obs. (only spanish) of 2 variables
 ```
 
