@@ -11,8 +11,7 @@
 
 
 
-#getwd() -> "/home/francd/git/masterML/TFM_notLabelled""
-source("../TFM/hate_speech_common.R")
+source("hate_speech_common.R")
 
 
 ################################################################################
