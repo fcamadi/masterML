@@ -115,7 +115,7 @@ posts_elmundo_June25 <- posts_elmundo_June25[,-1]
 #saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_freq100_weights_1_3.rds")
 
 # Load the model
-svm_liblinear_600k <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rds")
+svm_liblinear_600k <- readRDS("models/svm_liblinear_all_datasets_freq100_weights_1_3.rds")
 ```
 
 
@@ -126,7 +126,7 @@ svm_liblinear_600k <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rd
 #saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
 
 # Load the model
-svm_liblinear_100k <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
+svm_liblinear_100k <- readRDS("models/svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
 ```
 
 
@@ -138,7 +138,7 @@ svm_liblinear_100k <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1
 
 # Load the model
 #svm_liblinear_100k_best <- readRDS("svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds") -> kappa = 0.0671
-svm_liblinear_50k_best <- readRDS("svm_liblinear_all_datasets_50k_freq20_cost01_bias10_weights_1_2.rds")
+svm_liblinear_50k_best <- readRDS("models/svm_liblinear_all_datasets_50k_freq20_cost01_bias10_weights_1_2.rds")
 
 ```
 

@@ -449,10 +449,10 @@ Con pesos 1/20 no se mejora el resultado.
 
 ```{r}
 #save model
-saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_freq100_weights_1_3.rds")
+saveRDS(liblinear_svm_model_weights, file="models/svm_liblinear_all_datasets_freq100_weights_1_3.rds")
 
 # Load the model
-#loaded_model <- readRDS("svm_liblinear_all_datasets_freq100_weights_1_3.rds")
+#loaded_model <- readRDS("models/svm_liblinear_all_datasets_freq100_weights_1_3.rds")
 ```
 
 
