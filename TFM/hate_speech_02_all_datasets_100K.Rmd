@@ -6,7 +6,7 @@ output: word_document
 params:
   complete: FALSE 
   crossValidation: FALSE
-  gridSearch: FALSE
+  gridSearch: TRUE
 ---
 
 
@@ -909,12 +909,15 @@ Entrenamiento:
 
 ```{r}
 system.time({
-
-  liblinear_svm_model_best <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
+  
+  if (gridSearch) {
+  
+    liblinear_svm_model_best <- LiblineaR(data = posts_freq_train_mat, target = posts_train_labels, 
                                            type = grid_search_result$bestType,
                                            cost = grid_search_result$bestCost,
                                            bias = grid_search_result$bestBias,
                                            wi = grid_search_result$bestWeights)
+  }
 })
 ```
 
@@ -923,9 +926,9 @@ Predicción:
 ```{r}
 # prediction
 system.time({
-  
-  prediction_liblinear_best <- predict(liblinear_svm_model_best, posts_freq_test_mat)
-
+  if (gridSearch) {
+    prediction_liblinear_best <- predict(liblinear_svm_model_best, posts_freq_test_mat)
+  }
 })
 ```
 
@@ -933,26 +936,31 @@ Evaluación del resultado:
 
 ```{r}
 #Confusion matrix
-confusionMatrix(reference = as.factor(posts_test_labels), 
-                data = as.factor(prediction_liblinear_best$predictions), 
-                positive="1", 
-                mode = "everything")
+if (gridSearch) {
+  confusionMatrix(reference = as.factor(posts_test_labels), 
+                  data = as.factor(prediction_liblinear_best$predictions), 
+                  positive="1", 
+                  mode = "everything")
+}
 ```
 
 Coeficiente de correlacción de Matthews:
 
 ```{r}
 # mcc -> Matthews correlation coefficient
-mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear_best$predictions))
+if (gridSearch) {
+  mcc(as.factor(posts_test_labels), as.factor(prediction_liblinear_best$predictions))
+}
 ```
 
 Guardado:
 
 ```{r}
 #Save model
-saveRDS(liblinear_svm_model_best, file="svm_liblinear_all_datasets_50k_freq20_cost01_bias10_weights_1_2.rds")
+if (gridSearch) {
+  saveRDS(liblinear_svm_model_best, file="svm_liblinear_all_datasets_50k_freq20_cost01_bias10_weights_1_2.rds")
+}
 ```
-
 
 
 
@@ -993,19 +1001,6 @@ nos quedamos con ese otro modelo.
 freq = 50:
 
 Dado el resultado tan espectacular obtenido, lo guardamos, y probamos a clasificar con él los comentarios nuevos.
-
-
-```{r}
-#save model
-#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_all_datasets_100k_type2_freq50_cost01_bias10_weights_1_2.rds")
-
-# Load the model
-#loaded_model <- readRDS("svm_liblinear_all_datasets_100k_freq100_weights_1_2.rds")
-```
-
-
-
-
 
 100k, freq=50:
 
