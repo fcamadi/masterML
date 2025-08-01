@@ -61,16 +61,16 @@ Importamos los datasets:
 ```{r}
 # import the CSV files
 
-odio_hatemedia_raw <- read.csv(file.path("../TFM/dataset_01_hatemedia.csv"), sep=";")  
+odio_hatemedia_raw <- read.csv(file.path("source_datasets/dataset_01_hatemedia.csv"), sep=";")  
 odio_hatemedia_raw <- odio_hatemedia_raw[-1]     # -> 574272 obs. of 2 variables
 
-odio_huggingface_raw <- read.csv(file.path("../TFM/dataset_02_huggingface.csv"), sep=";")  
+odio_huggingface_raw <- read.csv(file.path("source_datasets/dataset_02_huggingface.csv"), sep=";")  
 odio_huggingface_raw <- odio_huggingface_raw[-1]     # -> ~29855 obs. of 2 variables
 
-odio_kaggle_raw <- read.csv(file.path("../TFM/dataset_03_kaggle.csv"), sep=";") 
+odio_kaggle_raw <- read.csv(file.path("source_datasets/dataset_03_kaggle.csv"), sep=";") 
 odio_kaggle_raw <- odio_kaggle_raw[-1]             # -> ~11180 obs. (only spanish) of 2 variables
 
-odio_kaggle_test_raw <- read.csv(file.path("../TFM/dataset_04_kaggle.csv"), sep=";") 
+odio_kaggle_test_raw <- read.csv(file.path("source_datasets/dataset_04_kaggle.csv"), sep=";") 
 odio_kaggle_test_raw <- odio_kaggle_test_raw[-1]    # -> 1243 obs. (only spanish) of 2 variables
 ```
 
@@ -157,9 +157,9 @@ prop.table(table(hate_raw$label))
 Ahora añadimos los 2500 mensajes de El Mundo obtenidos en junio 2025:
 
 ```{r}
-subset1_labelled <- read.csv("subset1_labelled.csv", sep = "|", header = TRUE)
-subset2_labelled <- read.csv("subset2_labelled.csv", sep = "|", header = TRUE)
-subset3_labelled <- read.csv("subset3_labelled.csv", sep = "|", header = TRUE) # comment this line to test with 2000 posts
+subset1_labelled <- read.csv("labelled_datasets/subset1_labelled.csv", sep = "|", header = TRUE)
+subset2_labelled <- read.csv("labelled_datasets/subset2_labelled.csv", sep = "|", header = TRUE)
+subset3_labelled <- read.csv("labelled_datasets/subset3_labelled.csv", sep = "|", header = TRUE) # comment this line to test with 2000 posts
 ```
 
 
@@ -176,7 +176,7 @@ dim(hate_raw)
 También leemos los comentarios de test igualmente ya etiquetados:
 
 ```{r}
-posts_test_raw <- read.csv("posts_test_labelled.csv", sep = "|", header = TRUE)
+posts_test_raw <- read.csv("labelled_datasets/posts_test_labelled.csv", sep = "|", header = TRUE)
 ```
 
 
