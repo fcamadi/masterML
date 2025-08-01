@@ -243,7 +243,6 @@ grid_search <- function(posts_freq_train_mat, training_labels, test_labels,
   }
   
   
-  
   bestType <- NA
   bestCost <- NA
   bestBias <- NA
@@ -251,6 +250,7 @@ grid_search <- function(posts_freq_train_mat, training_labels, test_labels,
   
   bestAcc <- 0
   bestKappa <- 0
+  bestCm <- NA
   
   #
   for(ty in tryTypes) {
@@ -276,6 +276,7 @@ grid_search <- function(posts_freq_train_mat, training_labels, test_labels,
             bestWeights <- w
             bestAcc <- acc
             bestKappa <- kap
+            bestCm <- cm
           }
         }
       }
@@ -283,7 +284,7 @@ grid_search <- function(posts_freq_train_mat, training_labels, test_labels,
   }
   
   print("Grid search finished.")
-  result <- list(bestType = bestType, bestCost = bestCost, bestBias = bestBias, bestWeights = bestWeights, cm = cm)
+  result <- list(bestType = bestType, bestCost = bestCost, bestBias = bestBias, bestWeights = bestWeights, cm = bestCm)
   result
 }
 

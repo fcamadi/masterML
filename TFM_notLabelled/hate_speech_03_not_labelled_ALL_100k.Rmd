@@ -6,7 +6,7 @@ output: word_document
 params:
   complete: FALSE 
   crossValidation: FALSE
-  gridSearch: FALSE
+  gridSearch: TRUE
 ---
 
 
@@ -27,10 +27,10 @@ crossValidation <- params$crossValidation
 gridSearch <- params$gridSearch
   
 #if no complete dataset, number of no hate messages to pick from the total dataset
-size <- 28000     # 78000 77432 number of random rows of no hate messages 
+size <- 78000     # 78000 77432 number of random rows of no hate messages 
 
 # number of min. freq (the lower the size, the lower the freq)
-freq <- 50 
+freq <- 20 
 
 # Assign higher weight to the minority class
 class_weights <- c("0" = 1, "1" = 2)  
@@ -155,7 +155,6 @@ prop.table(table(hate_raw$label))
 
 
 Ahora añadimos los 2000 mensajes de El Mundo obtenidos en junio 2025:
-(2500 tras clasificar 500 más)
 
 ```{r}
 subset1_labelled <- read.csv("subset1_labelled.csv", sep = "|", header = TRUE)
@@ -173,7 +172,6 @@ subset3_labelled <- read.csv("subset3_labelled.csv", sep = "|", header = TRUE)
 
 Ahora ya se puede crear un dataset TOTAL con todos los datasets disponibles:
 
-
 ```{r}
 hate_raw <- rbind(subset1_labelled, hate_raw, subset2_labelled, subset3_labelled)
 
@@ -190,15 +188,23 @@ posts_test_raw <- read.csv("posts_test_labelled.csv", sep = "|", header = TRUE)
 
 Comprobar proporción de los mensajes en estos datasets:
 
+-dataset entrenamiento:
+
 ```{r}
 table(hate_raw$label)
 prop.table(table(hate_raw$label))
+```
 
+
+Añadir estos 2000 (2500) comentarios nuevos no cambia apenas la proporción ya existente en el dataset de entrenamiento.
+
+-dataset test:
+
+```{r}
 table(posts_test_raw$label)
 prop.table(table(posts_test_raw$label))
 ```
 
-Añadir estos 2000 (2500) comentarios nuevos no cambia apenas la proporción ya existente en el dataset de entrenamiento.
 
 
 ## 2 - Preparar los datasets
@@ -338,7 +344,7 @@ Se necesita ahora obtener el listado de las palabras más utilizadas:
 
 
 ```{r}
-freq <- 10
+#freq <- 10
 
 # Data preparation – creating indicator features for frequent words
 # the function findFreqTerms() in the tm package takes a DTM and returns a character vector
@@ -466,28 +472,9 @@ Prediction   0   1
          0 410  26
          1  43  21
                                          
-               Accuracy : 0.862          
-                 95% CI : (0.8286, 0.891)
-    No Information Rate : 0.906          
-    P-Value [Acc > NIR] : 0.99944        
-                                         
-                  Kappa : 0.3028         
-                                         
- Mcnemar's Test P-Value : 0.05408        
-                                         
-            Sensitivity : 0.4468         
-            Specificity : 0.9051         
-         Pos Pred Value : 0.3281         
-         Neg Pred Value : 0.9404         
-              Precision : 0.3281         
-                 Recall : 0.4468         
-                     F1 : 0.3784         
-             Prevalence : 0.0940         
-         Detection Rate : 0.0420         
-   Detection Prevalence : 0.1280         
-      Balanced Accuracy : 0.6759         
-                                         
-       'Positive' Class : 1   
+Accuracy : 0.862          
+   Kappa : 0.3028         
+      F1 : 0.3784         
        
        
        
@@ -498,36 +485,30 @@ Prediction   0   1
          0 425  27
          1  28  20
                                           
-               Accuracy : 0.89            
-                 95% CI : (0.8592, 0.9161)
-    No Information Rate : 0.906           
-    P-Value [Acc > NIR] : 0.9015          
-                                          
-                  Kappa : 0.3603          
-                                          
- Mcnemar's Test P-Value : 1.0000          
-                                          
-            Sensitivity : 0.4255          
-            Specificity : 0.9382          
-         Pos Pred Value : 0.4167          
-         Neg Pred Value : 0.9403          
-              Precision : 0.4167          
-                 Recall : 0.4255          
-                     F1 : 0.4211          
-             Prevalence : 0.0940          
-         Detection Rate : 0.0400          
-   Detection Prevalence : 0.0960          
-      Balanced Accuracy : 0.6819 
-      
+Accuracy : 0.89            
+   Kappa : 0.3603          
+      F1 : 0.4211          
 
 
-- size = 48000:
+- size = 78000 (total 103k):
+
+proporción:
+       0        1 
+0.777933 0.222067 
+
+Accuracy : 0.906
+   Kappa : 0.3963
+
+- size = 48000 (total 73k):
+
+proporción:
+        0         1 
+0.6867575 0.3132425 
  
  Accuracy : 0.89 
     Kappa : 0.4271    
 
-
-- size= 38000:
+- size= 38000 (total 63k):
 
 proporción:
         0         1 
@@ -537,7 +518,7 @@ proporción:
     Kappa : 0.4338 
 
 
-- size= 28000:
+- size= 28000 (total 53k):
 
 proporción:
         0         1 
@@ -551,18 +532,16 @@ proporción:
 
 
 ```{r}
-gridSearch <- TRUE
-
 # Find the best model combining type, cost, bias, and weights
 #
 system.time({
   
   if (gridSearch) {
   
-    tryTypes <- c(1,2,3,5)       
+    tryTypes <- c(1,3,5)  # type 2 gives worst results       
     tryCosts <- c(1,10)
     tryBias <- c(1,10)
-    tryWeights <- list(c(1,2),c(1,3),c(1,5),c(1,10))
+    tryWeights <- list(c(1,2),c(1,3),c(1,5)) #,c(1,10))
  
     grid_search_result <- grid_search(posts_freq_train_mat, hate$label, posts_test$label,
                                   tryTypes, tryCosts, tryBias, tryWeights)   
@@ -732,8 +711,15 @@ Best weights are: 1 2
 **Best accuracy is: 0.896**
 **Best kappa is: 0.4613185**
 
+100k -freq = 50
 
-
+[1] "gridSearch result: "
+Best model type is: 1 
+Best cost is: 1
+Best bias is: 10 
+Best weights are: 1 2 
+**Best accuracy is: 0.894**
+**Best kappa is: 0.4731**
 
 
 ----------------------------------------------------------------------------------------------------
@@ -790,30 +776,5 @@ system.time({
 confusionMatrix(reference = as.factor(posts_test$label), data = as.factor(prediction_liblinear_best$predictions), positive="1", mode = "everything")
 ```
 
-Results for C = 10 bias = 10 weights = 12: 0.912 accuracy, 0.5113066 kappa.
 
-```{r}
-
-bestType <- 1 
-bestCost <- 10 
-bestBias <- 10 
-bests_weights <- c("0" = 1, "1" = 2) 
-
-#training
-system.time({
-  liblinear_svm_model_best <- LiblineaR(data = posts_freq_train_mat, target = hate$label, 
-                                        type = bestType,
-                                        cost = bestCost,
-                                        bias = bestBias,
-                                        weights = bests_weights)
-})
-
-# prediction
-system.time({
-  prediction_liblinear_best <- predict(liblinear_svm_model_best, posts_freq_test_mat)
-})
-
-# confusion matrix
-confusionMatrix(reference = as.factor(posts_test$label), data = as.factor(prediction_liblinear_best$predictions), positive="1", mode = "everything")
-```
 
