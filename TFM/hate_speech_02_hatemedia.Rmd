@@ -44,7 +44,7 @@ load_libraries()
 
 ```{r}
 # import the CSV file
-odio_hatemedia_raw <- read.csv(file.path("dataset_01_hatemedia.csv"), sep=";")  
+odio_hatemedia_raw <- read.csv(file.path("source_datasets/dataset_01_hatemedia.csv"), sep=";")  
 odio_hatemedia_raw <- odio_hatemedia_raw[-1]     # -> 574272 obs. of 2 variables
 ```
 
