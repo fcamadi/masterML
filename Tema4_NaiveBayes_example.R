@@ -261,7 +261,7 @@ confusionMatrix(reference = sms_test_labels, data = sms_test_pred_laplace, mode 
 #        ham  1202   28
 #       spam     5  153
 
-The number of false positives was reduced from 6 to 5, and the number of false negatives from 30 to 28.
+#The number of false positives was reduced from 6 to 5, and the number of false negatives from 30 to 28.
 
 #  Accuracy : 0.9763     
 # Precision : 0.9772          
