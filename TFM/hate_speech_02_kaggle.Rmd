@@ -138,7 +138,7 @@ Dado que este dataset ya viene separado en dos conjuntos así, lo que hacemos es
 
 ```{r}
 # import the CSV file
-odio_kaggle_test_raw <- read.csv(file.path("dataset_04_kaggle.csv"), sep=";")  # -> 1243 obs. (only spanish) of 3 variables
+odio_kaggle_test_raw <- read.csv(file.path("source_datasets/dataset_04_kaggle.csv"), sep=";")  # -> 1243 obs. (only spanish) of 3 variables
 odio_kaggle_test_raw <- odio_kaggle_test_raw[-1]
 ```
 
@@ -190,8 +190,8 @@ posts_freq_words_train <- findFreqTerms(posts_dtm, 50)
 
 #posts_freq_words_train
 print("tonto" %in% posts_freq_words_train)    
-print("imbecil" %in% posts_freq_words_train)  # <- FALSE with freq 1000
-print("cabron" %in% posts_freq_words_train)   # <- FALSE with freq  150
+print("imbecil" %in% posts_freq_words_train)  # <- TRUE with freq 100
+print("cabron" %in% posts_freq_words_train)   # <- FALSE with freq 150
 ```
 
    [1] "¿cómo"           "¿por"            "¿que"            "¿qué"            "¿te"             "abajo"           "abierta"         "abr"            
