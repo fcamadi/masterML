@@ -192,7 +192,7 @@ Los guardamos para revisarlos y evaluarlos a mano:
 Los leemos igualmente ya etiquetados:
 
 ```{r}
-posts_test_raw <- read.csv("posts_test_labelled.csv", sep = "|", header = TRUE)
+posts_test_raw <- read.csv("labelled_datasets/posts_test_labelled.csv", sep = "|", header = TRUE)
 ```
 
 
