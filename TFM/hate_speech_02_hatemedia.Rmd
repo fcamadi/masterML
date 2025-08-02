@@ -343,9 +343,9 @@ NO Probamos primero con LIBSVM (e1071). Es muy ineficiente.
 # svm_e1071
 ```
 
-Se tarda muchísimo.
+Tarda muchísimo.
 RBF -> más de una hora corriendo, y no ha terminado ... 
-Lineal -> más de 5 min., y tampoco (se tardan segundos con la librería LiblinearR)
+Lineal -> más de 5 min., y tampoco (con la librería se necesitan segundos LiblinearR)
 
 
 Se descarta también intentar mejorar el modelo LIBSVM con tune. No tiene sentido. 
@@ -693,15 +693,15 @@ Guardamos el modelo:
 
 ```{r}
 #save model
-#saveRDS(liblinear_svm_model_weights, file="svm_liblinear_100k_freq100_weights1_2.rds")
+#saveRDS(liblinear_svm_model_weights, file="models/svm_liblinear_100k_freq100_weights1_2.rds")
 
 # Load the model
-#loaded_model <- readRDS("decision_tree_model.rds")
+#loaded_model <- readRDS("models/decision_tree_model.rds")
 ```
 
 
 kappa:   0.21 - 0.4 <- fair agreement
-         0.41 - 0.6 <- modereate agreement
+         0.41 - 0.6 <- moderate agreement
          0.61 - 0.8 <- substantial/good agreement
 
 
