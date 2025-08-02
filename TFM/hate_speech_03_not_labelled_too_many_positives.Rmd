@@ -261,14 +261,14 @@ Comparamos mi evaluación con las predicciones de los 3 modelos:
 
 
 ```{r}
-result1_1000 <- read.csv2("subset1_classification_SVM_100k_and_600k.csv", sep = "|", header = TRUE)
+result1_1000 <- read.csv2("labelled_datasets/subset1_classification_SVM_100k_and_600k.csv", sep = "|", header = TRUE)
 ```
 
 
 ```{r}
 result1_1000$label_50k_best <- subset1$label_50k_best
 
-write.table(result1_1000, "subset1_classification_SVM_100k_600k_and_50kbest.csv", sep = "|")
+write.table(result1_1000, "labelled_datasets/subset1_classification_SVM_100k_600k_and_50kbest.csv", sep = "|")
 ```
 
 
