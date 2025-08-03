@@ -46,7 +46,7 @@ hate_speech_common.Rmd<br>
 
 
 
-### Fase 3 - Recolección de comentarios sin etiquetar
+### Fase 3 - Clasificación de comentarios nuevos no etiquetados
 
 Mediante un módulo usando RSelenium, recolectar comentarios de algún medio digital.
 Aplicar el SVM entrenado con anterioridad, y clasificar los comentarios.
@@ -107,9 +107,9 @@ hate_speech_02_kaggle.Rmd<br>
 hate_speech_common.Rmd<br>
 
 
-### Phase 3 - Collection of Unlabeled Comments
+### Phase 3 - Classification of new unlabeled comments
 
-Using a module with RSelenium, collect comments from some digital media. Apply the previously trained SVM and classify the comments.
+Using a module with RSelenium, collect comments of readers from some digital media. Apply the previously trained SVM and classify the comments.
 
 Depending on the results obtained, complete the dataset from step 2.ii with the new comments and compare the results again.
 
