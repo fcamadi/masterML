@@ -23,9 +23,9 @@ iii) Kaggle
 https://www.kaggle.com/datasets/wajidhassanmoosa/multilingual-hatespeech-dataset
 
 
-Código R:
+- Código R:
 
-- hate_speech_01.Rmd
+hate_speech_01.Rmd
 
 
 ### Fase 2 - Aplicación de SVM
@@ -37,7 +37,7 @@ ii) Crear un dataset total que contenga los 3 datasets, y entrenar SVM con él.
 iii) Comparar los resultados de i) y ii)
 
 
-Código R:
+- Código R:
 
 hate_speech_02_hatemedia.Rmd<br>
 hate_speech_02_huggingface.Rmd<br>
@@ -55,7 +55,7 @@ Dependiendo del resultado obtenido, completar el dataset del paso 2.ii con los n
 y volver a comparar resultados.
 
 
-Código R:
+- Código R:
 
 Web_scraping_RSelenium_periodicos_online<br>
 hate_speech_03_not_labelled_too_many_positives.Rmd<br>
@@ -85,7 +85,8 @@ iii) Kaggle
 
 https://www.kaggle.com/datasets/wajidhassanmoosa/multilingual-hatespeech-dataset
 
-R Code:
+
+- R Code:
 
 hate_speech_01.Rmd
 
@@ -98,7 +99,7 @@ ii) Create a total dataset that contains the 3 datasets, and train SVM with it.
 
 iii) Compare the results of i) and ii)
 
-R Code:
+- R Code:
 
 hate_speech_02_hatemedia.Rmd<br>
 hate_speech_02_huggingface.Rmd<br>
@@ -112,7 +113,7 @@ Using a module with RSelenium, collect comments from some digital media. Apply t
 
 Depending on the results obtained, complete the dataset from step 2.ii with the new comments and compare the results again.
 
-R Code:
+- R Code:
 
 Web_scraping_RSelenium_periodicos_online<br>
 hate_speech_03_not_labelled_too_many_positives.Rmd<br>
