@@ -25,7 +25,7 @@ https://www.kaggle.com/datasets/wajidhassanmoosa/multilingual-hatespeech-dataset
 
 Código R:
 
-hate_speech_01.Rmd
+- hate_speech_01.Rmd
 
 
 ### Fase 2 - Aplicación de SVM
@@ -39,10 +39,10 @@ iii) Comparar los resultados de i) y ii)
 
 Código R:
 
-hate_speech_02_hatemedia.Rmd
-hate_speech_02_huggingface.Rmd
-hate_speech_02_kaggle.Rmd
-hate_speech_common.Rmd
+hate_speech_02_hatemedia.Rmd<br>
+hate_speech_02_huggingface.Rmd<br>
+hate_speech_02_kaggle.Rmd<br>
+hate_speech_common.Rmd<br>
 
 
 
@@ -57,12 +57,12 @@ y volver a comparar resultados.
 
 Código R:
 
-Web_scraping_RSelenium_periodicos_online
-hate_speech_03_not_labelled_too_many_positives.Rmd
-hate_speech_03_not_labelled.Rmd
-hate_speech_03_not_labelled_ALL_100k.Rmd
-hate_speech_03_not_labelled_ALL_600k.Rmd
-hate_speech_03_common.Rmd
+Web_scraping_RSelenium_periodicos_online<br>
+hate_speech_03_not_labelled_too_many_positives.Rmd<br>
+hate_speech_03_not_labelled.Rmd<br>
+hate_speech_03_not_labelled_ALL_100k.Rmd<br>
+hate_speech_03_not_labelled_ALL_600k.Rmd<br>
+hate_speech_03_common.Rmd<br>
 
 
 
@@ -100,10 +100,10 @@ iii) Compare the results of i) and ii)
 
 R Code:
 
-hate_speech_02_hatemedia.Rmd
-hate_speech_02_huggingface.Rmd
-hate_speech_02_kaggle.Rmd
-hate_speech_common.Rmd
+hate_speech_02_hatemedia.Rmd<br>
+hate_speech_02_huggingface.Rmd<br>
+hate_speech_02_kaggle.Rmd<br>
+hate_speech_common.Rmd<br>
 
 
 ### Phase 3 - Collection of Unlabeled Comments
@@ -114,10 +114,10 @@ Depending on the results obtained, complete the dataset from step 2.ii with the 
 
 R Code:
 
-Web_scraping_RSelenium_periodicos_online
-hate_speech_03_not_labelled_too_many_positives.Rmd
-hate_speech_03_not_labelled.Rmd
-hate_speech_03_not_labelled_ALL_100k.Rmd
-hate_speech_03_not_labelled_ALL_600k.Rmd
-hate_speech_03_common.Rmd
+Web_scraping_RSelenium_periodicos_online<br>
+hate_speech_03_not_labelled_too_many_positives.Rmd<br>
+hate_speech_03_not_labelled.Rmd<br>
+hate_speech_03_not_labelled_ALL_100k.Rmd<br>
+hate_speech_03_not_labelled_ALL_600k.Rmd<br>
+hate_speech_03_common.Rmd<br>
 
