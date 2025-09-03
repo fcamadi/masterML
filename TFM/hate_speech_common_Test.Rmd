@@ -1,0 +1,161 @@
+---
+title: "hate_speech_common_Test"
+author: "Fran Camacho"
+date: "2025-09-02"
+output: html_document
+---
+
+
+R Packages (2e) - 13 Testing basics:
+
+https://r-pkgs.org/testing-basics.html
+
+testhat:
+
+https://testthat.r-lib.org/
+
+
+
+
+```{r}
+if (!require(testthat)) install.packages('testthat', dependencies = T)   # tests
+library(testthat)
+```
+
+
+```{r}
+print(getwd())
+```
+
+
+```{r message=FALSE}
+source('hate_speech_common.R')
+
+load_libraries()
+```
+
+  
+  
+### Tests for preprocess_posts():
+
+```{r}
+df_ok <- data.frame(post = c("1234", "ABCD"), stringsAsFactors = FALSE)
+df_raw_ok <- data.frame(post = c("Hello @user", "anything"), stringsAsFactors = FALSE)
+```
+
+
+```{r}
+test_that("preprocess_posts needs data.frames but gets other", {
+
+  # df_raw not a data.frame
+  expect_error(preprocess_posts(df_ok, "no_df_raw"))
+  
+  # none parameter is a data.frame
+  expect_error(preprocess_posts("x", 1))
+})
+```
+
+
+### Tests for clean_corpus():
+
+```{r}
+test_that("clean_corpus gets VCorpus", {
+  
+  # valid VCorpus
+  txt <- c("Hola Mundo", "Otro mensaje")
+  vc <- VCorpus(VectorSource(txt))
+  res <- clean_corpus(vc)
+  
+  expect_s3_class(vc, "VCorpus")
+  expect_s3_class(res, "VCorpus")
+})
+```
+
+```{r}
+test_that("clean_corpus gets wrong parameter", {
+  
+  # wrong types
+  expect_error(clean_corpus("no_corpus"), "ERROR: 'corpus' must be a VCorpus. Exiting.")
+  expect_error(clean_corpus(data.frame(post = "anything")), "ERROR: 'corpus' must be a VCorpus. Exiting.")
+})
+```
+
+
+### Tests for train_test_split():
+
+```{r}
+# Sample data for testing
+df_no_label <- data.frame(post = c("Abracadabra pata de cabra", 
+                                   "Bucéfalo es el nombre de un caballo", 
+                                   "Al otro lado del río", 
+                                   "El niño idiota juega con una cometa", 
+                                   "El déficit es preocupante", 
+                                   "Es como un elefante en una tienda de porcelna"),
+                 stringsAsFactors = FALSE)
+
+df <- df_no_label
+df$label <- c(0,0,0,1,0,0)
+
+dtm <- DocumentTermMatrix(Corpus(VectorSource(c("texto uno", "Todo es falso", "Menos alguna cosa", 
+                                                "La parte contratante", "Solo sé que no sé nada", "Yo soy inocente"))))
+```
+
+
+```{r}
+#result <- train_test_split(df, dtm, 0.75)
+```
+
+
+```{r}
+test_that("train_test_split function works correctly with valid inputs", { 
+ 
+  result <- train_test_split(df, dtm, 0.75)
+
+  expect_s3_class(result$dtm_train, "DocumentTermMatrix")
+  expect_s3_class(result$dtm_test, "DocumentTermMatrix")
+  expect_equal(length(result$train_labels), nrow(as.matrix(result$dtm_train)))
+  expect_equal(length(result$test_labels), nrow(as.matrix(result$dtm_test)))
+  
+})
+```
+
+```{r}
+test_that("train_test_split function exits immediatelly when it receives wrong parameters", {
+  
+  # invalid df input
+  expect_error(train_test_split("not_a_dataframe", dtm, 0.75), "ERROR: 'df' must be a data frame.")
+
+  # invalid dtm input
+  expect_error(train_test_split(df, "not_a_dtm", 0.75), "ERROR: 'dtm' must be a DocumentTermMatrix.")
+  
+  # invalid percentages
+  expect_error(train_test_split(df, dtm, -0.5), "ERROR: 'percentage' must be a numeric value between 0 and 1.")
+  expect_error(train_test_split(df, dtm, 1.5), "ERROR: 'percentage' must be a numeric value between 0 and 1.")
+  
+  # missing label column
+  expect_error(train_test_split(df_no_label, dtm, 0.75), "ERROR: 'df' must contain a 'label' column.")
+})
+```
+
+
+### Tests for creat_sparse_mat_in_chunks()
+
+```{r}
+# Sample data
+dtm <- DocumentTermMatrix(Corpus(VectorSource(c("texto uno", "Todo es falso", "Menos alguna cosa", 
+                                                "La parte contratante", "Solo sé que no sé nada", "Yo soy inocente"))))
+```
+
+
+```{r}
+test_that("creat_sparse_mat_in_chunks function exits immediatelly when it receives wrong parameters", {
+  
+  # invalid dtm input
+  expect_error(creat_sparse_mat_in_chunks(df, 1000), "ERROR: 'dtm' must be a DocumentTermMatrix.")
+  
+  # invalid chunk sizes
+  expect_error(creat_sparse_mat_in_chunks(dtm, 0), "ERROR: 'chunk_size' must be a numeric value between 100 and 20000.")
+  expect_error(creat_sparse_mat_in_chunks(dtm, 30000), "ERROR: 'chunk_size' must be a numeric value between 100 and 20000.")
+  
+})
+```
