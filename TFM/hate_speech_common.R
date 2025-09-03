@@ -65,12 +65,18 @@ load_libraries <- function() {
 ################################################################################
 preprocess_posts <- function(df, df_raw) {
   
-  #remove references to other users
+  # Check parameters are data frames
+  if (!is.data.frame(df_raw)) {
+    stop("ERROR: Parameter 'df_raw' must be a data frame. Exiting.")
+    return(invisible(NULL))
+  }
+  
+  # Remove references to other users
   df_raw$post <- gsub("@\\w+", "", df_raw$post) 
   df_raw$post <- gsub("@ \\w+", "", df_raw$post) 
   print("Removed references to users (@).")
   
-  #remove non ascii characters and emoticons using textclean
+  # Remove non ascii characters and emoticons using textclean
   df <- df_raw
   df$post <- df_raw$post |> 
     replace_non_ascii() |> 
@@ -85,7 +91,6 @@ preprocess_posts <- function(df, df_raw) {
 }
 
 
-
 ################################################################################
 #                                                                              #
 #  Clean corpus                                                                #
@@ -93,7 +98,12 @@ preprocess_posts <- function(df, df_raw) {
 ################################################################################
 clean_corpus <- function(corpus) { 
 
-
+  # Check parameter is a VCorpus
+  if (!inherits(corpus, "VCorpus")) {
+    stop("ERROR: 'corpus' must be a VCorpus. Exiting.")
+    return(invisible(NULL))
+  }
+  
   print("#To lowercase") 
   posts_corpus_clean <- tm_map(corpus, content_transformer(tolower))
   
@@ -124,6 +134,27 @@ clean_corpus <- function(corpus) {
 #                                                                              #
 ################################################################################
 train_test_split  <- function(df, dtm, percentage) {
+  
+  # Check input parameters
+  if (!is.data.frame(df)) {
+    stop("ERROR: 'df' must be a data frame.")
+    return(invisible(NULL))
+  }
+  
+  if (!inherits(dtm, "DocumentTermMatrix")) {
+    stop("ERROR: 'dtm' must be a DocumentTermMatrix. Exiting")
+    return(invisible(NULL))
+  }
+  
+  if (!is.numeric(percentage) || percentage <= 0 || percentage >= 1) {
+    stop("ERROR: 'percentage' must be a numeric value between 0 and 1. Exiting")
+    return(invisible(NULL))
+  }
+  
+  # Check there is a column label
+  if (!"label" %in% colnames(df)) {
+    stop("ERROR: 'df' must contain a 'label' column.")
+  }
   
   #Set seed to make the process reproducible
   set.seed(123)
@@ -162,6 +193,17 @@ train_test_split  <- function(df, dtm, percentage) {
 ################################################################################
 creat_mat_in_chunks <- function(dtm, chunk_size) {
   
+  # Check input parameters
+  if (!inherits(dtm, "DocumentTermMatrix")) {
+    stop("ERROR: 'dtm' must be a DocumentTermMatrix. Exiting")
+    return(invisible(NULL))
+  }
+  
+  if (!is.numeric(chunk_size) || chunk_size <= 100 || chunk_size >= 20000) {
+    stop("ERROR: 'chunk_size' must be a numeric value between 100 and 20000. Exiting")
+    return(invisible(NULL))
+  }
+  
   n_docs     <- nrow(dtm)
   n_chunks   <- ceiling(n_docs / chunk_size)
   
@@ -197,6 +239,17 @@ creat_mat_in_chunks <- function(dtm, chunk_size) {
 #                                                                              #
 ################################################################################
 creat_sparse_mat_in_chunks <- function(dtm, chunk_size) {
+  
+  # Check input parameters
+  if (!inherits(dtm, "DocumentTermMatrix")) {
+    stop("ERROR: 'dtm' must be a DocumentTermMatrix. Exiting")
+    return(invisible(NULL))
+  }
+  
+  if (!is.numeric(chunk_size) || chunk_size <= 100 || chunk_size >= 20000) {
+    stop("ERROR: 'chunk_size' must be a numeric value between 100 and 20000. Exiting")
+    return(invisible(NULL))
+  }
   
   n_docs     <- nrow(dtm)
   n_chunks   <- ceiling(n_docs / chunk_size)
@@ -239,7 +292,8 @@ grid_search <- function(posts_freq_train_mat, training_labels, test_labels,
     print("Doing grid search ...")  
   } else {
     print("Wrong type parameter. Allowed values to use SVM: 1,2,3,5")
-    return()
+    stop("ERROR: Wrong type parameter. Allowed values to use SVM: 1,2,3,5. Exiting")
+    #return()
   }
   
   
