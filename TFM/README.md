@@ -42,8 +42,9 @@ iii) Comparar los resultados de i) y ii)
 hate_speech_02_hatemedia.Rmd<br>
 hate_speech_02_huggingface.Rmd<br>
 hate_speech_02_kaggle.Rmd<br>
+hate_speech_02_all_datasets.Rmd<br>
+hate_speech_02_all_datasets_100K.Rmd<br>
 hate_speech_common.Rmd<br>
-
 
 
 ### Fase 3 - Clasificación de comentarios nuevos no etiquetados
@@ -104,6 +105,8 @@ iii) Compare the results of i) and ii)
 hate_speech_02_hatemedia.Rmd<br>
 hate_speech_02_huggingface.Rmd<br>
 hate_speech_02_kaggle.Rmd<br>
+hate_speech_02_all_datasets.Rmd<br>
+hate_speech_02_all_datasets_100K.Rmd<br>
 hate_speech_common.Rmd<br>
 
 
