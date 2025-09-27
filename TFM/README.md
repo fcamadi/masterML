@@ -66,8 +66,15 @@ hate_speech_03_not_labelled_ALL_600k.Rmd<br>
 hate_speech_03_common.Rmd<br>
 
 
+### Documento
 
-## TFM - Detection of Hate Speech in Online Media Using the SVM Algorithm
+TFM_detección_lenguaje_odio_medios_online_SVM.pdf:
+
+TFM/PDF/TFM_detección_lenguaje_odio_medios_online_SVM.pdf
+
+
+
+## TFM - Hate Speech Detection in Online Media Using the SVM Algorithm
 
 ### Phase 1: Collection of Labeled Datasets
 
@@ -125,3 +132,9 @@ hate_speech_03_not_labelled_ALL_100k.Rmd<br>
 hate_speech_03_not_labelled_ALL_600k.Rmd<br>
 hate_speech_03_common.Rmd<br>
 
+
+### Document
+
+TFM_Hate_Speech_Detection_in_Online_Media_Using_SVM_EN-UK.pdf:
+
+TFM/PDF/TFM_Hate_Speech_Detection_in_Online_Media_Using_SVM_EN-UK.pdf
