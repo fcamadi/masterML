@@ -1,6 +1,7 @@
 # Máster UNED en Machine Learning – Curso 2024-2025
 
-(English version below)
+- English version below
+- Deutsche Version unten
 
 ## TFM - Detección de lenguaje de odio en los medios online mediante el algoritmo SVM
 
@@ -138,3 +139,71 @@ hate_speech_03_common.Rmd<br>
 TFM_Hate_Speech_Detection_in_Online_Media_Using_SVM_EN-UK.pdf:
 
 TFM/PDF/TFM_Hate_Speech_Detection_in_Online_Media_Using_SVM_EN-UK.pdf
+
+
+## TFM - Erkennung von Hassrede in Online-Medien mithilfe des SVM Algorithmus
+
+### Phase 1: Sammlung beschrifteter Datensätze
+
+Da SVM ein überwachter Lernalgorithmus ist, benötigt er einen Satz von Eingabedaten, die bereits beschriftet sind,
+um trainiert zu werden. Dafür wurden die folgenden öffentlichen Datensätze gefunden:
+
+i) Hatemedia Project - https://hatemedia.es/
+
+dataset: https://doi.org/10.6084/m9.figshare.26085700.v1
+
+ii) HuggingFace
+
+https://huggingface.co/datasets/manueltonneau/spanish-hate-speech-superset
+
+iii) Kaggle
+
+https://www.kaggle.com/datasets/wajidhassanmoosa/multilingual-hatespeech-dataset
+
+
+- R Quellcode:
+
+hate_speech_01.Rmd
+
+
+### Phase 2 - Anwendung von SVM
+
+i) Training SVM mit jedem der oben genannten Datensätze.
+
+ii) Erstellung eines Gesamtdatensatzes, der die 3 Datensätze enthält, und Training der SVM damit.
+
+iii) Vergleich der Ergebnisse von i) und ii).
+
+- R Quellcode:
+
+hate_speech_02_hatemedia.Rmd<br>
+hate_speech_02_huggingface.Rmd<br>
+hate_speech_02_kaggle.Rmd<br>
+hate_speech_02_all_datasets.Rmd<br>
+hate_speech_02_all_datasets_100K.Rmd<br>
+hate_speech_common.Rmd<br>
+
+
+### Phase 3 - Klassifizierung neuer unbeschrifteter Kommentare
+
+Mit einem Modul von RSelenium werden Kommentare von Lesern aus einigen digitalen Medien gesammelt. 
+Die zuvor trainierte SVM wird angewendet, um die neue Kommentare zu klassifizieren.
+
+Je nach den erhaltenen Ergebnissen wird der Datensatz aus Schritt 2.ii) mit den neuen Kommentaren vervollständigt,
+und die Ergebnisse werden erneut verglichen.
+
+- R Quellcode:
+
+Web_scraping_RSelenium_periodicos_online<br>
+hate_speech_03_not_labelled_too_many_positives.Rmd<br>
+hate_speech_03_not_labelled.Rmd<br>
+hate_speech_03_not_labelled_ALL_100k.Rmd<br>
+hate_speech_03_not_labelled_ALL_600k.Rmd<br>
+hate_speech_03_common.Rmd<br>
+
+
+### Dokument
+
+TFM_Hassredeerkennung_in_online_Medien_mit_SVM_DE-DE.pdf:
+
+TFM/PDF/TFM_Hassredeerkennung_in_online_Medien_mit_SVM_DE-DE.pdf
