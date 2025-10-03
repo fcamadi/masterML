@@ -1,13 +1,12 @@
 # Máster UNED en Machine Learning – Curso 2024-2025
 
-- English version below: 
+- English version below: <br>
 https://github.com/fcamadi/masterML/tree/main/TFM#tfm---hate-speech-detection-in-online-media-using-the-svm-algorithm
 <br>
-- Deutsche Version unten:
+- Deutsche Version unten:<br>
 https://github.com/fcamadi/masterML/tree/main/TFM#tfm---erkennung-von-hassrede-in-online-medien-mithilfe-des-svm-algorithmus
-<br>
 
-<br>
+
 ## TFM - Detección de lenguaje de odio en los medios online mediante el algoritmo SVM
 
 ### Fase 1: recolección de datasets etiquetados
@@ -77,9 +76,8 @@ hate_speech_03_common.Rmd<br>
 TFM_detección_lenguaje_odio_medios_online_SVM.pdf:
 
 TFM/PDF/TFM_detección_lenguaje_odio_medios_online_SVM.pdf
+<br>
 
-<br>
-<br>
 ## TFM - Hate Speech Detection in Online Media Using the SVM Algorithm
 
 ### Phase 1: Collection of Labeled Datasets
@@ -144,9 +142,8 @@ hate_speech_03_common.Rmd<br>
 TFM_Hate_Speech_Detection_in_Online_Media_Using_SVM_EN-UK.pdf:
 
 TFM/PDF/TFM_Hate_Speech_Detection_in_Online_Media_Using_SVM_EN-UK.pdf
+<br>
 
-<br>
-<br>
 ## TFM - Erkennung von Hassrede in Online-Medien mithilfe des SVM Algorithmus
 
 ### Phase 1: Sammlung beschrifteter Datensätze
